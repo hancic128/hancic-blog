@@ -1,6 +1,8 @@
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod models;
+pub mod services;
 
 use crate::config::Config;
 use crate::error::AppError;
