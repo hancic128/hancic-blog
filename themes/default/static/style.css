@@ -603,3 +603,55 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 /* 更新日历距导航的紧凑间距 */
 .heatmap-section { margin-top: .5rem; }
 .heatmap-section .section-title { margin-top: 1.2rem; }
+
+/* ===== 两栏布局（正文 + 右侧栏） ===== */
+.layout-two-col { display: grid; grid-template-columns: 1fr 260px; gap: 3rem; align-items: start; }
+.layout-main { min-width: 0; }
+.layout-side { position: sticky; top: 2rem; display: flex; flex-direction: column; gap: 1.75rem; }
+.side-card { }
+.side-title { font-size: .85rem; font-weight: 700; letter-spacing: .02em;
+  color: var(--muted); text-transform: uppercase; margin: 0 0 .75rem;
+  padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+.side-toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.side-toc a { color: var(--fg); text-decoration: none; font-size: .9rem; line-height: 1.5; }
+.side-toc a:hover { color: var(--accent); }
+.side-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+.side-months { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem;
+  max-height: 300px; overflow-y: auto; }
+.side-months a { color: var(--muted); text-decoration: none; font-size: .88rem; }
+.side-months a:hover { color: var(--accent); }
+.archive-clear { font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: .6rem; }
+@media (max-width: 1024px) {
+  .layout-two-col { grid-template-columns: 1fr; gap: 1.5rem; }
+  .layout-side { position: static; order: -1; flex-direction: row; flex-wrap: wrap; gap: 1rem 2rem; }
+  .side-card { flex: 1 1 200px; }
+}
+
+/* ===== 更新日历 tooltip（hover 显示日期+记录详情） ===== */
+.heat-cell { position: relative; }
+.heat-cell::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%) translateY(4px); background: var(--fg); color: var(--bg);
+  font-size: .72rem; line-height: 1.5; padding: .4rem .7rem; border-radius: 6px;
+  white-space: pre-line; min-width: 180px; max-width: 260px; opacity: 0; pointer-events: none;
+  z-index: 30; transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.heat-cell::before { content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--fg);
+  opacity: 0; z-index: 30; transition: opacity .15s; }
+.heat-cell:hover::after, .heat-cell:hover::before { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (hover: none) { .heat-cell::after, .heat-cell::before { display: none; } }
+
+/* ===== 最近说说：时间线 + 每条折叠 ===== */
+.moment-timeline { border-left: 2px solid var(--border); margin-left: 4px;
+  padding-left: 1.1rem; display: flex; flex-direction: column; gap: 1.1rem; }
+.moment-item { position: relative; }
+.moment-dot { position: absolute; left: -1.42rem; top: .35rem; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 2px var(--accent); }
+.moment-body summary { cursor: pointer; list-style: none; display: flex; align-items: baseline;
+  gap: .6rem; }
+.moment-body summary::-webkit-details-marker { display: none; }
+.moment-time { font-size: .78rem; color: var(--muted); flex-shrink: 0; }
+.moment-preview { font-size: .9rem; color: var(--muted); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.moment-body[open] .moment-preview { display: none; }
+.moment-full { margin: .5rem 0 0; font-size: .95rem; line-height: 1.7; }

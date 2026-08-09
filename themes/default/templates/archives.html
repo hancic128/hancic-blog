@@ -1,4 +1,4 @@
-{# 文章归档：顶部标签云 + 全部已发布文章分页列表 #}
+{# 文章归档：标签云 + 月份筛选 + 文章分页列表 #}
 {% include "partials/header.html" %}
 {% if all_tags %}
 <section class="tag-cloud-section">
@@ -11,7 +11,10 @@
 </section>
 {% endif %}
 <section class="post-list">
-  <h3 class="section-title">全部文章</h3>
+  <h3 class="section-title">
+    {% if current_month %}「{{ current_month }}」的文章{% else %}全部文章{% endif %}
+    {% if current_month %}<a class="archive-clear" href="/archives">清除筛选</a>{% endif %}
+  </h3>
   {% include "partials/post_list.html" %}
 </section>
 {% include "partials/pagination.html" %}

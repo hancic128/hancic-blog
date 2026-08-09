@@ -370,6 +370,7 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
             post_type: Some(PostType::Post),
             category_slug: None,
             tag_slug: None,
+            month: None,
             page: 1,
             page_size: DASHBOARD_DRAFT_LIMIT,
         },

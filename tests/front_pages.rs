@@ -158,7 +158,7 @@ async fn homepage_has_heatmap_activity_and_more_link() {
     assert_eq!(res.status(), StatusCode::OK);
     let html = String::from_utf8(axum::body::to_bytes(res.into_body(), 1024*1024).await.unwrap().to_vec()).unwrap();
     assert!(html.contains("heatmap"), "首页应含更新日历");
-    assert!(html.contains("moment-stream"), "首页应含最近说说");
+    assert!(html.contains("moment-timeline"), "首页应含最近说说时间线");
     assert!(html.contains("查看更多文章"), "首页应有查看更多链接");
     assert!(html.contains("标签甲"), "列表项应显示标签");
 }

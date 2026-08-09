@@ -62,6 +62,7 @@ pub async fn list(
                 post_type: Some(PostType::Post),
                 category_slug: category_slug.clone(),
                 tag_slug: None,
+                month: None,
                 page,
                 page_size: PAGE_SIZE,
             },

@@ -1,49 +1,75 @@
-{# 首页：更新日历 + 最近说说 + 最新文章 #}
+{# 首页：更新日历 + 最近说说 + 最新文章（右侧目录） #}
 {% include "partials/header.html" %}
+<div class="layout-two-col">
 
-{# 1. 更新日历（近一年，GitHub Contribution 风格） #}
-{% if calendar %}
-<section class="heatmap-section">
-  <h3 class="section-title">更新日历 <small>近一年发布/更新动态</small></h3>
-  <div class="heatmap">
-    {% for week in calendar %}
-    <div class="heatmap-col">
-      {% for day in week %}
-      <span class="heat-cell l{{ day.level }}" title="{{ day.tip }}"></span>
-      {% endfor %}
+  <main class="layout-main">
+    {# 1. 更新日历（近一年，GitHub Contribution 风格，hover 显示动态详情） #}
+    {% if calendar %}
+    <section class="heatmap-section">
+      <h3 class="section-title">更新日历 <small>近一年发布/更新动态</small></h3>
+      <div class="heatmap">
+        {% for week in calendar %}
+        <div class="heatmap-col">
+          {% for day in week %}
+          <span class="heat-cell l{{ day.level }}" data-tip="{{ day.tip }}"
+                aria-label="{{ day.tip }}"></span>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="heat-legend">
+        <span>少</span>
+        {% for i in [0,1,2,3,4] %}<span class="heat-cell l{{ i }}"></span>{% endfor %}
+        <span>多</span>
+      </div>
+    </section>
+    {% endif %}
+
+    {# 2. 最近说说（时间线，每条可折叠） #}
+    {% if moments %}
+    <section class="activity-section">
+      <h3 class="section-title">最近说说</h3>
+      <div class="moment-timeline">
+        {% for m in moments %}
+        <article class="moment-item">
+          <span class="moment-dot"></span>
+          <details class="moment-body" {% if loop.index <= 2 %}open{% endif %}>
+            <summary>
+              <span class="moment-time">{{ m.created_at }}</span>
+              <span class="moment-preview">{{ m.content | truncate(length=40) }}</span>
+            </summary>
+            <p class="moment-full">{{ m.content }}</p>
+          </details>
+        </article>
+        {% endfor %}
+      </div>
+      <p class="more-link"><a href="/moments">更多说说 →</a></p>
+    </section>
+    {% endif %}
+
+    {# 3. 最新文章列表 #}
+    <section class="post-list">
+      <h3 class="section-title">最新文章</h3>
+      {% include "partials/post_list.html" %}
+      {% if post_total > 5 %}
+      <p class="more-link"><a href="/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
+      {% endif %}
+    </section>
+  </main>
+
+  {# 右侧目录 #}
+  <aside class="layout-side">
+    {% if posts %}
+    <div class="side-card">
+      <h4 class="side-title">文章目录</h4>
+      <ol class="side-toc">
+        {% for post in posts %}
+        <li><a href="{{ post.url }}">{{ post.title }}</a></li>
+        {% endfor %}
+      </ol>
     </div>
-    {% endfor %}
-  </div>
-  <div class="heat-legend">
-    <span>少</span>
-    {% for i in [0,1,2,3,4] %}<span class="heat-cell l{{ i }}"></span>{% endfor %}
-    <span>多</span>
-  </div>
-</section>
-{% endif %}
+    {% endif %}
+  </aside>
 
-{# 2. 最近说说 #}
-{% if moments %}
-<section class="activity-section">
-  <h3 class="section-title">最近说说</h3>
-  <div class="moment-stream">
-    {% for m in moments %}
-    <article class="moment-item">
-      <span class="moment-time">{{ m.created_at }}</span>
-      <p>{{ m.content }}</p>
-    </article>
-    {% endfor %}
-    <p class="more-link"><a href="/moments">更多说说 →</a></p>
-  </div>
-</section>
-{% endif %}
-
-{# 3. 最新文章列表 #}
-<section class="post-list">
-  <h3 class="section-title">最新文章</h3>
-  {% include "partials/post_list.html" %}
-  {% if post_total > 5 %}
-  <p class="more-link"><a href="/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
-  {% endif %}
-</section>
+</div>
 {% include "partials/footer.html" %}

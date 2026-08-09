@@ -56,6 +56,7 @@ pub async fn list(
             post_type: Some(PostType::Post),
             category_slug: query.get("category").filter(|s| !s.is_empty()).cloned(),
             tag_slug: query.get("tag").filter(|s| !s.is_empty()).cloned(),
+            month: None,
             page,
             page_size,
         },

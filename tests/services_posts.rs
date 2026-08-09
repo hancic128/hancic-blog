@@ -54,7 +54,7 @@ async fn list_published_only_and_paginate() {
     }
     let (items, total) = posts::list_posts(&pool, PostListOptions {
         status: Some(PostStatus::Published), post_type: None,
-        category_slug: None, tag_slug: None,
+        category_slug: None, tag_slug: None, month: None,
         page: 1, page_size: 2,
     }).await.unwrap();
     assert_eq!(total, 2);

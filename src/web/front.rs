@@ -124,6 +124,7 @@ async fn index(
                 post_type: Some(PostType::Post),
                 category_slug: None,
                 tag_slug: None,
+                month: None,
                 page: 1,
                 page_size: 5,
             },
@@ -143,16 +144,18 @@ async fn index(
     }
 }
 
-/// 文章归档页：全部已发布文章分页列表 + 顶部标签云。
+/// 文章归档页：全部已发布文章分页列表 + 顶部标签云；支持 `?month=YYYY-MM` 月份筛选。
 async fn archives_page(
     State(state): State<AppState>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
+    let month = query.get("month").filter(|m| !m.is_empty()).cloned();
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let mut ctx = listing_ctx(&state.db, page, None, None, preview.clone()).await?;
+        let mut ctx = listing_ctx(&state.db, page, None, None, month.clone(), preview.clone()).await?;
         let tags = taxonomy::list_tags(&state.db).await?;
+        let months = posts::month_list(&state.db).await?;
         ctx.insert(
             "all_tags",
             &json!(tags
@@ -160,6 +163,11 @@ async fn archives_page(
                 .map(|t| json!({ "slug": t.slug, "name": t.name }))
                 .collect::<Vec<_>>()),
         );
+        ctx.insert(
+            "months",
+            &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
+        );
+        ctx.insert("current_month", &month);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -202,6 +210,20 @@ async fn post_page(
         );
         ctx.insert("prev", &adjacent_value(prev.as_ref()));
         ctx.insert("next", &adjacent_value(next.as_ref()));
+        // 右侧栏：全部标签 + 月份归档
+        let all_tags = taxonomy::list_tags(&state.db).await?;
+        let months = posts::month_list(&state.db).await?;
+        ctx.insert(
+            "all_tags",
+            &json!(all_tags
+                .iter()
+                .map(|t| json!({ "slug": t.slug, "name": t.name }))
+                .collect::<Vec<_>>()),
+        );
+        ctx.insert(
+            "months",
+            &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
+        );
         record_view_once(&state, &post, &headers).await;
         Ok::<_, AppError>(ctx)
     }
@@ -328,7 +350,7 @@ async fn category_page(
             .await?
             .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;
         let mut ctx =
-            listing_ctx(&state.db, page_param(&query), Some(slug), None, preview.clone()).await?;
+            listing_ctx(&state.db, page_param(&query), Some(slug), None, None, preview.clone()).await?;
         ctx.insert(
             "category",
             &json!({ "slug": category.slug, "name": category.name }),
@@ -355,7 +377,7 @@ async fn tag_page(
             .find(|t| t.slug == slug)
             .ok_or_else(|| AppError::NotFound("标签不存在".into()))?;
         let mut ctx =
-            listing_ctx(&state.db, page_param(&query), None, Some(slug), preview.clone()).await?;
+            listing_ctx(&state.db, page_param(&query), None, Some(slug), None, preview.clone()).await?;
         ctx.insert("tag", &json!({ "slug": tag.slug, "name": tag.name }));
         Ok::<_, AppError>(ctx)
     }
@@ -463,6 +485,7 @@ async fn listing_ctx(
     page: i64,
     category_slug: Option<String>,
     tag_slug: Option<String>,
+    month: Option<String>,
     preview: Option<String>,
 ) -> AppResult<Context> {
     let (items, total) = posts::list_posts(
@@ -472,6 +495,7 @@ async fn listing_ctx(
             post_type: Some(PostType::Post),
             category_slug,
             tag_slug,
+            month,
             page,
             page_size: PAGE_SIZE,
         },

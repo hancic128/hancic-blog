@@ -46,6 +46,8 @@ pub struct PostListOptions {
     pub post_type: Option<PostType>,
     pub category_slug: Option<String>,
     pub tag_slug: Option<String>,
+    /// 月份筛选："YYYY-MM"（按 published_at 前缀）
+    pub month: Option<String>,
     pub page: i64,
     pub page_size: i64,
 }
@@ -206,6 +208,9 @@ fn build_list_where(opts: &PostListOptions) -> String {
              WHERE pt.post_id = posts.id AND t.slug = ?)",
         );
     }
+    if opts.month.is_some() {
+        sql.push_str(" AND substr(published_at, 1, 7) = ?");
+    }
     sql
 }
 
@@ -225,6 +230,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     if let Some(tag) = opts.tag_slug.as_deref() {
         count_q = count_q.bind(tag);
     }
+    if let Some(month) = opts.month.as_deref() {
+        count_q = count_q.bind(month);
+    }
     let total: i64 = count_q.fetch_one(db).await?.get(0);
 
     let item_sql = format!(
@@ -242,6 +250,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     }
     if let Some(tag) = opts.tag_slug.as_deref() {
         q = q.bind(tag);
+    }
+    if let Some(month) = opts.month.as_deref() {
+        q = q.bind(month);
     }
     q = q.bind(opts.page_size).bind((opts.page - 1) * opts.page_size);
     let rows = q.fetch_all(db).await?;
@@ -735,4 +746,17 @@ fn parse_ts(s: &str) -> chrono::DateTime<chrono::Utc> {
     chrono::DateTime::parse_from_rfc3339(s)
         .map(|d| d.with_timezone(&chrono::Utc))
         .unwrap_or_else(|_| chrono::DateTime::<chrono::Utc>::UNIX_EPOCH)
+}
+
+/// 月份归档列表：已发布文章按 `YYYY-MM` 去重倒序。
+pub async fn month_list(db: &Db) -> Result<Vec<String>, AppError> {
+    let months: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT substr(published_at, 1, 7) AS m FROM posts
+         WHERE status = 'published' AND post_type = 'post'
+           AND published_at IS NOT NULL
+         ORDER BY m DESC",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(months)
 }
