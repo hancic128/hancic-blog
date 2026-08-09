@@ -1,10 +1,10 @@
 //! 认证模块：管理员密码的 argon2id 哈希与校验，哈希存于 settings 表。
 
-use argon2::password_hash::{rand_core::OsRng, PasswordHash, SaltString};
-use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use crate::db::Db;
 use crate::error::AppError;
 use crate::services::settings;
+use argon2::password_hash::{PasswordHash, SaltString, rand_core::OsRng};
+use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 
 pub const PASSWORD_MIN_LEN: usize = 8;
 const SETTINGS_KEY: &str = "admin_password_hash";
@@ -38,4 +38,9 @@ pub async fn set_password(db: &Db, pw: &str) -> Result<(), AppError> {
     }
     let hash = hash_password(pw)?;
     settings::set(db, SETTINGS_KEY, &hash).await
+}
+
+/// 读取已存储的密码哈希（未设置密码时返回 None）。
+pub async fn get_password_hash(db: &Db) -> Result<Option<String>, AppError> {
+    settings::get(db, SETTINGS_KEY).await
 }
