@@ -1,0 +1,125 @@
+//! 后台说说管理：朋友圈式发布框（上传 + 缩略预览）与列表/删除。
+//!
+//! 鉴权约定同文章管理：GET 页面未登录 302 跳登录；POST 一律先 `require_admin`
+//! （未登录 401 JSON）再过 CSRF。列表取 `moments::list_moments` 分页 + 每条
+//! `list_moment_attachments` 拼缩略（图片 `<img src="/uploads/{path}">`，视频
+//! 图标，文件卡片）。发布框上传走 `/api/uploads`（session 鉴权），前端把返回的
+//! attachment id 追加进隐藏字段 `attachment_ids`（逗号分隔）随表单提交。
+
+use crate::error::AppError;
+use crate::models::{Attachment, Moment};
+use crate::services::moments;
+use crate::{session, AppState};
+use axum::extract::{Form, OriginalUri, Path, Query, State};
+use axum::response::Response;
+use serde_json::{Value, json};
+use std::collections::HashMap;
+use tower_sessions::Session;
+
+/// 列表每页条数。
+const PAGE_SIZE: i64 = 20;
+
+// ---------- 列表 ----------
+
+pub async fn list(
+    State(state): State<AppState>,
+    session: Session,
+    Query(query): Query<HashMap<String, String>>,
+    uri: OriginalUri,
+) -> Response {
+    if session::require_admin(&session).await.is_err() {
+        return super::redirect("/admin/login");
+    }
+    let page = query
+        .get("page")
+        .and_then(|p| p.parse::<i64>().ok())
+        .filter(|&p| p > 0)
+        .unwrap_or(1);
+    let (items, total) = match moments::list_moments(&state.db, page, PAGE_SIZE).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("后台说说列表查询失败: {e:?}");
+            (vec![], 0)
+        }
+    };
+    let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
+    ctx.insert("moments", &moment_list_value(&state, &items).await);
+    ctx.insert("total", &total);
+    ctx.insert("page", &page);
+    ctx.insert("total_pages", &((total + PAGE_SIZE - 1) / PAGE_SIZE).max(1));
+    super::render_admin(&state, "moments.html", &ctx)
+}
+
+/// 列表行 JSON：每条附上附件缩略信息（kind 供模板分支，url 指向前台 /uploads 静态路径）。
+async fn moment_list_value(state: &AppState, items: &[Moment]) -> Value {
+    let mut out = Vec::new();
+    for m in items {
+        let atts = moments::list_moment_attachments(&state.db, m.id)
+            .await
+            .unwrap_or_default();
+        out.push(json!({
+            "id": m.id,
+            "content": m.content,
+            "created_at": super::format_local(m.created_at),
+            "attachments": atts
+                .iter()
+                .map(|(a, _)| attachment_value(a))
+                .collect::<Vec<_>>(),
+        }));
+    }
+    json!(out)
+}
+
+fn attachment_value(a: &Attachment) -> Value {
+    json!({
+        "kind": a.kind.to_str(),
+        "orig_name": a.orig_name,
+        "url": format!("/uploads/{}", a.path),
+    })
+}
+
+// ---------- 发布 ----------
+
+pub async fn create(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<HashMap<String, String>>,
+) -> Result<Response, AppError> {
+    session::require_admin(&session).await?;
+    session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
+    let content = form.get("content").cloned().unwrap_or_default();
+    // attachment_ids 逗号分隔，过滤空段与非法 id
+    let attachment_ids = form
+        .get("attachment_ids")
+        .map(String::as_str)
+        .unwrap_or("")
+        .split(',')
+        .filter_map(|s| s.trim().parse::<i64>().ok())
+        .collect::<Vec<_>>();
+    match moments::create_moment(&state.db, &content, &attachment_ids).await {
+        Ok(_) => Ok(super::redirect("/admin/moments")),
+        Err(e) => {
+            tracing::error!("创建说说失败: {e:?}");
+            Ok(super::redirect("/admin/moments"))
+        }
+    }
+}
+
+// ---------- 删除 ----------
+
+pub async fn delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+    Form(form): Form<HashMap<String, String>>,
+) -> Result<Response, AppError> {
+    session::require_admin(&session).await?;
+    session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
+    match moments::delete_moment(&state.db, id).await {
+        Ok(()) => Ok(super::redirect("/admin/moments")),
+        Err(e) => {
+            tracing::error!("删除说说失败: {e:?}");
+            Ok(super::redirect("/admin/moments"))
+        }
+    }
+}

@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}说说管理{% endblock %}
+{% block content %}
+<h1>说说管理</h1>
+
+<div class="panel">
+  <form id="moment-form" method="post" action="/admin/moments">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="moment-content">发布说说</label>
+      <textarea id="moment-content" name="content" rows="4" placeholder="这一刻的想法…"></textarea>
+    </div>
+    <div id="moment-picks" class="moment-picks"></div>
+    <div class="form-actions">
+      <input id="moment-file" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden>
+      <button class="btn" id="moment-upload-btn" type="button">添加图片/视频</button>
+      <button class="btn btn-primary" type="submit">发布</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  {% if moments %}
+    {% for m in moments %}
+    <article class="moment-admin" id="moment-{{ m.id }}">
+      <p class="moment-admin-content">{{ m.content }}</p>
+      {% if m.attachments %}
+      <div class="moment-admin-thumbs">
+        {% for att in m.attachments %}
+          {% if att.kind == "image" %}
+          <img class="moment-admin-thumb" src="{{ att.url }}" alt="{{ att.orig_name }}" loading="lazy">
+          {% elif att.kind == "video" %}
+          <a class="moment-admin-badge" href="{{ att.url }}" target="_blank" title="{{ att.orig_name }}">视频</a>
+          {% else %}
+          <a class="moment-admin-badge" href="{{ att.url }}" target="_blank" download title="{{ att.orig_name }}">{{ att.orig_name }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="moment-admin-meta">
+        <time class="muted">{{ m.created_at }}</time>
+        <form class="inline-form" method="post" action="/admin/moments/{{ m.id }}/delete" data-confirm="确认删除这条说说？">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+    <p class="muted">共 {{ total }} 条</p>
+  {% else %}
+  <p class="empty">暂无说说</p>
+  {% endif %}
+</div>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+  <a class="btn btn-sm" href="?page={{ page - 1 }}">上一页</a>
+  {% endif %}
+  <span class="muted">{{ page }} / {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a class="btn btn-sm" href="?page={{ page + 1 }}">下一页</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 说说发布框：选文件 → POST /api/uploads（hancicFetch 自动带 CSRF 头）
+// → 拿 attachment id 追加隐藏字段 + 缩略图预览。拖拽上传留 T24 E2E。
+(function () {
+  'use strict';
+  var form = document.getElementById('moment-form');
+  var fileInput = document.getElementById('moment-file');
+  var uploadBtn = document.getElementById('moment-upload-btn');
+  var picks = document.getElementById('moment-picks');
+  if (!form || !fileInput || !uploadBtn || !picks) return;
+
+  var ids = [];
+
+  uploadBtn.addEventListener('click', function () { fileInput.click(); });
+
+  fileInput.addEventListener('change', function () {
+    var files = Array.prototype.slice.call(fileInput.files || []);
+    if (!files.length) return;
+    var data = new FormData();
+    files.forEach(function (f) { data.append('files', f); });
+    window.hancicFetch('/api/uploads', { method: 'POST', body: data })
+      .then(function (res) { return res.json(); })
+      .then(function (json) {
+        if (!json.data || !json.data.length) return;
+        json.data.forEach(function (att) {
+          ids.push(att.id);
+          var el = document.createElement('span');
+          el.className = 'moment-pick';
+          el.title = att.orig_name;
+          if (att.kind === 'image') {
+            var img = document.createElement('img');
+            img.src = '/uploads/' + att.path;
+            img.alt = att.orig_name;
+            el.appendChild(img);
+          } else if (att.kind === 'video') {
+            el.textContent = '视频';
+          } else {
+            el.textContent = att.orig_name;
+          }
+          picks.appendChild(el);
+        });
+        syncHidden();
+        fileInput.value = '';
+      })
+      .catch(function () { /* 上传失败：静默，可重试 */ });
+  });
+
+  function syncHidden() {
+    var old = form.querySelector('input[name="attachment_ids"]');
+    if (old) old.remove();
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'attachment_ids';
+    input.value = ids.join(',');
+    form.appendChild(input);
+  }
+
+  form.addEventListener('submit', syncHidden);
+})();
+</script>
+{% endblock %}

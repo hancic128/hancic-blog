@@ -23,6 +23,7 @@ use std::net::SocketAddr;
 use tera::{Context, Tera};
 use tower_sessions::Session;
 
+pub mod moments;
 pub mod posts;
 
 /// 仪表盘最近草稿条数。
@@ -44,6 +45,8 @@ pub fn router() -> Router<AppState> {
         .route("/posts/{id}/update", post(posts::update))
         .route("/posts/{id}/delete", post(posts::delete))
         .route("/posts/{id}/autosave", post(posts::autosave))
+        .route("/moments", get(moments::list).post(moments::create))
+        .route("/moments/{id}/delete", post(moments::delete))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -57,6 +60,7 @@ pub fn build_tera() -> Tera {
         ("dashboard.html", include_str!("../../assets/admin_templates/dashboard.html")),
         ("posts_list.html", include_str!("../../assets/admin_templates/posts_list.html")),
         ("post_edit.html", include_str!("../../assets/admin_templates/post_edit.html")),
+        ("moments.html", include_str!("../../assets/admin_templates/moments.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera

@@ -227,6 +227,54 @@ h2 { font-size: 16px; margin: 0 0 14px; }
 .form-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
 .form-actions #save-status { margin-left: auto; }
 
+/* ---- 说说管理 ---- */
+.moment-picks { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+.moment-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.moment-pick img { display: block; width: 100%; height: auto; border-radius: 6px; }
+.moment-admin { border-bottom: 1px solid var(--border); padding: 14px 0; }
+.moment-admin:first-child { padding-top: 0; }
+.moment-admin:last-child { border-bottom: none; padding-bottom: 0; }
+.moment-admin-content { margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
+.moment-admin-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.moment-admin-thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.moment-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moment-admin-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
 /* ---- 响应式：≤768px 侧边栏变抽屉 ---- */
 @media (max-width: 768px) {
   .admin-side {
