@@ -5,7 +5,7 @@
   --bg: #fafafa;
   --fg: #09090b;
   --muted: #3f3f46;
-  --accent: #ec4899;
+  --accent: #be185d; /* 深粉：对 --bg(#FAFAFA) 实测 5.78:1，链接/交互文本达标 */
   --border: #e4e4e7;
   --primary: #18181b;
   --code-bg: #f4f4f5;

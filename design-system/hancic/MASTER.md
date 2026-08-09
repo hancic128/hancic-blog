@@ -225,3 +225,11 @@ Before delivering any UI code, verify:
 - [ ] Responsive: 375px, 768px, 1024px, 1440px
 - [ ] No content hidden behind fixed navbars
 - [ ] No horizontal scroll on mobile
+
+---
+
+## 主题落地角色映射（themes/default）
+
+- `--muted`（正文次级文本角色）取 **Secondary `#3F3F46`**（暗色 `#A1A1AA`），不使用 Muted `#E8ECF0`——后者在本主题中为浅色背景/占位角色，作文本对比度不足（约 1.3:1）。
+- 亮色 `--accent` 落地为 **`#BE185D`**（比 Accent `#EC4899` 更深），保证链接/交互文本对 `#FAFAFA` 实测 5.78:1 ≥ 4.5:1；暗色沿用 `#F472B6`（7.51:1）。
+- `--code-bg`（`#F4F4F5` / 暗色 `#18181B`）为**近似补充令牌**，设计系统未定义，用于代码块与日期徽标底色。

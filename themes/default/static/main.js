@@ -116,4 +116,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", initScrollReveal);
+  if (document.readyState !== "loading") {
+    initScrollReveal();
+  }
 })();
