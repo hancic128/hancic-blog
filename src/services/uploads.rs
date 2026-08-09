@@ -159,13 +159,27 @@ pub async fn save_upload_multipart(
 
 /// 图片压缩：最长边缩至 `max_edge`（只缩小不放大），JPEG 用 `quality` 质量重编码，
 /// PNG/WebP 保持原格式重编码，GIF 原样返回。
+///
+/// 解压炸弹防护（I6）：解码像素前先读声明尺寸（PNG IHDR / JPEG 头等，不解码像素），
+/// 最长边超 `max_edge * 4` 直接拒绝——高分辨率纯色图体积小但解码会 OOM。
 pub fn compress_image(
     path: &Path,
     data: &[u8],
     max_edge: u32,
     quality: u8,
 ) -> Result<Vec<u8>, AppError> {
-    let img = image::load_from_memory(data)
+    let (w, h) = image::ImageReader::new(std::io::Cursor::new(data))
+        .with_guessed_format()
+        .map_err(|e| AppError::BadRequest(format!("图片解码失败: {e}")))?
+        .into_dimensions()
+        .map_err(|e| AppError::BadRequest(format!("图片解码失败: {e}")))?;
+    if w.max(h) > max_edge * 4 {
+        return Err(AppError::BadRequest("图片尺寸过大".into()));
+    }
+    let img = image::ImageReader::new(std::io::Cursor::new(data))
+        .with_guessed_format()
+        .map_err(|e| AppError::BadRequest(format!("图片解码失败: {e}")))?
+        .decode()
         .map_err(|e| AppError::BadRequest(format!("图片解码失败: {e}")))?;
     let (w, h) = img.dimensions();
     let scaled = if w.max(h) > max_edge {

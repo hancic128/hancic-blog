@@ -29,6 +29,14 @@ jobs:
             [ -f assets/vendor/vditor.min.js ]
           }
 
+      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。cargo 不支持用
+      # --config 把 crates-io 替换回官方源（指向 index.crates.io 会报
+      # "source already defined"；replace-with 置空报 "no source with the name"），
+      # 故在 CI 移除该文件让 cargo 走官方 crates.io——与 Docker 构建一致
+      # （.dockerignore 已排除 .cargo/config.toml，见 Dockerfile）。
+      - name: 去除 rsproxy 镜像配置（CI 直连 crates.io）
+        run: rm -f .cargo/config.toml
+
       # 仓库存在既有 rustfmt 漂移（M125），cargo fmt --check 无法全绿且格式化属本地职责，
       # 故 CI 不跑 fmt；以 clippy -D warnings 兜底代码质量。
       - name: Clippy（-D warnings）

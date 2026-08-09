@@ -10,10 +10,12 @@ use crate::error::AppError;
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
+
+use super::{MAX_ENTRY_BYTES, MAX_TOTAL_BYTES};
 
 /// 备份 zip 内固定条目名。
 const DB_ENTRY: &str = "hancic.db";
@@ -132,10 +134,12 @@ pub async fn export_temp(data_dir: &Path) -> Result<(PathBuf, BackupReport), App
 
 /// 全量恢复：校验 zip 含 `hancic.db` + `meta.json` → 预检全部条目路径安全 →
 /// WAL checkpoint → 原数据目录改名 `<data_dir>.bak-<ts>` → 解包 `uploads/` /
-/// `themes/` / `config.toml` 并替换 db。
+/// `themes/` / `config.toml` 并替换 db → 对新库跑 `PRAGMA integrity_check`（失败
+/// 返回错误并提示用 .bak 回滚，I5）。
 ///
 /// 路径安全预检先于改名执行：恶意条目在动现有数据前即被拒绝（修复审查发现的
-/// zip-slip 反斜杠绕过，见 `entry_name_is_safe`）。
+/// zip-slip 反斜杠绕过，见 `entry_name_is_safe`）。解包按实际字节计数限流
+/// （单条目 500MB / 总量 2GB，I8），超限中止并提示回滚。
 ///
 /// zip 必须先打开再改名：备份包可能位于 data_dir 内（测试即如此），改名后
 /// 原路径失效，而 POSIX 下已打开的 fd 不受改名影响，可继续读取。
@@ -177,9 +181,12 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
     std::fs::create_dir_all(data_dir).map_err(internal)?;
 
     let mut report = RestoreReport {
-        backup_dir,
+        backup_dir: backup_dir.clone(),
         ..Default::default()
     };
+    // 解压炸弹防护（I8）：单条目/总量上限，超限即中止——此时已改名，调用方
+    // 需用 backup_dir 回滚（错误消息里带出该路径）。
+    let mut total_bytes: u64 = 0;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(internal)?;
         if entry.is_dir() {
@@ -228,7 +235,24 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
             std::fs::create_dir_all(parent).map_err(internal)?;
         }
         let mut out = std::fs::File::create(&target).map_err(internal)?;
-        std::io::copy(&mut entry, &mut out).map_err(internal)?;
+        // 按实际解压字节计数（Take 限流），防止 zip 内声明尺寸与真实不一致
+        let copied = std::io::copy(&mut entry.by_ref().take(MAX_ENTRY_BYTES + 1), &mut out)
+            .map_err(internal)?;
+        if copied > MAX_ENTRY_BYTES {
+            return Err(AppError::BadRequest(format!(
+                "备份条目 {name} 超过单条目上限（{MAX_ENTRY_BYTES} 字节），已中止；\
+                 原数据保留在 {}，可手动回滚",
+                backup_dir.display()
+            )));
+        }
+        total_bytes += copied;
+        if total_bytes > MAX_TOTAL_BYTES {
+            return Err(AppError::BadRequest(format!(
+                "备份解压总量超过上限（{MAX_TOTAL_BYTES} 字节），已中止；\
+                 原数据保留在 {}，可手动回滚",
+                backup_dir.display()
+            )));
+        }
         report.files += 1;
         if name.starts_with("uploads/") {
             report.uploads += 1;
@@ -240,7 +264,35 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
             report.config = true;
         }
     }
+    // 恢复后校验替换的新库（I5）：integrity_check 失败即返回错误，提示用 .bak 回滚
+    verify_restored_db(data_dir).await.map_err(|e| {
+        AppError::Internal(format!(
+            "{}（原数据保留在 {}，可手动回滚）",
+            e.message(),
+            backup_dir.display()
+        ))
+    })?;
     Ok(report)
+}
+
+/// 对替换后的新库跑 `PRAGMA integrity_check`：结果非 "ok" 视为校验失败。
+async fn verify_restored_db(data_dir: &Path) -> Result<(), AppError> {
+    let db_path = data_dir.join(DB_ENTRY);
+    if !db_path.is_file() {
+        return Err(AppError::BadRequest("备份包缺少 hancic.db".into()));
+    }
+    let pool = open_pool(&db_path).await?;
+    let result: String = sqlx::query_scalar("PRAGMA integrity_check")
+        .fetch_one(&pool)
+        .await
+        .map_err(internal)?;
+    pool.close().await;
+    if result.trim() != "ok" {
+        return Err(AppError::Internal(format!(
+            "恢复后的数据库完整性校验失败: {result}"
+        )));
+    }
+    Ok(())
 }
 
 /// 条目名安全校验（zip-slip 反斜杠绕过修复）：

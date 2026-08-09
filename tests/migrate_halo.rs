@@ -53,6 +53,33 @@ async fn import_creates_posts_and_local_images() {
     assert_eq!(report.images_failed, 0);
 }
 
+/// I7：同 slug 重复导入 → 第二次 posts_skipped=1、posts_created 不变，
+/// 不再自动加后缀重建重复文章。
+#[tokio::test]
+async fn import_same_slug_twice_skips_second() {
+    let cfg = test_config("migrate-dup");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    let zip_path = cfg.data_dir.join("halo-dup.zip");
+    build_fixture_zip(&zip_path);
+
+    let r1 = migrate::import_halo_zip(&pool, &cfg.data_dir, &zip_path, false)
+        .await
+        .unwrap();
+    assert_eq!(r1.posts_created, 1, "首次导入应创建 1 篇");
+
+    let r2 = migrate::import_halo_zip(&pool, &cfg.data_dir, &zip_path, false)
+        .await
+        .unwrap();
+    assert_eq!(r2.posts_created, 0, "重复导入不应再创建文章");
+    assert_eq!(r2.posts_skipped, 1, "重复 slug 应计入跳过");
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM posts")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 1, "库中应只有一篇文章");
+}
+
 #[tokio::test]
 async fn import_downloads_external_images_when_enabled() {
     use axum::http::header;

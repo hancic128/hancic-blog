@@ -10,9 +10,10 @@
 {% if result %}
 <section class="panel">
   <h2>恢复完成</h2>
-  <p class="muted">数据已从备份包恢复。原数据目录已整体改名保留在
+  <p class="muted">数据已从备份包恢复并通过完整性校验。原数据目录已整体改名保留在
     <code>{{ result.backup_dir }}</code>，确认无误后可手动删除。请<strong>重启服务</strong>
-    使数据库连接与主题渲染完全生效。</p>
+    使数据库连接与主题渲染完全生效，<strong>重启前请勿写入新数据</strong>（连接池仍指向
+    改名保留的旧库）。</p>
   <ul>
     <li>数据库（hancic.db）：{% if result.db %}已恢复{% else %}未包含{% endif %}</li>
     <li>配置文件（config.toml）：{% if result.config %}已恢复{% else %}备份包未包含{% endif %}</li>
@@ -39,7 +40,7 @@
   <h2>恢复备份</h2>
   <p class="error">恢复会用备份包<strong>覆盖当前全部数据</strong>；原数据目录将自动改名
     为 <code>&lt;数据目录&gt;.bak-&lt;时间戳&gt;</code> 保留，确认无误后可手动删除。
-    恢复完成后建议重启服务。</p>
+    恢复完成后请<strong>重启服务</strong>，重启前请勿写入新数据（连接池仍指向旧库）。</p>
   <form method="post" action="/admin/backup/restore" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">

@@ -101,6 +101,78 @@ async fn upload_rejects_oversize() {
     assert!(text.contains("大小上限"), "错误消息应含'大小上限': {text}");
 }
 
+/// I6：构造声明 30000x30000 的小体积 PNG（仅签名 + IHDR，合法 CRC，无像素数据）
+/// → 解码前尺寸检查直接拒绝 400「图片尺寸过大」，杜绝解压炸弹 OOM。
+#[tokio::test]
+async fn upload_rejects_oversized_dimensions() {
+    let (addr, client, _pool) = start_server("upload-bomb").await;
+    assert!(setup_password(&client, &addr).await, "应能设置密码并自动登录");
+
+    let png = fake_large_png(30000, 30000);
+    // 前置：声明尺寸能被读到（测试自身有效）
+    let dims = image::ImageReader::new(std::io::Cursor::new(png.clone()))
+        .with_guessed_format()
+        .unwrap()
+        .into_dimensions()
+        .expect("IHDR 应可解析出尺寸");
+    assert_eq!(dims, (30000, 30000), "测试前提：PNG 头部声明超大尺寸");
+
+    let form = reqwest::multipart::Form::new().part(
+        "files",
+        reqwest::multipart::Part::bytes(png)
+            .file_name("bomb.png")
+            .mime_str("image/png")
+            .unwrap(),
+    );
+    let res = client
+        .post(format!("http://{addr}/api/uploads"))
+        .multipart(form)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), reqwest::StatusCode::BAD_REQUEST);
+    let text = res.text().await.unwrap();
+    assert!(text.contains("图片尺寸过大"), "应提示图片尺寸过大: {text}");
+}
+
+/// 手工构造声明超大尺寸的小体积 PNG：签名 + IHDR（RGBA，bit depth 8，合法 CRC）、
+/// 最小 IDAT（zlib 头 + 空存储块，结构合法、不解码像素）。
+///
+/// `into_dimensions()` 只解析 IHDR/校验 chunk 结构，无需真实像素数据。
+fn fake_large_png(width: u32, height: u32) -> Vec<u8> {
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = 0xffff_ffffu32;
+        for &b in data {
+            crc ^= b as u32;
+            for _ in 0..8 {
+                let mask = (crc & 1).wrapping_neg();
+                crc = (crc >> 1) ^ (0xedb8_8320 & mask);
+            }
+        }
+        !crc
+    }
+    let mut out = Vec::new();
+    out.extend_from_slice(&[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    let mut ihdr = Vec::new();
+    ihdr.extend_from_slice(b"IHDR");
+    ihdr.extend_from_slice(&width.to_be_bytes());
+    ihdr.extend_from_slice(&height.to_be_bytes());
+    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]); // bit depth 8, 颜色类型 RGBA, 压缩/滤波/隔行默认
+    out.extend_from_slice(&13u32.to_be_bytes()); // IHDR 数据长度固定 13
+    out.extend_from_slice(&ihdr);
+    out.extend_from_slice(&crc32(&ihdr).to_be_bytes());
+    // IDAT：zlib 头 + 空存储块（BFINAL=1,BTYPE=00；LEN=0,NLEN=0xffff）+ adler32 占位
+    let idat = vec![0x78, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00];
+    out.extend_from_slice(&(idat.len() as u32).to_be_bytes());
+    out.extend_from_slice(b"IDAT");
+    out.extend_from_slice(&idat);
+    out.extend_from_slice(&crc32(&idat).to_be_bytes());
+    out.extend_from_slice(&0u32.to_be_bytes());
+    out.extend_from_slice(b"IEND");
+    out.extend_from_slice(&crc32(b"IEND").to_be_bytes());
+    out
+}
+
 /// 4000x3000 JPEG 经 compress_image(max_edge=2000, quality=85) →
 /// 输出 2000x1500 且字节更小。
 #[tokio::test]

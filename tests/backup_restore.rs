@@ -181,6 +181,44 @@ async fn restore_rejects_invalid_zip() {
     assert!(posts::get_post(&pool, 1).await.unwrap().is_some(), "恢复失败不应影响现有数据");
 }
 
+/// I5：恢复包内 hancic.db 内容损坏（合法 zip 骨架）→ 恢复后 `PRAGMA
+/// integrity_check` 失败 → restore 返回错误，提示用 .bak 回滚。
+#[tokio::test]
+async fn restore_rejects_corrupt_db() {
+    let cfg = test_config("backup-corrupt");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    posts::create_post(&pool, posts::NewPost {
+        title: "保留文章".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+
+    // 合法 zip 骨架 + 内容非法的 hancic.db
+    let mut buf = std::io::Cursor::new(Vec::new());
+    {
+        let mut writer = zip::ZipWriter::new(&mut buf);
+        writer
+            .start_file("hancic.db", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut writer, b"not-a-sqlite-db").unwrap();
+        writer
+            .start_file("meta.json", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut writer, br#"{"version":1}"#).unwrap();
+        writer.finish().unwrap();
+    }
+    let zip_path = cfg.data_dir.join("corrupt.zip");
+    std::fs::write(&zip_path, buf.into_inner()).unwrap();
+
+    let res = backup::restore(&cfg.data_dir, &zip_path).await;
+    assert!(res.is_err(), "损坏 db 的恢复应失败: {res:?}");
+    let msg = format!("{:?}", res.unwrap_err());
+    assert!(
+        msg.contains("完整性校验失败") || msg.contains("回滚"),
+        "错误消息应提示完整性校验失败/回滚: {msg}"
+    );
+}
+
 /// 回归（T22 审查 Critical）：zip-slip 反斜杠绕过。
 ///
 /// 恶意条目名 `uploads\..\..\evil.txt` 在 macOS/Linux 上词法无 `..` 组件，

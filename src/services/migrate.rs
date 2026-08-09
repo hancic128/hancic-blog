@@ -2,7 +2,8 @@
 //!
 //! 遍历 zip 内任意层级的 `*.md`：front-matter（手写解析 `---` 块，字段
 //! title/date/categories/tags/slug/type）→ 分类/标签 `ensure` → `create_post`
-//! （slug 冲突自动后缀；status=published；published_at 取 front-matter date）→
+//! （同 slug 查重跳过，不再自动后缀重建，I7；status=published；published_at 取
+//! front-matter date）→
 //! 正文图片管线（`![alt](url)` 收集）：zip 内相对路径图片解包走 `save_bytes`
 //! 落库，外部 http(s) 图片在 `download_images=true` 时用 reqwest 下载（30s
 //! 超时）；成功替换正文 URL 为 `/uploads/<path>`，失败记入报告不中断导入。
@@ -13,6 +14,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::{PostStatus, PostType};
 use crate::services::{posts, taxonomy, uploads};
+use super::{MAX_ENTRY_BYTES, MAX_TOTAL_BYTES};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, SecondsFormat, Utc};
 use serde::Serialize;
 
@@ -175,16 +177,34 @@ pub async fn import_halo_zip(
         download_images,
         client: &client,
     };
+    // 解压炸弹防护（I8）：md 条目与图片解包均按单条目 500MB / 总量 2GB 限流。
+    let mut total_bytes: u64 = 0;
     'posts: for idx in md_entries {
         let mut raw = String::new();
         // 块作用域收束 ZipFile 借用（其 Drop 会让 NLL 保持 archive 可变借用存活）
         let file_name = {
             let mut entry = archive.by_index(idx).map_err(internal)?;
             let file_name = entry.name().to_string();
-            if entry.read_to_string(&mut raw).is_err() {
-                report.failures.push(format!("{file_name}: 非 UTF-8 编码，跳过"));
+            let n = match entry.by_ref().take(MAX_ENTRY_BYTES + 1).read_to_string(&mut raw) {
+                Ok(n) => n,
+                Err(_) => {
+                    report.failures.push(format!("{file_name}: 非 UTF-8 编码，跳过"));
+                    report.posts_skipped += 1;
+                    continue;
+                }
+            };
+            if n as u64 > MAX_ENTRY_BYTES {
+                report
+                    .failures
+                    .push(format!("{file_name}: 单文件超过 500MB，跳过"));
                 report.posts_skipped += 1;
                 continue;
+            }
+            total_bytes += n as u64;
+            if total_bytes > MAX_TOTAL_BYTES {
+                return Err(AppError::BadRequest(
+                    "迁移包解压总量超过 2GB 上限，已中止".into(),
+                ));
             }
             file_name
         };
@@ -216,6 +236,13 @@ pub async fn import_halo_zip(
             .clone()
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| file_stem(&file_name));
+
+        // 同 slug 已存在 → 跳过（I7：不再自动加后缀重建，避免重复导入产生重复文章）
+        let slug = posts::slugify(&slug).await;
+        if posts::get_post_by_slug(db, &slug).await?.is_some() {
+            report.posts_skipped += 1;
+            continue;
+        }
 
         // 分类：第一个分类作为文章分类；标签全部 ensure。单篇 DB 错误记录
         // failures 并跳过该文件，不中断整个导入。
@@ -296,17 +323,18 @@ pub async fn import_halo_zip(
         }
 
         // 正文图片管线：替换 URL 后更新文章（失败不中断，post 已创建）
-        let new_content = match process_images(&img_ctx, &body, &mut archive, &mut report, &file_name)
-            .await
-        {
-            Ok(c) => c,
-            Err(e) => {
-                report
-                    .failures
-                    .push(format!("{file_name}: 图片处理失败 {}", e.message()));
-                continue;
-            }
-        };
+        let new_content =
+            match process_images(&img_ctx, &body, &mut archive, &mut report, &file_name, &mut total_bytes)
+                .await
+            {
+                Ok(c) => c,
+                Err(e) => {
+                    report
+                        .failures
+                        .push(format!("{file_name}: 图片处理失败 {}", e.message()));
+                    continue;
+                }
+            };
         if new_content != body {
             if let Err(e) = posts::update_post(
                 db,
@@ -346,29 +374,31 @@ struct ImageCtx<'a> {
 
 /// 图片管线：扫描 `![alt](url)`，外部 http(s) 按需下载、zip 内相对路径解包，
 /// 统一经 `save_bytes` 落库并替换 URL；失败记入报告并保留原 URL。
+/// `total` 累计解压字节（I8 总量限流，与 md 条目共用同一计数器）。
 async fn process_images(
     ctx: &ImageCtx<'_>,
     body: &str,
     archive: &mut zip::ZipArchive<std::fs::File>,
     report: &mut ImportReport,
     file_name: &str,
+    total: &mut u64,
 ) -> Result<String, AppError> {
     let mut out = String::with_capacity(body.len());
     let mut rest = body;
     while let Some((start, alt, url, end)) = find_image_ref(rest) {
         out.push_str(&rest[..start]);
-        let replacement = match process_one_image(ctx, &alt, &url, archive, report, file_name).await
-        {
-            Ok(s) => s,
-            Err(e) => {
-                report.images_failed += 1;
-                report.failures.push(format!(
-                    "{file_name}: 图片 {url} 处理失败 {}",
-                    e.message()
-                ));
-                format!("![{alt}]({url})")
-            }
-        };
+        let replacement =
+            match process_one_image(ctx, &alt, &url, archive, report, file_name, total).await {
+                Ok(s) => s,
+                Err(e) => {
+                    report.images_failed += 1;
+                    report.failures.push(format!(
+                        "{file_name}: 图片 {url} 处理失败 {}",
+                        e.message()
+                    ));
+                    format!("![{alt}]({url})")
+                }
+            };
         out.push_str(&replacement);
         rest = &rest[end..];
     }
@@ -384,6 +414,7 @@ async fn process_one_image(
     archive: &mut zip::ZipArchive<std::fs::File>,
     report: &mut ImportReport,
     file_name: &str,
+    total: &mut u64,
 ) -> Result<String, AppError> {
     let url = url.trim();
     let original = format!("![{alt}]({url})");
@@ -415,8 +446,32 @@ async fn process_one_image(
     };
     let mut entry = archive.by_index(entry_idx).map_err(internal)?;
     let entry_name = entry.name().to_string();
+    // 单条目/总量限流（I8）：恶意 zip 可声明超大条目，读入内存前截断；
+    // 总量超限后不再继续解包（先检后读，避免已超限仍读入）
+    if *total > MAX_TOTAL_BYTES {
+        return Err(AppError::BadRequest(
+            "迁移包解压总量超过 2GB 上限，已中止".into(),
+        ));
+    }
     let mut bytes = Vec::new();
-    entry.read_to_end(&mut bytes).map_err(internal)?;
+    let n = entry
+        .by_ref()
+        .take(MAX_ENTRY_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(internal)?;
+    if n as u64 > MAX_ENTRY_BYTES {
+        report.images_failed += 1;
+        report
+            .failures
+            .push(format!("{file_name}: 图片 {url} 超过 500MB，跳过"));
+        return Ok(original);
+    }
+    *total += n as u64;
+    if *total > MAX_TOTAL_BYTES {
+        return Err(AppError::BadRequest(
+            "迁移包解压总量超过 2GB 上限，已中止".into(),
+        ));
+    }
     let orig_name = Path::new(&entry_name)
         .file_name()
         .and_then(|s| s.to_str())
