@@ -1,1 +1,15 @@
-{# 搜索页模板骨架：T7 填充，上下文含 site / search_query / posts #}
+{# 搜索页：本任务渲染表单与空结果，T9 接入全文检索 #}
+{% include "partials/header.html" %}
+<section class="search-page">
+  <form class="search-form" method="get" action="/search">
+    <input type="search" name="q" value="{{ search_query }}" placeholder="搜索文章…" aria-label="搜索">
+    <button type="submit">搜索</button>
+  </form>
+  {% if search_query %}
+  <p class="search-result-info">「{{ search_query }}」的结果：{{ posts | length }} 条</p>
+  {% endif %}
+  <section class="post-list">
+  {% include "partials/post_list.html" %}
+  </section>
+</section>
+{% include "partials/footer.html" %}

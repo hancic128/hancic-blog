@@ -37,6 +37,12 @@ pub fn test_config(tag: &str) -> Config {
 
 pub async fn test_app(tag: &str) -> (axum::Router, Db) {
     let cfg = test_config(tag);
+    // 前台渲染依赖真实主题模板：把仓库 themes/ 复制到测试数据目录，
+    // 否则 hancic::app 里 build_tera 找不到模板，前台页面会 500。
+    copy_recursive(
+        &format!("{}/themes", env!("CARGO_MANIFEST_DIR")),
+        &cfg.data_dir.join("themes"),
+    );
     let app = hancic::app(cfg.clone()).await.unwrap();
     let pool = hancic::db::init(&cfg.data_dir).await.unwrap();
     (app, pool)

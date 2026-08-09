@@ -1,1 +1,19 @@
-{# 页头 partial：T7 填充 #}
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="{{ site.mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ site.name }}{% endblock title %}</title>
+<meta name="description" content="{{ site.desc }}">
+<link rel="stylesheet" href="/theme/{{ site.active_theme }}/static/style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="site-brand" href="/">{{ site.name }}</a>
+  <nav class="site-nav" id="site-nav">
+    {% for item in site.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}
+  </nav>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题" title="切换亮暗色">◐</button>
+  <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单">☰</button>
+</header>
+<main class="site-main">

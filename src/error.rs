@@ -14,7 +14,8 @@ pub enum AppError {
 }
 
 impl AppError {
-    fn status(&self) -> StatusCode {
+    /// 对应的 HTTP 状态码（前台错误页等内部模块使用）。
+    pub(crate) fn status(&self) -> StatusCode {
         match self {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
@@ -24,7 +25,8 @@ impl AppError {
             AppError::Conflict(_) => StatusCode::CONFLICT,
         }
     }
-    fn message(&self) -> &str {
+    /// 错误消息（前台错误页等内部模块使用）。
+    pub(crate) fn message(&self) -> &str {
         match self {
             AppError::NotFound(m) | AppError::BadRequest(m) | AppError::Unauthorized(m)
             | AppError::Forbidden(m) | AppError::Internal(m) | AppError::Conflict(m) => m,

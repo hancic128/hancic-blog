@@ -8,6 +8,7 @@ pub mod models;
 pub mod services;
 pub mod session;
 pub mod themes;
+pub mod web;
 
 use crate::config::Config;
 use crate::error::AppError;
@@ -44,6 +45,8 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
     Ok(Router::new()
         .route("/api/health", get(health))
         .nest("/admin", admin::router())
+        .merge(web::front::routes())
+        .fallback(web::front::not_found)
         .layer(session::session_layer(&db))
         .with_state(state))
 }

@@ -1,1 +1,21 @@
-{# 文章详情模板骨架：T7 填充，上下文含 site / post #}
+{# 文章页：正文 / 时间 / 分类 / 标签 / 阅读量 / 上一篇下一篇 #}
+{% include "partials/header.html" %}
+<article class="post">
+  <header class="post-header">
+    <h1>{{ post.title }}</h1>
+    <div class="meta">
+      {% if post.published_at %}<time datetime="{{ post.published_at }}">{{ post.published_at | date }}</time>{% endif %}
+      {% if category %}<a href="/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
+      {% for tag in tags %}<a href="/tag/{{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}
+      <span>{{ post.views }} 阅读</span>
+    </div>
+  </header>
+  {{ post.content_md | markdown | safe }}
+  {% if prev or next %}
+  <nav class="post-adjacent">
+    {% if prev %}<span class="adjacent-prev">← <a href="/post/{{ prev.slug }}">{{ prev.title }}</a></span>{% endif %}
+    {% if next %}<span class="adjacent-next"><a href="/post/{{ next.slug }}">{{ next.title }}</a> →</span>{% endif %}
+  </nav>
+  {% endif %}
+</article>
+{% include "partials/footer.html" %}

@@ -51,11 +51,12 @@ pub fn build_tera(themes_dir: &Path, name: &str) -> Result<Tera, String> {
         ));
     }
     // tera 2.x 用 Tera::default() + load_from_glob（tera 1.x 的 Tera::new(glob) 已移除）。
+    // 注意：tera 2.x 在 load_from_glob 时即校验模板引用的过滤器，必须「先注册、后加载」。
     let mut tera = Tera::default();
-    tera.load_from_glob(&format!("{}/**/*.html", tpl_dir.display()))
-        .map_err(|e| e.to_string())?;
     tera.register_filter("markdown", markdown_filter);
     tera.register_filter("date", date_filter);
+    tera.load_from_glob(&format!("{}/**/*.html", tpl_dir.display()))
+        .map_err(|e| e.to_string())?;
     Ok(tera)
 }
 

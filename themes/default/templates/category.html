@@ -1,1 +1,8 @@
-{# 分类页模板骨架：T7 填充，上下文含 site / categories #}
+{# 分类归档页 #}
+{% include "partials/header.html" %}
+<h1 class="archive-title">分类：{{ category.name }}</h1>
+<section class="post-list">
+{% include "partials/post_list.html" %}
+</section>
+{% include "partials/pagination.html" %}
+{% include "partials/footer.html" %}
