@@ -325,7 +325,7 @@ docker exec my-nginx nginx -s reload         # 或 docker restart my-nginx
 ```bash
 # 北京主机（或任意可访问公网处）
 curl -sI https://hancic.site/                # 预期：HTTP/1.1 200
-curl -s http://127.0.0.1:8091/api/health     # 北京 → 上海 8091 直连（确认防火墙放行）
+curl -s http://172.81.241.149:8091/api/health   # 北京 → 上海 8091 直连（确认防火墙放行）
 # 带 Host 头验证反代正确：
 curl -s -H 'Host: hancic.site' http://172.81.241.149:8091/ | head -5   # 预期：页面 HTML
 ```
