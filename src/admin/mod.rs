@@ -23,6 +23,7 @@ use std::net::SocketAddr;
 use tera::{Context, Tera};
 use tower_sessions::Session;
 
+pub mod attachments;
 pub mod moments;
 pub mod posts;
 
@@ -47,6 +48,9 @@ pub fn router() -> Router<AppState> {
         .route("/posts/{id}/autosave", post(posts::autosave))
         .route("/moments", get(moments::list).post(moments::create))
         .route("/moments/{id}/delete", post(moments::delete))
+        .route("/attachments", get(attachments::list))
+        .route("/attachments/{id}/delete", post(attachments::delete))
+        .route("/attachments/upload", get(attachments::upload_page))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -61,6 +65,7 @@ pub fn build_tera() -> Tera {
         ("posts_list.html", include_str!("../../assets/admin_templates/posts_list.html")),
         ("post_edit.html", include_str!("../../assets/admin_templates/post_edit.html")),
         ("moments.html", include_str!("../../assets/admin_templates/moments.html")),
+        ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera

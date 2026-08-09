@@ -10,7 +10,7 @@ use crate::models::{Attachment, AttachmentKind};
 use axum::extract::Multipart;
 use chrono::{DateTime, Utc};
 use image::GenericImageView;
-use sqlx::FromRow;
+use sqlx::{FromRow, Row};
 use std::path::Path;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -191,6 +191,42 @@ pub fn compress_image(
         scaled.write_to(&mut out, fmt).map_err(internal)?;
     }
     Ok(out.into_inner())
+}
+
+/// 分页列出附件（kind=None 全量），排序 `created_at DESC, id DESC`（同前台）。
+/// 返回（列表, 总数），供后台附件库卡片网格使用。
+pub async fn list_attachments(
+    db: &Db,
+    kind: Option<AttachmentKind>,
+    page: i64,
+    page_size: i64,
+) -> Result<(Vec<Attachment>, i64), AppError> {
+    const COLUMNS: &str = "id, uuid_name, orig_name, mime, size, kind, path, created_at";
+    let mut where_sql = String::new();
+    let mut binds: Vec<String> = Vec::new();
+    if let Some(k) = kind {
+        where_sql.push_str(" WHERE kind = ?");
+        binds.push(k.to_str().to_string());
+    }
+
+    let count_sql = format!("SELECT COUNT(*) FROM attachments{where_sql}");
+    let mut count_q = sqlx::query(&count_sql);
+    for b in &binds {
+        count_q = count_q.bind(b);
+    }
+    let total: i64 = count_q.fetch_one(db).await?.get(0);
+
+    let item_sql = format!(
+        "SELECT {COLUMNS} FROM attachments{where_sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+    );
+    let mut q = sqlx::query_as::<_, AttachmentRow>(&item_sql);
+    for b in &binds {
+        q = q.bind(b);
+    }
+    q = q.bind(page_size).bind((page - 1) * page_size);
+    let rows = q.fetch_all(db).await?;
+    let items: Vec<Attachment> = rows.into_iter().map(Into::into).collect();
+    Ok((items, total))
 }
 
 /// 按 id 读取附件（不存在返回 None）。
