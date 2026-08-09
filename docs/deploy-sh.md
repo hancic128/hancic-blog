@@ -420,3 +420,26 @@ done
 | `hancic.site` 打不开但 8091 通 | 北京 nginx conf 未 reload；或上海防火墙未放行 8091 |
 | 之前用 named volume 跑过，数据混乱 | §3 提示的卷拷贝/全新开始，二选一，别混用 |
 | rollback 报「未找到 :prev」 | 从未成功 deploy 过（首次部署）；或镜像 tag 被手动清理 |
+
+---
+
+## 附录：实际部署记录（2026-08-09，首日上线）
+
+### 实际执行路径（与上文方案的差异）
+
+1. **镜像获取**：ghcr private 包需 `read:packages` PAT，本机 gh OAuth token 无此权限 → 未用 usa 中转，改为**源码直传上海本地 `docker build`**（`--build-arg CARGO_SOURCE_INDEX="sparse+https://rsproxy.cn/index/"`，4C8G 约 25 分钟，镜像 69.6MB）。
+2. **端口**：原计划 hancic 占 8091 保留 halo——但**上海腾讯云安全组（控制台层）只放行了 8090**，8091 从公网不可达（主机内 firewalld/iptables 均无拦截）。改为 **hancic 直接占 8090，halo `docker stop` 保留可回滚**（回滚：`docker stop hancic && docker start halo`，nginx 无需改——都走 8090）。
+3. **数据迁移**：halo-plugin-export-md 与 halo 2.24 不兼容（未加载）；H2 数据库有密码 → 改走**前台爬虫**（`~/Project/hancic-migrate-data/crawl.py`）：33 篇文章（front-matter md + 图片下载）→ `/admin/migrate` 导入（0 图片失败）→ 11 条说说经 `POST /api/moments`（import-moments.py）导入。
+4. **北京 nginx 配置**：宿主 `sed -i` 修改不生效——**bind mount 单文件 inode 变化后容器内仍是旧文件**（需 `docker compose up -d --force-recreate` 重建容器重新挂载；容器内直接改报 Resource busy/Read-only）。
+
+### 回滚（若需切回 halo）
+
+```bash
+# 上海
+docker stop hancic && docker start halo
+# 北京：无需改 nginx（都走 8090），但 my-nginx 容器内若配置被改过需重建
+```
+
+### 待办
+- `/about` 关于页：迁移不含独立页面，需在后台新建（文章 → 类型=页面 → slug=about）
+- halo 数据保留在 `/root/Hancic/halo-blog/halo-migration/halo_data`（观察稳定后可归档）
