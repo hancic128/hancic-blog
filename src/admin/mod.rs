@@ -7,7 +7,7 @@
 
 use crate::error::AppError;
 use crate::models::{PostStatus, PostType};
-use crate::services::{posts as posts_service, settings as settings_service, stats};
+use crate::services::{posts as posts_service, settings as settings_service, stats as stats_service};
 use crate::AppState;
 use crate::{auth, session};
 use axum::Router;
@@ -27,6 +27,7 @@ pub mod attachments;
 pub mod moments;
 pub mod posts;
 pub mod settings;
+pub mod stats;
 pub mod taxonomy;
 pub mod themes;
 
@@ -66,6 +67,10 @@ pub fn router() -> Router<AppState> {
         .route("/themes", get(themes::list))
         .route("/themes/{name}/activate", post(themes::activate))
         .route("/themes/{name}/preview", get(themes::preview))
+        .route("/stats", get(stats::index))
+        .route("/stats/posts", get(stats::ranking))
+        .route("/stats/regions", get(stats::regions))
+        .route("/stats/clear", post(stats::clear))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -84,6 +89,7 @@ pub fn build_tera() -> Tera {
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
+        ("stats.html", include_str!("../../assets/admin_templates/stats.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera
@@ -310,9 +316,9 @@ async fn admin_index(
 
 /// 仪表盘上下文：四类总数 + 近 30 日趋势 + 最近草稿。
 async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppError> {
-    let summary = stats::summary(&state.db, None, None).await?;
+    let summary = stats_service::summary(&state.db, None, None).await?;
     let days = trend_dates();
-    let trend = stats::summary(
+    let trend = stats_service::summary(
         &state.db,
         Some(days.first().map(String::as_str).unwrap_or_default()),
         Some(days.last().map(String::as_str).unwrap_or_default()),
@@ -372,7 +378,7 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
 }
 
 /// 近 30 天日期序列（含今天，升序，UTC 日期）。
-fn trend_dates() -> Vec<String> {
+pub(crate) fn trend_dates() -> Vec<String> {
     let today = Utc::now().date_naive();
     (0..TREND_DAYS)
         .rev()
