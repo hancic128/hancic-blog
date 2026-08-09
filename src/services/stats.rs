@@ -5,19 +5,20 @@ use crate::error::AppResult;
 use crate::ipregion::{Region, Searcher};
 use crate::models::{Post, PostStatus, PostType};
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use sqlx::{FromRow, Row};
 use std::net::IpAddr;
 use std::str::FromStr;
 
 /// 每日阅读量（date 为 `YYYY-MM-DD`，UTC）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DailyCount {
     pub date: String,
     pub count: i64,
 }
 
 /// 阅读汇总：总量 + 每日趋势。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StatsSummary {
     pub total_views: i64,
     pub total_posts: i64,

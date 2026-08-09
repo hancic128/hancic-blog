@@ -84,6 +84,17 @@ pub async fn get_category_by_slug(db: &Db, slug: &str) -> Result<Option<Category
     Ok(row)
 }
 
+/// 按 id 读取分类（API 层 PATCH 合并字段与 category_id 存在性校验用）。
+pub async fn get_category_by_id(db: &Db, id: i64) -> Result<Option<Category>, AppError> {
+    let row = sqlx::query_as::<_, Category>(
+        "SELECT id, slug, name, sort_order FROM categories WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(db)
+    .await?;
+    Ok(row)
+}
+
 pub async fn list_tags(db: &Db) -> Result<Vec<Tag>, AppError> {
     let rows = sqlx::query_as::<_, Tag>("SELECT id, slug, name FROM tags ORDER BY id")
         .fetch_all(db)

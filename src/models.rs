@@ -95,7 +95,7 @@ impl std::str::FromStr for AttachmentKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Post {
     pub id: i64,
     pub slug: String,
@@ -111,14 +111,14 @@ pub struct Post {
     pub category_id: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Moment {
     pub id: i64,
     pub content: String,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct Category {
     pub id: i64,
     pub slug: String,
@@ -126,7 +126,7 @@ pub struct Category {
     pub sort_order: i64,
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct Tag {
     pub id: i64,
     pub slug: String,
