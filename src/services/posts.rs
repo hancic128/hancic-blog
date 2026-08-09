@@ -601,6 +601,70 @@ pub async fn heatmap(db: &Db, days: i64) -> Result<Vec<(String, i64)>, AppError>
     Ok(rows)
 }
 
+/// 更新日历：近 `days` 天按天聚合动态（文章发布/更新 + 说说）。
+/// 每项 `(日期, 动态条数, Vec<(类型 post|update|moment, 标题)>)`。
+pub async fn activity_calendar(
+    db: &Db,
+    days: i64,
+) -> Result<Vec<(String, i64, Vec<(String, String)>)>, AppError> {
+    use std::collections::HashMap;
+    let since = chrono::Utc::now() - chrono::Duration::days(days);
+    let since = since.format("%Y-%m-%dT00:00:00Z").to_string();
+
+    let posts: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT substr(published_at, 1, 10) AS d, title, 'post' AS kind
+         FROM posts
+         WHERE status = 'published' AND post_type = 'post'
+           AND published_at IS NOT NULL AND published_at >= ?",
+    )
+    .bind(&since)
+    .fetch_all(db)
+    .await?;
+    let updates: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT substr(updated_at, 1, 10) AS d, title, 'update' AS kind
+         FROM posts
+         WHERE status = 'published' AND post_type = 'post'
+           AND updated_at IS NOT NULL AND updated_at >= ?
+           AND substr(updated_at, 1, 10) != substr(published_at, 1, 10)",
+    )
+    .bind(&since)
+    .fetch_all(db)
+    .await?;
+    let moments: Vec<(String, String)> = sqlx::query_as(
+        "SELECT substr(created_at, 1, 10) AS d, content FROM moments
+         WHERE created_at >= ?",
+    )
+    .bind(&since)
+    .fetch_all(db)
+    .await?;
+
+    let mut map: HashMap<String, (i64, Vec<(String, String)>)> = HashMap::new();
+    for (d, title, kind) in posts.into_iter().chain(updates) {
+        let e = map.entry(d).or_insert_with(|| (0, Vec::new()));
+        // 同日同文去重（发布与更新同日只记一次）
+        if !e.1.iter().any(|(k, t)| *k == kind && *t == title) {
+            e.0 += 1;
+            e.1.push((kind, title));
+        }
+    }
+    for (d, content) in moments {
+        let title = content
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(30)
+            .collect::<String>();
+        let e = map.entry(d).or_insert_with(|| (0, Vec::new()));
+        e.0 += 1;
+        e.1.push(("moment".to_string(), title));
+    }
+    Ok(map
+        .into_iter()
+        .map(|(d, (c, items))| (d, c, items))
+        .collect())
+}
+
 /// 一条活动（文章发布 / 说说）。
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Activity {

@@ -1,15 +1,15 @@
-{# 首页：发布热力图 + 活动时间轴 + 最近文章 #}
+{# 首页：更新日历 + 最近说说 + 最新文章 #}
 {% include "partials/header.html" %}
 
-{# 1. 发布热力图（近一年，GitHub Contribution 风格） #}
-{% if heatmap %}
+{# 1. 更新日历（近一年，GitHub Contribution 风格） #}
+{% if calendar %}
 <section class="heatmap-section">
-  <h3 class="section-title">发布热力图 <small>近一年文章发布</small></h3>
+  <h3 class="section-title">更新日历 <small>近一年发布/更新动态</small></h3>
   <div class="heatmap">
-    {% for week in heatmap %}
+    {% for week in calendar %}
     <div class="heatmap-col">
       {% for day in week %}
-      <span class="heat-cell l{{ day.level }}" title="{{ day.date }}：{{ day.count }} 篇"></span>
+      <span class="heat-cell l{{ day.level }}" title="{{ day.tip }}"></span>
       {% endfor %}
     </div>
     {% endfor %}
@@ -22,37 +22,23 @@
 </section>
 {% endif %}
 
-{# 2. 活动时间轴（Contribution activity 风格，可折叠） #}
-{% if activities %}
+{# 2. 最近说说 #}
+{% if moments %}
 <section class="activity-section">
-  <h3 class="section-title">最近动态</h3>
-  <div class="activity-timeline">
-    {% for group in activities %}
-    <div class="activity-day">
-      <div class="activity-date">
-        <span class="activity-dot"></span>{{ group.date }}
-      </div>
-      <details class="activity-items" {% if loop.index <= 3 %}open{% endif %}>
-        <summary>
-          {{ group.items | length }} 条动态
-          <span class="activity-toggle"></span>
-        </summary>
-        <ul>
-          {% for item in group.items %}
-          <li class="activity-item {% if item.kind == 'post' %}is-post{% else %}is-moment{% endif %}">
-            <span class="activity-badge">{% if item.kind == 'post' %}文章{% else %}说说{% endif %}</span>
-            {% if item.url %}<a href="{{ item.url }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-      </details>
-    </div>
+  <h3 class="section-title">最近说说</h3>
+  <div class="moment-stream">
+    {% for m in moments %}
+    <article class="moment-item">
+      <span class="moment-time">{{ m.created_at }}</span>
+      <p>{{ m.content }}</p>
+    </article>
     {% endfor %}
+    <p class="more-link"><a href="/moments">更多说说 →</a></p>
   </div>
 </section>
 {% endif %}
 
-{# 3. 最近文章列表 #}
+{# 3. 最新文章列表 #}
 <section class="post-list">
   <h3 class="section-title">最新文章</h3>
   {% include "partials/post_list.html" %}

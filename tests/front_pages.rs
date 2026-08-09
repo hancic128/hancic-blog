@@ -153,11 +153,12 @@ async fn homepage_has_heatmap_activity_and_more_link() {
             category_id: None, tags: vec!["标签甲".into()],
         }).await.unwrap();
     }
+    hancic::services::moments::create_moment(&pool, "首页说说一条", &[]).await.unwrap();
     let res = app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
     assert_eq!(res.status(), StatusCode::OK);
     let html = String::from_utf8(axum::body::to_bytes(res.into_body(), 1024*1024).await.unwrap().to_vec()).unwrap();
-    assert!(html.contains("heatmap"), "首页应含发布热力图");
-    assert!(html.contains("activity-timeline"), "首页应含活动时间轴");
+    assert!(html.contains("heatmap"), "首页应含更新日历");
+    assert!(html.contains("moment-stream"), "首页应含最近说说");
     assert!(html.contains("查看更多文章"), "首页应有查看更多链接");
     assert!(html.contains("标签甲"), "列表项应显示标签");
 }

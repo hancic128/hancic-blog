@@ -1,5 +1,15 @@
-{# 文章归档：全部已发布文章分页列表 #}
+{# 文章归档：顶部标签云 + 全部已发布文章分页列表 #}
 {% include "partials/header.html" %}
+{% if all_tags %}
+<section class="tag-cloud-section">
+  <h3 class="section-title">标签</h3>
+  <div class="tag-cloud">
+    {% for tag in all_tags %}
+    <a class="tag-badge" href="/tag/{{ tag.slug }}">{{ tag.name }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 <section class="post-list">
   <h3 class="section-title">全部文章</h3>
   {% include "partials/post_list.html" %}

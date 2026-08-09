@@ -8,7 +8,7 @@
 
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
-use crate::models::{Post, PostStatus, PostType};
+use crate::models::{Moment, Post, PostStatus, PostType};
 use crate::services::{moments, posts, settings, stats, taxonomy};
 use crate::{themes, AppState};
 use axum::body::Body;
@@ -73,6 +73,7 @@ pub async fn site_context(db: &Db, preview: Option<String>) -> AppResult<Context
             .unwrap_or_else(|| "default".to_string())
     });
     let mut ctx = Context::new();
+    let categories = taxonomy::list_categories(db).await?;
     ctx.insert(
         "site",
         &json!({
@@ -82,6 +83,7 @@ pub async fn site_context(db: &Db, preview: Option<String>) -> AppResult<Context
             "social": parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}")),
             "active_theme": active_theme,
             "mode": s.get("theme_mode").map(String::as_str).unwrap_or("auto"),
+            "categories": categories.iter().map(|c| json!({ "slug": c.slug, "name": c.name })).collect::<Vec<_>>(),
         }),
     );
     Ok(ctx)
@@ -111,9 +113,9 @@ async fn index(
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        // 发布热力图（近 53 周）与最近活动流（14 天）
-        let counts = posts::heatmap(&state.db, 371).await?;
-        let acts = posts::recent_activity(&state.db, 14, 20).await?;
+        // 更新日历（近 53 周，含发布/更新/说说详情）与最近说说（5 条）
+        let calendar = posts::activity_calendar(&state.db, 371).await?;
+        let (moments, _total) = moments::list_moments(&state.db, 1, 5).await?;
         // 最近文章（首页仅展示 5 篇，完整列表走 /archives）
         let (items, total) = posts::list_posts(
             &state.db,
@@ -128,8 +130,8 @@ async fn index(
         )
         .await?;
         let mut ctx = site_context(&state.db, preview.clone()).await?;
-        ctx.insert("heatmap", &heatmap_matrix(&counts));
-        ctx.insert("activities", &activity_groups(&acts));
+        ctx.insert("calendar", &calendar_matrix(&calendar));
+        ctx.insert("moments", &moment_list_value(&moments));
         ctx.insert("posts", &post_list_value(&state.db, &items).await?);
         ctx.insert("post_total", &total);
         Ok::<_, AppError>(ctx)
@@ -141,14 +143,27 @@ async fn index(
     }
 }
 
-/// 文章归档页：全部已发布文章分页列表。
+/// 文章归档页：全部已发布文章分页列表 + 顶部标签云。
 async fn archives_page(
     State(state): State<AppState>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
     let preview = resolve_preview(&state, &query);
-    match listing_ctx(&state.db, page, None, None, preview.clone()).await {
+    let out = async {
+        let mut ctx = listing_ctx(&state.db, page, None, None, preview.clone()).await?;
+        let tags = taxonomy::list_tags(&state.db).await?;
+        ctx.insert(
+            "all_tags",
+            &json!(tags
+                .iter()
+                .map(|t| json!({ "slug": t.slug, "name": t.name }))
+                .collect::<Vec<_>>()),
+        );
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
         Ok(ctx) => render(&state, "archives.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
@@ -521,12 +536,21 @@ fn post_url(p: &Post) -> String {
     }
 }
 
-/// GitHub 风格发布热力图矩阵：53 周 × 7 天。
+/// 更新日历单日条目：(日期, 动态数, [(类型, 标题)])。
+type CalendarDay = (String, i64, Vec<(String, String)>);
+/// 日历查询表键/值别名。
+type DayKey<'a> = &'a str;
+type DayVal<'a> = (i64, &'a [(String, String)]);
+
+/// GitHub 风格更新日历矩阵：53 周 × 7 天。
 /// 外层数组 = 周（列），内层 = 该周 7 天（行，周日→周六）。
-/// 每格：`{ date, count, level }`，level 0-4 对应色阶。
-fn heatmap_matrix(counts: &[(String, i64)]) -> Value {
+/// 每格：`{ date, count, level, tip }`，tip 为多行 tooltip（日期 + 动态标题）。
+fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
     use std::collections::HashMap;
-    let map: HashMap<&str, i64> = counts.iter().map(|(d, c)| (d.as_str(), *c)).collect();
+    let map: HashMap<DayKey<'_>, DayVal<'_>> = calendar
+        .iter()
+        .map(|(d, c, items)| (d.as_str(), (*c, items.as_slice())))
+        .collect();
     let today = chrono::Utc::now().date_naive();
     let start = today - chrono::Days::new(370);
     let mut weeks: Vec<Vec<Value>> = Vec::new();
@@ -534,7 +558,7 @@ fn heatmap_matrix(counts: &[(String, i64)]) -> Value {
     for i in 0..371 {
         let day = start + chrono::Days::new(i);
         let key = day.format("%Y-%m-%d").to_string();
-        let count = map.get(key.as_str()).copied().unwrap_or(0);
+        let (count, items) = map.get(key.as_str()).copied().unwrap_or((0, &[]));
         let level = match count {
             0 => 0,
             1 => 1,
@@ -542,7 +566,16 @@ fn heatmap_matrix(counts: &[(String, i64)]) -> Value {
             4..=6 => 3,
             _ => 4,
         };
-        week.push(json!({ "date": key, "count": count, "level": level }));
+        let mut tip = key.clone();
+        for (kind, title) in items {
+            let label = match kind.as_str() {
+                "post" => "发布",
+                "update" => "更新",
+                _ => "说说",
+            };
+            tip.push_str(&format!("\n{label}：{title}"));
+        }
+        week.push(json!({ "date": key, "count": count, "level": level, "tip": tip }));
         if week.len() == 7 {
             weeks.push(std::mem::take(&mut week));
         }
@@ -553,22 +586,14 @@ fn heatmap_matrix(counts: &[(String, i64)]) -> Value {
     json!(weeks)
 }
 
-/// 活动流按天分组（Asia/Shanghai 本地日期），天倒序（活动已倒序）。
-fn activity_groups(acts: &[posts::Activity]) -> Value {
-    let tz: chrono_tz::Tz = "Asia/Shanghai".parse().unwrap_or(chrono_tz::Asia::Shanghai);
-    let mut groups: Vec<(String, Vec<Value>)> = Vec::new();
-    for a in acts {
-        let local = a.created_at.with_timezone(&tz);
-        let date = local.format("%Y-%m-%d").to_string();
-        let item = json!({ "kind": a.kind, "title": a.title, "url": a.url });
-        match groups.last_mut() {
-            Some((d, items)) if *d == date => items.push(item),
-            _ => groups.push((date, vec![item])),
-        }
-    }
-    json!(groups
+/// 说说列表 JSON（首页"最近说说"用）。
+fn moment_list_value(moments: &[Moment]) -> Value {
+    json!(moments
         .iter()
-        .map(|(d, items)| json!({ "date": d, "items": items }))
+        .map(|m| json!({
+            "content": m.content,
+            "created_at": m.created_at.format("%Y-%m-%d %H:%M").to_string(),
+        }))
         .collect::<Vec<_>>())
 }
 
