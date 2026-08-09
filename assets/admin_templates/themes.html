@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}主题管理{% endblock %}
+{% block content %}
+<h1>主题管理</h1>
+
+{% if msg %}
+<p class="tip">{{ msg }}</p>
+{% endif %}
+
+<p class="muted">当前主题：<strong>{{ current_theme }}</strong>。切换后前台模板与样式需重启服务才完全生效；预览可在不切换的情况下查看前台效果。</p>
+
+{% if themes %}
+<div class="theme-grid">
+  {% for t in themes %}
+  <section class="panel" data-theme="{{ t.name }}">
+    <div class="theme-head">
+      <h2>{{ t.name }}{% if t.is_current %} <span class="badge-current">当前</span>{% endif %}</h2>
+      <span class="muted">v{{ t.version }}</span>
+    </div>
+    <p class="muted">{{ t.description }}</p>
+    <p class="muted">作者：{{ t.author }}</p>
+    <div class="theme-actions">
+      {% if t.is_current %}
+      <span class="muted">使用中</span>
+      {% else %}
+      <form method="post" action="/admin/themes/{{ t.name }}/activate">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn btn-primary" type="submit">启用</button>
+      </form>
+      <a class="btn" href="/admin/themes/{{ t.name }}/preview">预览</a>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">未发现已安装的主题。</p>
+{% endif %}
+{% endblock %}

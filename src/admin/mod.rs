@@ -28,6 +28,7 @@ pub mod moments;
 pub mod posts;
 pub mod settings;
 pub mod taxonomy;
+pub mod themes;
 
 /// 仪表盘最近草稿条数。
 const DASHBOARD_DRAFT_LIMIT: i64 = 5;
@@ -62,6 +63,9 @@ pub fn router() -> Router<AppState> {
         .route("/settings", get(settings::page))
         .route("/settings/save", post(settings::save))
         .route("/settings/password", post(settings::password))
+        .route("/themes", get(themes::list))
+        .route("/themes/{name}/activate", post(themes::activate))
+        .route("/themes/{name}/preview", get(themes::preview))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -79,6 +83,7 @@ pub fn build_tera() -> Tera {
         ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
+        ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera

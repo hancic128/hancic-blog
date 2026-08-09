@@ -65,6 +65,15 @@ pub fn static_dir(themes_dir: &Path, name: &str) -> PathBuf {
     themes_dir.join(name).join("static")
 }
 
+/// 主题名白名单：仅 ASCII 字母数字与 `-`/`_`，防止路径穿越。
+/// 前台静态资源路由与后台主题管理共用。
+pub fn is_valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 /// markdown 过滤器：渲染 Markdown 为 HTML，并标记为安全（不参与自动转义）。
 fn markdown_filter(value: String, _kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
     Ok(Value::safe_string(&crate::markdown::render(&value)))

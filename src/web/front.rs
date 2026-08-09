@@ -3,12 +3,14 @@
 //! 页面经 `site_context` 注入站点信息（settings 表），模板取自
 //! `themes/<active_theme>/templates/`（T6 `build_tera` 构建、注册
 //! `markdown`/`date` 过滤器）。渲染失败统一输出 `error.html`（含状态码）。
+//! 支持后台主题预览（T18）：`?theme_preview={name}` 只读覆盖
+//! `site.active_theme` 与渲染用 tera（每次请求按预览主题构建），不落库。
 
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
 use crate::models::{Post, PostStatus, PostType};
 use crate::services::{moments, posts, settings, stats, taxonomy};
-use crate::AppState;
+use crate::{themes, AppState};
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode, Uri, header};
@@ -47,8 +49,10 @@ pub fn routes() -> Router<AppState> {
 }
 
 /// 站点信息上下文：`site` 对象含 name/desc/nav/social/active_theme/mode。
-/// nav/social 来自 settings 的 JSON 字符串，解析为 tera 可迭代对象。
-pub async fn site_context(db: &Db) -> AppResult<Context> {
+/// `preview` 为预览主题名（后台 `?theme_preview=`）：仅覆盖 `active_theme`
+/// 用于本次只读渲染，不写库；模板里静态资源路径
+/// `/theme/{{ site.active_theme }}/static/...` 随之指向预览主题。
+pub async fn site_context(db: &Db, preview: Option<String>) -> AppResult<Context> {
     let s = settings::get_many(
         db,
         &[
@@ -61,6 +65,12 @@ pub async fn site_context(db: &Db) -> AppResult<Context> {
         ],
     )
     .await?;
+    // 预览覆盖 active_theme；缺省回退 settings，再回退默认主题
+    let active_theme = preview.unwrap_or_else(|| {
+        s.get("active_theme")
+            .cloned()
+            .unwrap_or_else(|| "default".to_string())
+    });
     let mut ctx = Context::new();
     ctx.insert(
         "site",
@@ -69,7 +79,7 @@ pub async fn site_context(db: &Db) -> AppResult<Context> {
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
             "nav": parse_json_array(s.get("site_nav").map(String::as_str).unwrap_or("[]")),
             "social": parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}")),
-            "active_theme": s.get("active_theme").map(String::as_str).unwrap_or("default"),
+            "active_theme": active_theme,
             "mode": s.get("theme_mode").map(String::as_str).unwrap_or("auto"),
         }),
     );
@@ -81,6 +91,17 @@ fn parse_json_array(s: &str) -> Value {
     serde_json::from_str(s).unwrap_or_else(|_| json!([]))
 }
 
+/// 解析 `?theme_preview=`：名字合法且主题存在（theme.toml 可读）才生效，
+/// 否则回退默认渲染——预览参数既不破坏页面，也不暴露不存在的主题。
+fn resolve_preview(state: &AppState, query: &HashMap<String, String>) -> Option<String> {
+    let name = query.get("theme_preview")?;
+    if !themes::is_valid_name(name) {
+        return None;
+    }
+    themes::load_meta(&state.config.data_dir.join("themes"), name).ok()?;
+    Some(name.clone())
+}
+
 // ---------- 页面 handler ----------
 
 async fn index(
@@ -88,8 +109,9 @@ async fn index(
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
-    match listing_ctx(&state.db, page, None, None).await {
-        Ok(ctx) => render(&state, "index.html", &ctx).await,
+    let preview = resolve_preview(&state, &query);
+    match listing_ctx(&state.db, page, None, None, preview.clone()).await {
+        Ok(ctx) => render(&state, "index.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -98,7 +120,9 @@ async fn post_page(
     State(state): State<AppState>,
     Path(slug): Path<String>,
     headers: HeaderMap,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Response {
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let post = posts::get_post_by_slug(&state.db, &slug)
             .await?
@@ -107,7 +131,7 @@ async fn post_page(
         let (prev, next) = posts::adjacent_posts(&state.db, &post).await?;
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
-        let mut ctx = site_context(&state.db).await?;
+        let mut ctx = site_context(&state.db, preview.clone()).await?;
         ctx.insert("post", &post_value(&post));
         ctx.insert(
             "category",
@@ -130,7 +154,7 @@ async fn post_page(
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "post.html", &ctx).await,
+        Ok(ctx) => render(&state, "post.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -174,37 +198,46 @@ async fn record_view_once(state: &AppState, post: &Post, headers: &HeaderMap) {
     }
 }
 
-async fn page_page(State(state): State<AppState>, Path(slug): Path<String>) -> Response {
+async fn page_page(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let page = posts::get_post_by_slug(&state.db, &slug)
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
-        let mut ctx = site_context(&state.db).await?;
+        let mut ctx = site_context(&state.db, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
         Ok::<_, AppError>(ctx)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "page.html", &ctx).await,
+        Ok(ctx) => render(&state, "page.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
 
 /// `/about` 快捷路由 → `/page/about`；不存在则 404。
-async fn about_page(State(state): State<AppState>) -> Response {
+async fn about_page(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let page = posts::get_post_by_slug(&state.db, "about")
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
-        let mut ctx = site_context(&state.db).await?;
+        let mut ctx = site_context(&state.db, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
         Ok::<_, AppError>(ctx)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "page.html", &ctx).await,
+        Ok(ctx) => render(&state, "page.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -215,17 +248,18 @@ async fn moments_page(
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let (items, total) = moments::list_moments(&state.db, page, MOMENTS_PAGE_SIZE).await?;
         let days = moments::group_by_day(&state.db, items).await?;
-        let mut ctx = site_context(&state.db).await?;
+        let mut ctx = site_context(&state.db, preview.clone()).await?;
         ctx.insert("days", &days_value(&state.db, &days).await?);
         ctx.insert("pagination", &moments_pagination_value(page, total));
         Ok::<_, AppError>(ctx)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "moments.html", &ctx).await,
+        Ok(ctx) => render(&state, "moments.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -235,11 +269,13 @@ async fn category_page(
     Path(slug): Path<String>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let category = taxonomy::get_category_by_slug(&state.db, &slug)
             .await?
             .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;
-        let mut ctx = listing_ctx(&state.db, page_param(&query), Some(slug), None).await?;
+        let mut ctx =
+            listing_ctx(&state.db, page_param(&query), Some(slug), None, preview.clone()).await?;
         ctx.insert(
             "category",
             &json!({ "slug": category.slug, "name": category.name }),
@@ -248,7 +284,7 @@ async fn category_page(
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "category.html", &ctx).await,
+        Ok(ctx) => render(&state, "category.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -258,19 +294,21 @@ async fn tag_page(
     Path(slug): Path<String>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let tag = taxonomy::list_tags(&state.db)
             .await?
             .into_iter()
             .find(|t| t.slug == slug)
             .ok_or_else(|| AppError::NotFound("标签不存在".into()))?;
-        let mut ctx = listing_ctx(&state.db, page_param(&query), None, Some(slug)).await?;
+        let mut ctx =
+            listing_ctx(&state.db, page_param(&query), None, Some(slug), preview.clone()).await?;
         ctx.insert("tag", &json!({ "slug": tag.slug, "name": tag.name }));
         Ok::<_, AppError>(ctx)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "tag.html", &ctx).await,
+        Ok(ctx) => render(&state, "tag.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -282,9 +320,10 @@ async fn search_page(
 ) -> Response {
     let q = query.get("q").cloned().unwrap_or_default();
     let page = page_param(&query);
+    let preview = resolve_preview(&state, &query);
     let out = async {
         let (hits, total) = posts::search_posts(&state.db, &q, page, PAGE_SIZE).await?;
-        let mut ctx = site_context(&state.db).await?;
+        let mut ctx = site_context(&state.db, preview.clone()).await?;
         ctx.insert("search_query", &q);
         ctx.insert("posts", &search_hit_list_value(&hits));
         ctx.insert("pagination", &search_pagination_value(page, total, &q));
@@ -292,7 +331,7 @@ async fn search_page(
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "search.html", &ctx).await,
+        Ok(ctx) => render(&state, "search.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -313,19 +352,11 @@ async fn serve_theme_static(
     Path((name, _path)): Path<(String, String)>,
     req: Request<Body>,
 ) -> Response {
-    if !is_valid_theme_name(&name) {
+    if !themes::is_valid_name(&name) {
         return render_error(&state, AppError::NotFound("资源不存在".into())).await;
     }
     let base = state.config.data_dir.join("themes").join(&name).join("static");
     serve_from(base, &format!("/theme/{name}/static"), req).await
-}
-
-/// 主题名白名单：仅 ASCII 字母数字与 `-`/`_`，防止路径穿越。
-fn is_valid_theme_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// 去掉挂载前缀后用 ServeDir 服务目录，并附加缓存头。
@@ -376,6 +407,7 @@ async fn listing_ctx(
     page: i64,
     category_slug: Option<String>,
     tag_slug: Option<String>,
+    preview: Option<String>,
 ) -> AppResult<Context> {
     let (items, total) = posts::list_posts(
         db,
@@ -389,7 +421,7 @@ async fn listing_ctx(
         },
     )
     .await?;
-    let mut ctx = site_context(db).await?;
+    let mut ctx = site_context(db, preview).await?;
     ctx.insert("posts", &post_list_value(&items));
     ctx.insert("pagination", &pagination_value(page, total));
     Ok(ctx)
@@ -556,8 +588,22 @@ async fn category_of(db: &Db, id: Option<i64>) -> AppResult<Option<crate::models
 // ---------- 渲染 ----------
 
 /// 渲染模板；模板缺失/出错时回退 500 错误页。
-async fn render(state: &AppState, template: &str, ctx: &Context) -> Response {
-    match state.tera.render(template, ctx) {
+/// `preview` 为预览主题名时，用该主题的 tera 临时渲染（每次请求构建：仅预览
+/// 场景、流量极低；`AppState.tera` 启动时固定为默认主题无法覆盖），构建失败
+/// 回退默认渲染，避免预览参数拖垮页面。
+async fn render(state: &AppState, template: &str, ctx: &Context, preview: Option<&str>) -> Response {
+    let preview_tera = match preview {
+        Some(name) => match themes::build_tera(&state.config.data_dir.join("themes"), name) {
+            Ok(t) => Some(t),
+            Err(e) => {
+                tracing::warn!("预览主题 {name} 模板加载失败，回退默认渲染: {e}");
+                None
+            }
+        },
+        None => None,
+    };
+    let tera = preview_tera.as_ref().unwrap_or(&state.tera);
+    match tera.render(template, ctx) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("渲染模板 {template} 失败: {e}");
@@ -570,7 +616,7 @@ async fn render(state: &AppState, template: &str, ctx: &Context) -> Response {
 async fn render_error(state: &AppState, err: AppError) -> Response {
     let status = err.status();
     let message = err.message().to_string();
-    let mut ctx = match site_context(&state.db).await {
+    let mut ctx = match site_context(&state.db, None).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("构建错误页上下文失败: {e:?}");

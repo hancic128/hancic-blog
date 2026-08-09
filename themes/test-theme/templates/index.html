@@ -1,0 +1,18 @@
+{# 自动化测试用最小主题：独立完整页（不依赖 default 的 partials），
+   带 `data-theme` 标记与主题静态资源链接，供 admin_themes 测试断言。
+   该主题只提供 index.html，其余前台页（post/page/搜索等）缺失属预期。 #}
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="{{ site.mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site.name }} · Test Theme</title>
+<link rel="stylesheet" href="/theme/{{ site.active_theme }}/static/style.css">
+</head>
+<body data-theme="test-theme">
+<main class="test-main">
+  <h1>Test Theme</h1>
+  <p>自动化测试用最小主题。</p>
+</main>
+</body>
+</html>
