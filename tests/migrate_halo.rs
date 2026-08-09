@@ -52,3 +52,46 @@ async fn import_creates_posts_and_local_images() {
     assert_eq!(report.images_downloaded, 0);
     assert_eq!(report.images_failed, 0);
 }
+
+#[tokio::test]
+async fn import_downloads_external_images_when_enabled() {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    use std::io::Write;
+
+    let cfg = test_config("migrate-dl");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+
+    // 本地 mock 图片服务：返回真实 PNG + Content-Type
+    let app = axum::Router::new().route(
+        "/x.png",
+        axum::routing::get(|| async move {
+            ([(header::CONTENT_TYPE, "image/png")], common::PNG_1x1).into_response()
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service()).await.unwrap();
+    });
+
+    // fixture：正文引用带 query/fragment 的外部图（下载成功应计数 + 文件名截断）
+    let zip_path = cfg.data_dir.join("halo-dl.zip");
+    let url = format!("http://{addr}/x.png?v=2#frag");
+    let md = format!("---\ntitle: 下载测试\ndate: 2024-01-02\ntags: [dl]\n---\n# t\n\n![a]({url})\n");
+    let file = std::fs::File::create(&zip_path).unwrap();
+    let mut writer = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default();
+    writer.start_file("posts/dl.md", options).unwrap();
+    writer.write_all(md.as_bytes()).unwrap();
+    writer.finish().unwrap();
+
+    let report = migrate::import_halo_zip(&pool, &cfg.data_dir, &zip_path, true)
+        .await
+        .unwrap();
+    assert_eq!(report.posts_created, 1);
+    assert_eq!(report.images_downloaded, 1, "外部图下载成功应计数");
+    assert_eq!(report.images_failed, 0);
+    let p = posts::get_post_by_slug(&pool, "dl").await.unwrap().unwrap();
+    assert!(p.content_md.contains("/uploads/"), "正文应替换为本站图");
+}

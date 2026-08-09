@@ -162,7 +162,20 @@ pub async fn import_halo_zip(
     }
 
     let mut report = ImportReport::default();
-    for idx in md_entries {
+    // 外部图片下载复用同一个 reqwest Client（30s 超时），避免每张图重建连接池。
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(internal)?;
+    let img_ctx = ImageCtx {
+        db,
+        cfg: &cfg,
+        uploads_dir: &uploads_dir,
+        image_paths: &image_paths,
+        download_images,
+        client: &client,
+    };
+    'posts: for idx in md_entries {
         let mut raw = String::new();
         // 块作用域收束 ZipFile 借用（其 Drop 会让 NLL 保持 archive 可变借用存活）
         let file_name = {
@@ -204,18 +217,37 @@ pub async fn import_halo_zip(
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| file_stem(&file_name));
 
-        // 分类：第一个分类作为文章分类；标签全部 ensure
+        // 分类：第一个分类作为文章分类；标签全部 ensure。单篇 DB 错误记录
+        // failures 并跳过该文件，不中断整个导入。
         let mut category_id = None;
         for name in &fm.categories {
-            let c = ensure_category(db, name).await?;
-            report.categories += 1;
-            if category_id.is_none() {
-                category_id = Some(c.id);
+            match ensure_category(db, name).await {
+                Ok(c) => {
+                    report.categories += 1;
+                    if category_id.is_none() {
+                        category_id = Some(c.id);
+                    }
+                }
+                Err(e) => {
+                    report.failures.push(format!(
+                        "{file_name}: 分类 {name} 处理失败 {}",
+                        e.message()
+                    ));
+                    continue 'posts;
+                }
             }
         }
         for name in &fm.tags {
-            taxonomy::ensure_tag(db, name).await?;
-            report.tags += 1;
+            match taxonomy::ensure_tag(db, name).await {
+                Ok(_) => report.tags += 1,
+                Err(e) => {
+                    report.failures.push(format!(
+                        "{file_name}: 标签 {name} 处理失败 {}",
+                        e.message()
+                    ));
+                    continue 'posts;
+                }
+            }
         }
 
         let post_type = if fm.post_type.as_deref() == Some("page") {
@@ -248,24 +280,22 @@ pub async fn import_halo_zip(
         };
         report.posts_created += 1;
 
-        // published_at 取 front-matter date（Halo 原文发布时间），解析失败保持建文时间
+        // published_at 取 front-matter date（Halo 原文发布时间），解析失败保持建文时间；
+        // UPDATE 失败记录 failures，文章本身仍保留。
         if let Some(date_str) = fm.date.as_deref().and_then(parse_datetime) {
-            sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+            if let Err(e) = sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
                 .bind(date_str.to_rfc3339_opts(SecondsFormat::Nanos, true))
                 .bind(post.id)
                 .execute(db)
                 .await
-                .map_err(internal)?;
+            {
+                report
+                    .failures
+                    .push(format!("{file_name}: 设置发布时间失败 {e}"));
+            }
         }
 
         // 正文图片管线：替换 URL 后更新文章（失败不中断，post 已创建）
-        let img_ctx = ImageCtx {
-            db,
-            cfg: &cfg,
-            uploads_dir: &uploads_dir,
-            image_paths: &image_paths,
-            download_images,
-        };
         let new_content = match process_images(&img_ctx, &body, &mut archive, &mut report, &file_name)
             .await
         {
@@ -278,7 +308,7 @@ pub async fn import_halo_zip(
             }
         };
         if new_content != body {
-            let _ = posts::update_post(
+            if let Err(e) = posts::update_post(
                 db,
                 post.id,
                 posts::UpdatePost {
@@ -292,7 +322,12 @@ pub async fn import_halo_zip(
                     tags: None,
                 },
             )
-            .await;
+            .await
+            {
+                report
+                    .failures
+                    .push(format!("{file_name}: 正文更新失败 {}", e.message()));
+            }
         }
     }
     Ok(report)
@@ -305,6 +340,8 @@ struct ImageCtx<'a> {
     uploads_dir: &'a Path,
     image_paths: &'a [(String, usize)],
     download_images: bool,
+    /// 外部图片下载共用的 reqwest Client（30s 超时，进程内复用连接池）。
+    client: &'a reqwest::Client,
 }
 
 /// 图片管线：扫描 `![alt](url)`，外部 http(s) 按需下载、zip 内相对路径解包，
@@ -354,8 +391,11 @@ async fn process_one_image(
         if !ctx.download_images {
             return Ok(original); // 未开启下载：外部 URL 原样保留
         }
-        return match download_image(ctx.db, ctx.cfg, ctx.uploads_dir, url).await {
-            Ok(path) => Ok(format!("![{alt}](/uploads/{path})")),
+        return match download_image(ctx, url).await {
+            Ok(path) => {
+                report.images_downloaded += 1;
+                Ok(format!("![{alt}](/uploads/{path})"))
+            }
             Err(e) => {
                 report.images_failed += 1;
                 report
@@ -402,22 +442,20 @@ async fn process_one_image(
     }
 }
 
-/// 下载外部图片：reqwest GET（30s 超时）→ 按响应 Content-Type / URL 扩展名定 mime
-/// → save_bytes 落库，返回附件相对路径。
-async fn download_image(
-    db: &Db,
-    cfg: &Config,
-    uploads_dir: &Path,
-    url: &str,
-) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
+/// 下载外部图片：reqwest GET（30s 超时，复用 ImageCtx.client）→ 按响应
+/// Content-Type / URL 扩展名定 mime → save_bytes 落库，返回附件相对路径。
+/// 文件名先按 `?`/`#` 截断（query/fragment 不属于文件名，否则扩展名解析失败）。
+async fn download_image(ctx: &ImageCtx<'_>, url: &str) -> Result<String, String> {
+    let resp = ctx
+        .client
+        .get(url)
+        .send()
+        .await
         .map_err(|e| e.to_string())?;
-    let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("HTTP {}", resp.status()));
     }
+    let orig_name = clean_url_name(url);
     let mime = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -425,19 +463,24 @@ async fn download_image(
         .and_then(|v| v.split(';').next())
         .map(|s| s.trim().to_lowercase())
         .filter(|m| is_supported_mime(m))
-        .or_else(|| mime_for_name(url).map(str::to_string))
+        .or_else(|| mime_for_name(&orig_name).map(str::to_string))
         .ok_or_else(|| "无法识别图片格式".to_string())?;
     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-    let orig_name = Path::new(url)
+    let att = uploads::save_bytes(ctx.db, ctx.cfg, ctx.uploads_dir, &orig_name, &mime, &bytes)
+        .await
+        .map_err(|e| e.message().to_string())?;
+    Ok(att.path)
+}
+
+/// 从 URL 取文件名：截断 `?`/`#` 之后的 query/fragment（`.../x.png?v=2` → `x.png`）。
+fn clean_url_name(url: &str) -> String {
+    let path = url.split(['?', '#']).next().unwrap_or(url);
+    Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
         .filter(|n| !n.is_empty())
         .unwrap_or("image")
-        .to_string();
-    let att = uploads::save_bytes(db, cfg, uploads_dir, &orig_name, &mime, &bytes)
-        .await
-        .map_err(|e| e.message().to_string())?;
-    Ok(att.path)
+        .to_string()
 }
 
 /// zip 内相对路径解析：精确路径 → 后缀匹配（`local/1.png` 命中 `assets/local/1.png`）

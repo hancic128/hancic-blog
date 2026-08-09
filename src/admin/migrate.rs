@@ -9,24 +9,30 @@
 
 use crate::services::migrate;
 use crate::{session, AppState};
-use axum::extract::{Multipart, OriginalUri, State};
+use axum::extract::{Multipart, OriginalUri, Query, State};
 use axum::response::Response;
 use serde_json::json;
+use std::collections::HashMap;
 use tower_sessions::Session;
 
 /// 迁移上传 zip 大小上限（字节），路由层 `DefaultBodyLimit` 与业务校验共用。
 pub const MIGRATE_MAX_BYTES: u64 = 500 * 1024 * 1024;
 
-/// GET /admin/migrate：上传表单页（`?msg=` 展示操作错误）。
+/// GET /admin/migrate：上传表单页（`?msg=` 展示操作错误，与 backup 一致）。
 pub async fn page(
     State(state): State<AppState>,
     session: Session,
+    Query(query): Query<HashMap<String, String>>,
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
         return super::redirect("/admin/login");
     }
-    let (ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
+    let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
+    ctx.insert(
+        "error_msg",
+        &query.get("msg").map(String::as_str).unwrap_or(""),
+    );
     super::render_admin(&state, "migrate.html", &ctx)
 }
 
