@@ -265,9 +265,12 @@ pub async fn search_posts(
     let offset = (page - 1).max(0) * page_size;
 
     // 不 SELECT rank：FTS5 的 rank 是 REAL，sqlx 0.8.6 严格类型检查下无法解码为 i64；
-    // `ORDER BY rank` 无需选中该列。
+    // `ORDER BY rank` 无需选中该列。JOIN posts 只放行已发布普通文章：
+    // posts_fts 触发器无条件索引全部行（含草稿与独立页），必须在此过滤。
     let rows: Vec<i64> = match sqlx::query_scalar::<_, i64>(
-        "SELECT rowid FROM posts_fts WHERE posts_fts MATCH ? ORDER BY rank LIMIT ? OFFSET ?",
+        "SELECT p.id FROM posts_fts f JOIN posts p ON p.id = f.rowid \
+         WHERE posts_fts MATCH ? AND p.status = 'published' AND p.post_type = 'post' \
+         ORDER BY rank LIMIT ? OFFSET ?",
     )
     .bind(&match_expr)
     .bind(page_size)
@@ -290,7 +293,8 @@ pub async fn search_posts(
     }
 
     let total: i64 = match sqlx::query_scalar::<_, i64>(
-        "SELECT count(*) FROM posts_fts WHERE posts_fts MATCH ?",
+        "SELECT count(*) FROM posts_fts f JOIN posts p ON p.id = f.rowid \
+         WHERE posts_fts MATCH ? AND p.status = 'published' AND p.post_type = 'post'",
     )
     .bind(&match_expr)
     .fetch_one(db)

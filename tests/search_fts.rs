@@ -93,6 +93,67 @@ async fn search_escapes_special_chars() {
     assert!(!html.contains("投资笔记"));
 }
 
+#[tokio::test]
+async fn search_excludes_drafts() {
+    let (app, pool) = test_app("search-drafts").await;
+    // 草稿（未发布）：posts_fts 触发器会索引它，但搜索不得公开
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "秘密草稿".into(),
+            content_md: "内部资料".into(),
+            excerpt: None,
+            slug: None,
+            status: PostStatus::Draft,
+            post_type: PostType::Post,
+            category_id: None,
+            tags: vec![],
+        },
+    )
+    .await
+    .unwrap();
+    create_published_post(&pool, "公开文章", "对外发布的内容").await;
+
+    // 搜草稿词：无结果（total=0），不泄漏草稿标题
+    let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("秘密草稿"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("的结果：0 条"));
+    assert!(!html.contains("post-list-item"));
+    assert!(!html.contains("内部资料"));
+
+    // 搜发布词：正常命中
+    let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("公开文章"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("公开文章"));
+}
+
+#[tokio::test]
+async fn search_excludes_pages() {
+    let (app, pool) = test_app("search-pages").await;
+    // 独立页（page）：索引了但不应出现在文章搜索结果
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "独立页面".into(),
+            content_md: "关于页内容".into(),
+            excerpt: None,
+            slug: Some("standalone-page".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            tags: vec![],
+        },
+    )
+    .await
+    .unwrap();
+
+    let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("独立页面"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("的结果：0 条"));
+    assert!(!html.contains("post-list-item"));
+    assert!(!html.contains("关于页内容"));
+}
+
 /// 简单百分号编码（查询串中的非保留字符）。
 fn urlencode(s: &str) -> String {
     s.bytes()
