@@ -16,7 +16,7 @@
 #   方案 B：经 usa 中转机（HANCIC_RELAY）docker pull + docker save | ssh docker load
 #
 # 环境变量（均可覆盖默认值）：
-#   HANCIC_IMAGE            镜像全名（默认 ghcr.io/angryshark708/hancic:latest）
+#   HANCIC_IMAGE            镜像全名（默认 ghcr.io/angryshark128/hancic:latest）
 #   HANCIC_PULL_MODE        拉取方案 a|b（默认 b，等价于 --pull-mode）
 #   HANCIC_PULL_A_IMAGE     方案 A 实际拉取的镜像名（如国内镜像源地址）
 #   HANCIC_RELAY            usa 中转机 ssh 目标（默认 root@170.106.103.36）
@@ -31,7 +31,7 @@
 set -euo pipefail
 
 # ---- 默认值（可被环境变量覆盖） ----
-HANCIC_IMAGE="${HANCIC_IMAGE:-ghcr.io/angryshark708/hancic:latest}"
+HANCIC_IMAGE="${HANCIC_IMAGE:-ghcr.io/angryshark128/hancic:latest}"
 HANCIC_PULL_MODE="${HANCIC_PULL_MODE:-b}"
 HANCIC_RELAY="${HANCIC_RELAY:-root@170.106.103.36}"
 HANCIC_PORT="${HANCIC_PORT:-8091}"
@@ -52,7 +52,7 @@ usage() {
   sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
 }
 
-# 上一版镜像标签：ghcr.io/angryshark708/hancic:latest -> ...:prev
+# 上一版镜像标签：ghcr.io/angryshark128/hancic:latest -> ...:prev
 prev_tag() {
   local img="$1"
   if [[ "$img" == *:* ]]; then

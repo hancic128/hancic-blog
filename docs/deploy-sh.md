@@ -1,6 +1,6 @@
 # hancic 上海主机上线手册
 
-> 目标：把 hancic（ghcr.io/angryshark708/hancic:latest）部署到上海主机，经北京 nginx 对外提供 `https://hancic.site/`，并从 Halo 迁移真实数据。全程保留 halo 可回滚，观察稳定后再停 halo。
+> 目标：把 hancic（ghcr.io/angryshark128/hancic:latest）部署到上海主机，经北京 nginx 对外提供 `https://hancic.site/`，并从 Halo 迁移真实数据。全程保留 halo 可回滚，观察稳定后再停 halo。
 > 配套脚本：`scripts/deploy-sh.sh`（在上海主机执行，含部署 / 回滚 / 状态子命令）。
 
 ---
@@ -91,8 +91,8 @@ command -v curl wget
 ```bash
 # A1 推荐（长期稳定）：先推送到国内镜像仓库（阿里云 ACR / 腾讯云 TCR），再在上海直拉
 #   在 usa（或本机）执行一次：
-docker pull ghcr.io/angryshark708/hancic:latest
-docker tag ghcr.io/angryshark708/hancic:latest registry.cn-shanghai.aliyuncs.com/<namespace>/hancic:latest
+docker pull ghcr.io/angryshark128/hancic:latest
+docker tag ghcr.io/angryshark128/hancic:latest registry.cn-shanghai.aliyuncs.com/<namespace>/hancic:latest
 docker login registry.cn-shanghai.aliyuncs.com && docker push registry.cn-shanghai.aliyuncs.com/<namespace>/hancic:latest
 
 #   上海执行：
@@ -100,7 +100,7 @@ HANCIC_PULL_A_IMAGE=registry.cn-shanghai.aliyuncs.com/<namespace>/hancic:latest 
   /opt/hancic/deploy-sh.sh deploy --pull-mode a
 
 # A2 临时：ghcr 前缀代理（第三方，稳定性无保证，域可能失效，仅应急）
-HANCIC_PULL_A_IMAGE=ghcr.nju.edu.cn/angryshark708/hancic:latest \
+HANCIC_PULL_A_IMAGE=ghcr.nju.edu.cn/angryshark128/hancic:latest \
   /opt/hancic/deploy-sh.sh deploy --pull-mode a
 
 # A3 直连试一把（最不稳，仅测试网络时用；不设 HANCIC_PULL_A_IMAGE 即为直连）
@@ -121,33 +121,33 @@ HANCIC_PULL_A_IMAGE=ghcr.nju.edu.cn/angryshark708/hancic:latest \
 脚本内部执行：
 
 ```bash
-ssh root@170.106.103.36 'docker pull ghcr.io/angryshark708/hancic:latest'   # usa 拉取（可访问 GitHub）
-ssh root@170.106.103.36 'docker save ghcr.io/angryshark708/hancic:latest' | docker load  # 管道直传上海
+ssh root@170.106.103.36 'docker pull ghcr.io/angryshark128/hancic:latest'   # usa 拉取（可访问 GitHub）
+ssh root@170.106.103.36 'docker save ghcr.io/angryshark128/hancic:latest' | docker load  # 管道直传上海
 ```
 
 预期输出：
 
 ```
-[hancic] 方案 B：经 root@170.106.103.36 中转拉取 ghcr.io/angryshark708/hancic:latest
+[hancic] 方案 B：经 root@170.106.103.36 中转拉取 ghcr.io/angryshark128/hancic:latest
 [hancic] usa 拉取完成，docker save 经 ssh 管道传回并 docker load（按镜像大小需数分钟）
-Loaded image: ghcr.io/angryshark708/hancic:latest
-[hancic] 镜像就绪：ghcr.io/angryshark708/hancic:latest
+Loaded image: ghcr.io/angryshark128/hancic:latest
+[hancic] 镜像就绪：ghcr.io/angryshark128/hancic:latest
 ```
 
 **手动版（在 usa 上执行，usa → 上海需免密）**：
 
 ```bash
 # usa 上执行
-docker pull ghcr.io/angryshark708/hancic:latest \
-  && docker save ghcr.io/angryshark708/hancic:latest | ssh root@172.81.241.149 'docker load'
+docker pull ghcr.io/angryshark128/hancic:latest \
+  && docker save ghcr.io/angryshark128/hancic:latest | ssh root@172.81.241.149 'docker load'
 ```
 
 **校验（两种方案通用）**：
 
 ```bash
-docker image inspect ghcr.io/angryshark708/hancic:latest >/dev/null && echo OK
-docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' ghcr.io/angryshark708/hancic
-# 预期：ghcr.io/angryshark708/hancic:latest  <100MB（验收标准 1）
+docker image inspect ghcr.io/angryshark128/hancic:latest >/dev/null && echo OK
+docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' ghcr.io/angryshark128/hancic
+# 预期：ghcr.io/angryshark128/hancic:latest  <100MB（验收标准 1）
 ```
 
 ---
@@ -166,7 +166,7 @@ chown -R 1000:1000 /data/hancic        # 容器内 hancic 用户 uid=1000（alpi
 - `themes/default`：**entrypoint 首启自动播种**（镜像内 `/app/themes/default` → `/data/themes/default`，见 `entrypoint.sh`：`theme.toml` 缺失才写入，不覆盖用户改动）。可选提前预置：
   ```bash
   docker run --rm --entrypoint sh -v /data/hancic:/data \
-    ghcr.io/angryshark708/hancic:latest \
+    ghcr.io/angryshark128/hancic:latest \
     -c 'mkdir -p /data/themes && cp -r /app/themes/default /data/themes/'
   ```
 - `ip2region.xdb`：**内嵌在二进制**（`include_bytes!`），首启自动写出，无需手动拷贝。
@@ -185,8 +185,8 @@ cd /opt/hancic
 
 # 预期（截取关键行）：
 #   [hancic] 已写入默认 config.toml（data_dir=/data, 端口 8090）
-#   [hancic] 当前运行镜像 ... 已标记为 ghcr.io/angryshark708/hancic:prev（回滚用）  ← 首启时无此行
-#   [hancic] 镜像就绪：ghcr.io/angryshark708/hancic:latest
+#   [hancic] 当前运行镜像 ... 已标记为 ghcr.io/angryshark128/hancic:prev（回滚用）  ← 首启时无此行
+#   [hancic] 镜像就绪：ghcr.io/angryshark128/hancic:latest
 #   [hancic] 健康检查通过：http://127.0.0.1:8091/api/health
 #   [hancic] 部署成功 ✅
 ```
@@ -336,7 +336,7 @@ curl -s -H 'Host: hancic.site' http://172.81.241.149:8091/ | head -5   # 预期�
 
 | # | 验收标准 | 操作命令 / 步骤 | 预期结果 | 对应手册 |
 |---|---|---|---|---|
-| 1 | 空闲内存 ≤100MB / 镜像 ≤100MB | `docker stats --no-stream hancic`；`docker images --format '{{.Size}}' ghcr.io/angryshark708/hancic` | 空闲内存 <50MB（达标线 ≤100MB）；镜像 <100MB | §2、§4 |
+| 1 | 空闲内存 ≤100MB / 镜像 ≤100MB | `docker stats --no-stream hancic`；`docker images --format '{{.Size}}' ghcr.io/angryshark128/hancic` | 空闲内存 <50MB（达标线 ≤100MB）；镜像 <100MB | §2、§4 |
 | 2 | 375px 移动端：带图说说、带图文章 | 浏览器 DevTools 设备模拟（iPhone SE 375×667）或真机：后台 `/admin/moments` 发带图说说；`/admin/posts/new` 写带图文章并发布（T24 已自动化覆盖，此处真机抽查） | 发图/上传/发布全流程可用，布局无横向溢出 | §4 |
 | 3 | 桌面粘贴截图自动上传 | 编辑器（Vditor）内粘贴截图 | 自动上传成功，附件库 `/admin/attachments` 出现新附件 | §4 |
 | 4 | Halo zip 导入数量一致、图片可用 | §6 报告字段与 Halo 对账 + 抽查 3 篇长文 | `posts_created`=Halo 文章+页面数；分类/标签数一致；`images_failed`≈0；图片可显示 | §6 |
@@ -380,7 +380,7 @@ done
 ```bash
 # 上海主机
 /opt/hancic/deploy-sh.sh rollback        # --rollback 为同义别名
-# 预期：使用上一版镜像 ghcr.io/angryshark708/hancic:prev 重启服务 → 健康检查通过 → 回退成功
+# 预期：使用上一版镜像 ghcr.io/angryshark128/hancic:prev 重启服务 → 健康检查通过 → 回退成功
 ```
 
 - `:prev` 标记在每次 `deploy` 成功拉取前自动打在当前运行镜像上；首次部署无 `:prev`，rollback 会报错提示

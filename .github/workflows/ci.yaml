@@ -81,6 +81,6 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/angryshark708/hancic:latest
+          tags: ghcr.io/angryshark128/hancic:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
