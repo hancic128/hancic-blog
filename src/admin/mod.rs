@@ -7,7 +7,7 @@
 
 use crate::error::AppError;
 use crate::models::{PostStatus, PostType};
-use crate::services::{posts as posts_service, settings, stats};
+use crate::services::{posts as posts_service, settings as settings_service, stats};
 use crate::AppState;
 use crate::{auth, session};
 use axum::Router;
@@ -26,6 +26,7 @@ use tower_sessions::Session;
 pub mod attachments;
 pub mod moments;
 pub mod posts;
+pub mod settings;
 pub mod taxonomy;
 
 /// 仪表盘最近草稿条数。
@@ -58,6 +59,9 @@ pub fn router() -> Router<AppState> {
         .route("/taxonomy/categories/{id}/delete", post(taxonomy::delete_category))
         .route("/taxonomy/tags", post(taxonomy::create_tag))
         .route("/taxonomy/tags/{id}/delete", post(taxonomy::delete_tag))
+        .route("/settings", get(settings::page))
+        .route("/settings/save", post(settings::save))
+        .route("/settings/password", post(settings::password))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -74,6 +78,7 @@ pub fn build_tera() -> Tera {
         ("moments.html", include_str!("../../assets/admin_templates/moments.html")),
         ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
+        ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera
@@ -87,7 +92,7 @@ pub(crate) fn redirect(location: &str) -> Response {
 /// 后台页基础上下文：site_name / csrf / admin_nav（layout.html 消费）。
 pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, String) {
     let csrf = session::csrf_token(session).await.unwrap_or_default();
-    let site_name = settings::get(&state.db, "site_name")
+    let site_name = settings_service::get(&state.db, "site_name")
         .await
         .ok()
         .flatten()

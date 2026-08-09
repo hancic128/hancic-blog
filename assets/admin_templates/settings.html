@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block title %}站点设置{% endblock %}
+{% block content %}
+<h1>站点设置</h1>
+
+<section class="panel">
+  <h2>站点信息</h2>
+  {% if settings_error %}
+  <p class="error">{{ settings_error }}</p>
+  {% endif %}
+  <form method="post" action="/admin/settings/save">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="site-name">站点名称</label>
+      <input id="site-name" name="site_name" value="{{ form.site_name }}" required>
+    </div>
+    <div class="field">
+      <label for="site-desc">站点描述</label>
+      <input id="site-desc" name="site_desc" value="{{ form.site_desc }}">
+    </div>
+    <div class="field">
+      <label for="site-nav">导航菜单（JSON 数组）</label>
+      <textarea id="site-nav" name="site_nav" rows="6">{{ form.site_nav }}</textarea>
+      <p class="muted">每项需含 label 与 url，如 [{"label":"首页","url":"/"},{"label":"关于","url":"/about"}]</p>
+    </div>
+    <div class="field">
+      <label for="site-social">社交链接（JSON 对象）</label>
+      <textarea id="site-social" name="site_social" rows="4">{{ form.site_social }}</textarea>
+      <p class="muted">键值对均为字符串，如 {"github":"https://github.com/xxx"}</p>
+    </div>
+    <div class="field">
+      <label for="theme-mode">主题模式</label>
+      <select id="theme-mode" name="theme_mode">
+        <option value="auto"{% if form.theme_mode == "auto" %} selected{% endif %}>自动</option>
+        <option value="light"{% if form.theme_mode == "light" %} selected{% endif %}>浅色</option>
+        <option value="dark"{% if form.theme_mode == "dark" %} selected{% endif %}>深色</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="timezone">时区</label>
+      <input id="timezone" name="timezone" value="{{ form.timezone }}" placeholder="Asia/Shanghai">
+      <p class="muted">IANA 时区名，如 Asia/Shanghai、Asia/Tokyo、UTC</p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存设置</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>修改密码</h2>
+  {% if password_error %}
+  <p class="error">{{ password_error }}</p>
+  {% endif %}
+  <form method="post" action="/admin/settings/password">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="old-password">旧密码</label>
+      <input id="old-password" name="old_password" type="password" required>
+    </div>
+    <div class="field">
+      <label for="new-password">新密码</label>
+      <input id="new-password" name="new_password" type="password" required minlength="8">
+    </div>
+    <div class="field">
+      <label for="confirm-password">确认新密码</label>
+      <input id="confirm-password" name="confirm" type="password" required minlength="8">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">修改密码</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
