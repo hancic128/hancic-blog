@@ -309,3 +309,30 @@ h2 { font-size: 16px; margin: 0 0 14px; }
 .att-upload { border: 2px dashed var(--border); border-radius: 10px; padding: 48px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
 .att-upload:hover, .att-upload.dragging { border-color: var(--accent); background: var(--accent-soft); }
 .att-upload-hint { margin: 0 0 6px; }
+
+/* ---- 分类标签：两栏 + 行内编辑 ---- */
+.taxonomy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.taxonomy-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.taxonomy-edit input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+}
+.taxonomy-edit .taxonomy-name,
+.taxonomy-edit .taxonomy-slug { flex: 1 1 120px; min-width: 120px; }
+.taxonomy-edit .taxonomy-sort { width: 72px; }
+.tag-list { list-style: none; margin: 0; padding: 0; }
+.tag-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.tag-item:last-child { border-bottom: none; }
+@media (max-width: 768px) { .taxonomy-grid { grid-template-columns: 1fr; } }

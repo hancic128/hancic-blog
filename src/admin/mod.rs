@@ -26,6 +26,7 @@ use tower_sessions::Session;
 pub mod attachments;
 pub mod moments;
 pub mod posts;
+pub mod taxonomy;
 
 /// 仪表盘最近草稿条数。
 const DASHBOARD_DRAFT_LIMIT: i64 = 5;
@@ -51,6 +52,12 @@ pub fn router() -> Router<AppState> {
         .route("/attachments", get(attachments::list))
         .route("/attachments/{id}/delete", post(attachments::delete))
         .route("/attachments/upload", get(attachments::upload_page))
+        .route("/taxonomy", get(taxonomy::list))
+        .route("/taxonomy/categories", post(taxonomy::create_category))
+        .route("/taxonomy/categories/{id}/update", post(taxonomy::update_category))
+        .route("/taxonomy/categories/{id}/delete", post(taxonomy::delete_category))
+        .route("/taxonomy/tags", post(taxonomy::create_tag))
+        .route("/taxonomy/tags/{id}/delete", post(taxonomy::delete_tag))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -66,6 +73,7 @@ pub fn build_tera() -> Tera {
         ("post_edit.html", include_str!("../../assets/admin_templates/post_edit.html")),
         ("moments.html", include_str!("../../assets/admin_templates/moments.html")),
         ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
+        ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera
