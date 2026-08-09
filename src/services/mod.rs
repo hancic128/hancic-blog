@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod migrate;
 pub mod moments;
 pub mod posts;
 pub mod settings;

@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block title %}迁移导入{% endblock %}
+{% block content %}
+<h1>迁移导入</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+{% if result %}
+<section class="panel">
+  <h2>导入完成</h2>
+  <ul>
+    <li>新建文章：{{ result.posts_created }} 篇</li>
+    <li>跳过文件：{{ result.posts_skipped }} 个</li>
+    <li>分类：{{ result.categories }} 个</li>
+    <li>标签：{{ result.tags }} 个</li>
+    <li>下载/导入图片：{{ result.images_downloaded }} 张</li>
+    <li>失败图片：{{ result.images_failed }} 张</li>
+  </ul>
+  {% if failures %}
+  <h3>失败明细</h3>
+  <ul class="muted">
+    {% for f in failures %}<li>{{ f }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Halo Markdown 迁移</h2>
+  <p class="muted">上传 Halo 导出的 Markdown zip（任意层级含 <code>*.md</code> 与图片）。
+    front-matter（<code>---</code> 块）中的 <code>title / date / categories / tags / slug / type</code>
+    会被识别；无 front-matter 时以正文首行 <code># 标题</code> 为标题、文件名作 slug。
+    正文图片：zip 内相对路径图片自动导入并替换为本站 <code>/uploads/</code> 链接；
+    外部 http(s) 图片勾选下方选项后拉取到本地（30s 超时，失败记录到报告，不中断导入）。</p>
+  <form method="post" action="/admin/migrate" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="archive-file">Halo 导出 zip（≤ 500MB）</label>
+      <input id="archive-file" type="file" name="archive" accept=".zip,application/zip" required>
+    </div>
+    <div class="field">
+      <label class="checkbox"><input type="checkbox" name="download_images" value="on">
+        下载正文中的外部 http(s) 图片（失败不会中断导入）</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit"
+        data-confirm="确认导入？将新建文章、分类/标签与附件，slug 冲突自动加后缀。">开始导入</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

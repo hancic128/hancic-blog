@@ -25,6 +25,7 @@ use tower_sessions::Session;
 
 pub mod attachments;
 pub mod backup;
+pub mod migrate;
 pub mod moments;
 pub mod posts;
 pub mod settings;
@@ -85,6 +86,15 @@ pub fn router() -> Router<AppState> {
                 backup::RESTORE_MAX_BYTES as usize + 1024 * 1024,
             )),
         )
+        // migrate 上传 zip 上限 500MB：同上
+        .route(
+            "/migrate",
+            get(migrate::page)
+                .post(migrate::run)
+                .layer(axum::extract::DefaultBodyLimit::max(
+                    migrate::MIGRATE_MAX_BYTES as usize + 1024 * 1024,
+                )),
+        )
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -107,6 +117,7 @@ pub fn build_tera() -> Tera {
         ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
         ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
         ("backup.html", include_str!("../../assets/admin_templates/backup.html")),
+        ("migrate.html", include_str!("../../assets/admin_templates/migrate.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera
@@ -169,7 +180,7 @@ fn admin_nav(path: &str) -> Vec<NavItem> {
         ("/admin/stats", "统计"),
         ("/admin/tokens", "API Token"),
         ("/admin/backup", "备份"),
-        ("/admin/import", "迁移导入"),
+        ("/admin/migrate", "迁移导入"),
         ("/", "查看站点"),
     ];
     items
