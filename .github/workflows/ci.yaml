@@ -22,6 +22,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # cargo 构建缓存：依赖编译产物跨 run 复用，test job 从 ~10min 压到 2-3min
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
       # assets 已提交入库（T13），此步用于验证 fetch-assets.sh 仍可用（含代理回退路径）。
       # 若因网络受限下载失败，只要 assets/vendor/vditor.min.js 在（已入库）即短路通过。
       # 幂等逻辑放 workflow 而非脚本本身：脚本是本地刷新资产的入口（升级版本后重跑入库），

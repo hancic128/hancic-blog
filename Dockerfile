@@ -15,9 +15,13 @@ RUN apk add --no-cache musl-dev gcc
 WORKDIR /build
 # 依赖层缓存：先只复制清单并预编译依赖（源码变化不触发依赖重编）
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src && echo 'fn main() {}' > src/main.rs && echo '' > src/lib.rs \
-    && cargo build --release --locked 2>/dev/null || true \
-    && rm -rf src
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs && echo '' > src/lib.rs
+# cache mount：持久主机（如上海本地构建）跨构建复用 cargo registry 与 target 增量；
+# GitHub hosted runner 每次全新，靠下方 gha 层缓存兜底。
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo build --release --locked 2>/dev/null || true
+RUN rm -rf src
 COPY . .
 # 可选镜像源覆盖（见上文构建说明）；默认空 = crates.io 直连。
 ARG CARGO_SOURCE_INDEX=
@@ -26,6 +30,9 @@ RUN if [ -n "$CARGO_SOURCE_INDEX" ]; then \
       printf '[source.crates-io]\nreplace-with = "mirror"\n[source.mirror]\nregistry = "%s"\n' "$CARGO_SOURCE_INDEX" > /build/.cargo/config.toml; \
     fi \
     && cargo build --release --locked
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo build --release --locked
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates \
