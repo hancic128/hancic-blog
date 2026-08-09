@@ -13,6 +13,11 @@
 FROM rust:1.88.0-alpine AS builder
 RUN apk add --no-cache musl-dev gcc
 WORKDIR /build
+# 依赖层缓存：先只复制清单并预编译依赖（源码变化不触发依赖重编）
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs && echo '' > src/lib.rs \
+    && cargo build --release --locked 2>/dev/null || true \
+    && rm -rf src
 COPY . .
 # 可选镜像源覆盖（见上文构建说明）；默认空 = crates.io 直连。
 ARG CARGO_SOURCE_INDEX=
