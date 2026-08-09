@@ -165,3 +165,87 @@ async fn autosave_updates_draft_content() {
     assert_eq!(p.content_md, "# 自动保存后的正文", "自动保存应更新正文");
     assert_eq!(p.status, PostStatus::Draft, "自动保存不应改变状态");
 }
+
+/// slug 冲突：update 把 slug 改成另一篇文章的 → 200 回显编辑页（非 302），
+/// 且表单用「提交值」回填（标题/正文/标签不丢）；DB 不落库保持原值。
+#[tokio::test]
+async fn slug_conflict_keeps_submitted_values() {
+    let cfg = test_config("admin-posts-slug-conflict");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+    let csrf = extract_csrf(
+        &client
+            .get(format!("{base}/admin/posts"))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    );
+
+    // 文章 A：显式 slug 占住 shared-slug
+    let res = client
+        .post(format!("{base}/admin/posts"))
+        .form(&[
+            ("title", "甲文章"),
+            ("content_md", "A 正文"),
+            ("slug", "shared-slug"),
+            ("status", "draft"),
+            ("category_id", ""),
+            ("tags", ""),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302);
+    // 文章 B
+    let res = client
+        .post(format!("{base}/admin/posts"))
+        .form(&[
+            ("title", "乙文章"),
+            ("content_md", "B 正文"),
+            ("status", "draft"),
+            ("category_id", ""),
+            ("tags", ""),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302);
+    let b = posts::get_post_by_slug(&pool, "乙文章").await.unwrap().unwrap();
+
+    // B 的 slug 改成 A 的 → 冲突：200 回显 + 回填提交值 + DB 未变
+    let res = client
+        .post(format!("{base}/admin/posts/{}/update", b.id))
+        .form(&[
+            ("title", "乙文章·新标题"),
+            ("content_md", "# 新内容\n未保存"),
+            ("slug", "shared-slug"),
+            ("status", "draft"),
+            ("category_id", ""),
+            ("tags", "新标签"),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200, "冲突应回显编辑页而非重定向");
+    let html = res.text().await.unwrap();
+    assert!(html.contains("固定链接已被占用"), "应提示链接冲突");
+    assert!(html.contains("乙文章·新标题"), "应回填用户提交的标题");
+    assert!(html.contains("# 新内容"), "应回填用户提交的正文");
+    assert!(html.contains("新标签"), "应回填用户提交的标签");
+
+    // 冲突不落库：B 的标题/正文仍是原值
+    let b2 = posts::get_post(&pool, b.id).await.unwrap().unwrap();
+    assert_eq!(b2.title, "乙文章", "冲突时标题不应落库");
+    assert_eq!(b2.content_md, "B 正文", "冲突时正文不应落库");
+}

@@ -12,6 +12,7 @@ use std::str::FromStr;
 enum BindVal {
     Text(String),
     Int(i64),
+    Null,
 }
 
 pub struct NewPost {
@@ -27,14 +28,15 @@ pub struct NewPost {
 }
 
 pub struct UpdatePost {
-    /// None = 不变；slug/tags 特殊：Some(_) 即替换
+    /// None = 不变；slug/tags 特殊：Some(_) 即替换；
+    /// excerpt/category_id 为 `Option<Option<T>>`：Some(Some(v)) = 设值、Some(None) = 显式清空、None = 不变
     pub title: Option<String>,
     pub content_md: Option<String>,
-    pub excerpt: Option<String>,
+    pub excerpt: Option<Option<String>>,
     pub slug: Option<String>,
     pub status: Option<PostStatus>,
     pub post_type: Option<PostType>,
-    pub category_id: Option<i64>,
+    pub category_id: Option<Option<i64>>,
     pub tags: Option<Vec<String>>,
 }
 
@@ -358,7 +360,8 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
     }
     if let Some(excerpt) = input.excerpt {
         sets.push("excerpt = ?");
-        values.push(BindVal::Text(excerpt));
+        // Some(None) = 显式清空摘要（空串）
+        values.push(BindVal::Text(excerpt.unwrap_or_default()));
     }
     if let Some(slug) = input.slug {
         // 空串视为不变，与 create_post 的过滤行为对齐
@@ -385,7 +388,11 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
     }
     if let Some(category_id) = input.category_id {
         sets.push("category_id = ?");
-        values.push(BindVal::Int(category_id));
+        // Some(None) = 显式清空分类（SET NULL）
+        match category_id {
+            Some(id) => values.push(BindVal::Int(id)),
+            None => values.push(BindVal::Null),
+        }
     }
     sets.push("updated_at = ?");
     values.push(BindVal::Text(Utc::now().to_rfc3339()));
@@ -400,6 +407,7 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         match v {
             BindVal::Text(s) => q = q.bind(s),
             BindVal::Int(i) => q = q.bind(i),
+            BindVal::Null => q = q.bind(None::<i64>),
         }
     }
     q.execute(db).await?;

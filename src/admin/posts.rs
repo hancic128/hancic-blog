@@ -215,7 +215,7 @@ pub async fn edit_page(
     if session::require_admin(&session).await.is_err() {
         return super::redirect("/admin/login");
     }
-    match render_edit(&state, &session, id, uri.path(), "").await {
+    match render_edit(&state, &session, id, uri.path(), "", None).await {
         Ok(resp) => resp,
         Err(e) => {
             tracing::error!("渲染文章编辑页失败: {e:?}");
@@ -225,12 +225,16 @@ pub async fn edit_page(
 }
 
 /// 编辑页上下文（slug 冲突等错误回显用）。
+///
+/// `submitted`：可选的表单提交值。传入时用它回填表单（标题/正文/分类/标签/
+/// slug/excerpt/status），保证校验失败回显不丢用户已填内容；None 时从 DB 取值。
 async fn render_edit(
     state: &AppState,
     session: &Session,
     id: i64,
     path: &str,
     error_tip: &str,
+    submitted: Option<&HashMap<String, String>>,
 ) -> Result<Response, AppError> {
     let Some(post) = posts::get_post(&state.db, id).await? else {
         return Ok(super::redirect("/admin/posts"));
@@ -240,7 +244,7 @@ async fn render_edit(
         .unwrap_or_default();
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
-    ctx.insert("post", &post_edit_value(&post, &tags));
+    ctx.insert("post", &post_edit_value(&post, &tags, submitted));
     ctx.insert("categories", &categories_value(&categories));
     ctx.insert("error_tip", error_tip);
     Ok(super::render_admin(state, "post_edit.html", &ctx))
@@ -248,8 +252,13 @@ async fn render_edit(
 
 /// 编辑页文章 JSON：content_md 由模板 `{{ post.content_md }}` 进 `data-content`
 /// 属性（tera autoescape 保证属性值安全），tags 拼成逗号分隔字符串回填输入框。
-fn post_edit_value(p: &Post, tags: &[Tag]) -> Value {
-    json!({
+/// `submitted` 存在时逐字段覆盖为提交值（正文即使未改动也用提交值，保证不丢）。
+fn post_edit_value(
+    p: &Post,
+    tags: &[Tag],
+    submitted: Option<&HashMap<String, String>>,
+) -> Value {
+    let mut v = json!({
         "id": p.id,
         "title": p.title,
         "content_md": p.content_md,
@@ -262,7 +271,33 @@ fn post_edit_value(p: &Post, tags: &[Tag]) -> Value {
             .collect::<Vec<_>>()
             .join(", "),
         "category_id": p.category_id.unwrap_or(0),
-    })
+    });
+    if let Some(f) = submitted {
+        if let Some(t) = f.get("title") {
+            v["title"] = json!(t);
+        }
+        if let Some(t) = f.get("content_md") {
+            v["content_md"] = json!(t);
+        }
+        if let Some(t) = f.get("slug") {
+            v["slug"] = json!(t);
+        }
+        if let Some(t) = f.get("status") {
+            v["status"] = json!(t);
+        }
+        if let Some(t) = f.get("excerpt") {
+            v["excerpt"] = json!(t);
+        }
+        if let Some(t) = f.get("tags") {
+            v["tags"] = json!(t);
+        }
+        if let Some(t) = f.get("category_id") {
+            if let Ok(id) = t.trim().parse::<i64>() {
+                v["category_id"] = json!(id);
+            }
+        }
+    }
+    v
 }
 
 // ---------- 创建 ----------
@@ -311,7 +346,8 @@ pub async fn update(
         return Ok(super::redirect("/admin/posts"));
     }
     // slug 冲突预检：`update_post` 直接写 slug，撞 UNIQUE 约束会 500，
-    // 提前用 slugify 后的值比对，命中其他文章则回显编辑页。
+    // 提前用 slugify 后的值比对，命中其他文章则用「提交值」回显编辑页
+    // （回填表单而非重取 DB，保证用户刚填的标题/正文/标签不丢）。
     if let Some(slug) = optional_field(form.get("slug")) {
         let slug = posts::slugify(&slug).await;
         if let Some(other) = posts::get_post_by_slug(&state.db, &slug).await? {
@@ -322,6 +358,7 @@ pub async fn update(
                     id,
                     "/admin/posts/{id}/edit",
                     "固定链接已被占用，请换一个",
+                    Some(&form),
                 )
                 .await;
             }
@@ -330,11 +367,16 @@ pub async fn update(
     let input = posts::UpdatePost {
         title: optional_field(form.get("title")),
         content_md: Some(form.get("content_md").cloned().unwrap_or_default()),
-        excerpt: optional_field(form.get("excerpt")),
+        // 空串 → Some(None) 显式清空；非空 → Some(Some(v)) 设值
+        excerpt: Some(optional_field(form.get("excerpt"))),
         slug: form.get("slug").cloned(), // 空串视为不变（T3 已修）
         status: Some(parse_status(form.get("status").map(String::as_str).unwrap_or(""))),
         post_type: None,
-        category_id: parse_id(form.get("category_id")),
+        // 空串 → Some(None) 显式清空分类；合法 id → Some(Some(id))；非法值忽略
+        category_id: match form.get("category_id").map(String::as_str).unwrap_or("").trim() {
+            "" => Some(None),
+            _ => parse_id(form.get("category_id")).map(Some),
+        },
         tags: Some(parse_tags(form.get("tags"))),
     };
     let p = posts::update_post(&state.db, id, input).await?;

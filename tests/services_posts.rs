@@ -99,6 +99,43 @@ async fn update_replaces_tags() {
     assert_eq!(tags[0].name, "c");
 }
 
+/// `UpdatePost.category_id = Some(None)`：显式清空分类（SET NULL）。
+#[tokio::test]
+async fn update_clears_category() {
+    let (pool, _cfg) = setup("update-clear-category").await;
+    let cat = hancic::services::taxonomy::create_category(&pool, "随笔", "notes", 0)
+        .await
+        .unwrap();
+    let p = posts::create_post(&pool, NewPost {
+        title: "分类清空".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Draft, post_type: hancic::models::PostType::Post,
+        category_id: Some(cat.id), tags: vec![],
+    }).await.unwrap();
+    assert_eq!(p.category_id, Some(cat.id), "前置：已设分类");
+    let updated = posts::update_post(&pool, p.id, UpdatePost {
+        title: None, content_md: None, excerpt: None, slug: None,
+        status: None, post_type: None, category_id: Some(None), tags: None,
+    }).await.unwrap();
+    assert_eq!(updated.category_id, None, "分类应被清空为 NULL");
+}
+
+/// `UpdatePost.excerpt = Some(None)`：显式清空摘要（空串）。
+#[tokio::test]
+async fn update_clears_excerpt() {
+    let (pool, _cfg) = setup("update-clear-excerpt").await;
+    let p = posts::create_post(&pool, NewPost {
+        title: "摘要清空".into(), content_md: "x".into(), excerpt: Some("旧摘要".into()), slug: None,
+        status: PostStatus::Draft, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    assert_eq!(p.excerpt, "旧摘要", "前置：已有摘要");
+    let updated = posts::update_post(&pool, p.id, UpdatePost {
+        title: None, content_md: None, excerpt: Some(None), slug: None,
+        status: None, post_type: None, category_id: None, tags: None,
+    }).await.unwrap();
+    assert_eq!(updated.excerpt, "", "摘要应被清空");
+}
+
 #[tokio::test]
 async fn adjacent_posts_ordered_by_published_at() {
     let (pool, _cfg) = setup("adjacent").await;
