@@ -24,6 +24,7 @@ use tera::{Context, Tera};
 use tower_sessions::Session;
 
 pub mod attachments;
+pub mod backup;
 pub mod moments;
 pub mod posts;
 pub mod settings;
@@ -75,6 +76,15 @@ pub fn router() -> Router<AppState> {
         .route("/tokens", get(tokens::list).post(tokens::create))
         .route("/tokens/{id}/created", get(tokens::created_page))
         .route("/tokens/{id}/revoke", post(tokens::revoke))
+        .route("/backup", get(backup::page))
+        .route("/backup/export", post(backup::export))
+        // restore 上传 zip 上限 500MB：路由层 DefaultBodyLimit（multipart 边界/字段头余量）
+        .route(
+            "/backup/restore",
+            post(backup::restore).layer(axum::extract::DefaultBodyLimit::max(
+                backup::RESTORE_MAX_BYTES as usize + 1024 * 1024,
+            )),
+        )
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -96,6 +106,7 @@ pub fn build_tera() -> Tera {
         ("stats.html", include_str!("../../assets/admin_templates/stats.html")),
         ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
         ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
+        ("backup.html", include_str!("../../assets/admin_templates/backup.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera

@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}备份与恢复{% endblock %}
+{% block content %}
+<h1>备份与恢复</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+{% if result %}
+<section class="panel">
+  <h2>恢复完成</h2>
+  <p class="muted">数据已从备份包恢复。原数据目录已整体改名保留在
+    <code>{{ result.backup_dir }}</code>，确认无误后可手动删除。请<strong>重启服务</strong>
+    使数据库连接与主题渲染完全生效。</p>
+  <ul>
+    <li>数据库（hancic.db）：{% if result.db %}已恢复{% else %}未包含{% endif %}</li>
+    <li>配置文件（config.toml）：{% if result.config %}已恢复{% else %}备份包未包含{% endif %}</li>
+    <li>上传附件（uploads/）：{{ result.uploads }} 个文件</li>
+    <li>主题（themes/）：{{ result.themes }} 个文件</li>
+    <li>共写入 {{ result.files }} 个文件</li>
+  </ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>导出备份</h2>
+  <p class="muted">导出内容：数据库一致性快照（hancic.db）、配置文件（config.toml）、
+    上传附件（uploads/）、主题（themes/）。</p>
+  <form method="post" action="/admin/backup/export">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">下载备份 zip</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>恢复备份</h2>
+  <p class="error">恢复会用备份包<strong>覆盖当前全部数据</strong>；原数据目录将自动改名
+    为 <code>&lt;数据目录&gt;.bak-&lt;时间戳&gt;</code> 保留，确认无误后可手动删除。
+    恢复完成后建议重启服务。</p>
+  <form method="post" action="/admin/backup/restore" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="backup-file">备份包（zip，≤ 500MB）</label>
+      <input id="backup-file" type="file" name="backup" accept=".zip,application/zip" required>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-danger" type="submit"
+        data-confirm="确认恢复？当前数据将被备份包覆盖（原数据自动改名保留）。">恢复</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

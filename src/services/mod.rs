@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod moments;
 pub mod posts;
 pub mod settings;

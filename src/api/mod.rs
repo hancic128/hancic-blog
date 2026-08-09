@@ -2,10 +2,11 @@
 //!
 //! 鉴权：除 `/api/health`（存活探针，保持开放，供监控/部署探测）外，全部端点
 //! 经 `require_admin_or_token`——后台 admin 会话或 `Authorization: Bearer <token>`
-//! 二选一，都失败则 401。`GET /api/backup` 依赖 T22 备份服务，本任务不挂载。
+//! 二选一，都失败则 401。`GET /api/backup` 返回全量备份 zip（T22）。
 //! 统一 JSON 错误体由 `AppError` 的 `IntoResponse` 产出。
 
 pub mod auth;
+pub mod backup;
 pub mod categories;
 pub mod moments;
 pub mod posts;
@@ -35,6 +36,7 @@ pub fn router() -> Router<AppState> {
             patch(categories::update).delete(categories::delete),
         )
         .route("/stats/summary", get(stats::summary))
+        .route("/backup", get(backup::backup))
 }
 
 /// 统一 API 鉴权：admin 会话通过则放行；否则校验 `Authorization: Bearer <token>`。
