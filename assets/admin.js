@@ -185,9 +185,12 @@
       });
     }
 
-    // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）
+    // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）。
+    // cdn 指向本地 /static/vendor/vditor（i18n/lute/icons 已随仓库 assets 发布，
+    // 见 scripts/fetch-assets.sh），避免运行时外网依赖（M120）。
     editor = new window.Vditor('editor', {
       mode: 'ir',
+      cdn: '/static/vendor/vditor',
       cache: false,
       height: 460,
       value: editorEl.getAttribute('data-content') || '',

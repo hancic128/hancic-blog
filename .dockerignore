@@ -1,0 +1,22 @@
+# Docker 构建上下文排除项（构建产物越小越好；与 .gitignore 职责不同，两者并存）
+# Rust 构建产物
+target/
+# 本地数据（开发/测试），绝不进镜像
+data*/
+# VCS 元数据
+.git/
+# 开发与文档（镜像不需要）
+.superpowers/
+design-system/
+e2e/
+tests/
+docs/
+scripts/
+*.md
+# rsproxy 镜像源配置：Dockerfile 默认 crates.io 直连（见 Dockerfile 头注释），
+# 需要镜像源时用 --build-arg CARGO_SOURCE_INDEX 注入，避免把本机网络配置带入镜像
+.cargo/
+# 自身（builder 中无用）
+Dockerfile
+docker-compose.yaml
+.dockerignore

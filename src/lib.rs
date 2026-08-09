@@ -57,7 +57,17 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
     };
     // 后台前端资源（admin.css/admin.js/vendor/）以仓库 assets/ 为根，
     // 与源码一同发布；编译期路径保证 cargo test 等任意 cwd 下可用。
-    let assets_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
+    // 容器部署时编译期路径（Docker builder 的 /build/assets）不存在，
+    // 回退到可执行文件同目录的 assets/（镜像内为 /app/assets，T25）。
+    let mut assets_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
+    if !assets_dir.is_dir() {
+        let exe_assets = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join("assets")));
+        if let Some(dir) = exe_assets.filter(|d| d.is_dir()) {
+            assets_dir = dir;
+        }
+    }
     Ok(Router::new()
         .nest(
             "/api",

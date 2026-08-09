@@ -70,6 +70,27 @@ mv "$TMP/package/dist/index.min.js" assets/vendor/vditor.min.js
 mv "$TMP/package/dist/index.css" assets/vendor/vditor.min.css
 echo "OK: vditor.min.js / vditor.min.css（Vditor ${VDITOR_VERSION}）"
 
+# Vditor 运行时资源本地化（T25/M120）：i18n/lute/icons/highlight/content-theme 等
+# 从 npm 包提取到 assets/vendor/vditor/dist/，并把 vditor.min.js 内硬编码的
+# unpkg CDN 常量改成本地 /static/vendor/vditor，消除浏览器侧外网依赖。
+mkdir -p assets/vendor/vditor
+tar -xzf "$TMP/vditor.tgz" -C assets/vendor/vditor --strip-components 1 \
+  package/dist/js/i18n/zh_CN.js \
+  package/dist/js/lute/lute.min.js \
+  package/dist/js/icons/ant.js \
+  package/dist/js/highlight.js/highlight.min.js \
+  package/dist/js/highlight.js/styles/github.min.css \
+  package/dist/css/content-theme/ant-design.css \
+  package/dist/css/content-theme/dark.css \
+  package/dist/css/content-theme/light.css \
+  package/dist/css/content-theme/wechat.css \
+  package/dist/images/logo.png \
+  package/dist/images/img-loading.svg
+perl -pi -e 's#"https://unpkg.com/vditor@"\.concat\("3\.11\.2"\)#"/static/vendor/vditor"#' assets/vendor/vditor.min.js
+perl -pi -e 's#https://unpkg\.com/vditor/dist/images/logo\.png#/static/vendor/vditor/dist/images/logo.png#g' assets/vendor/vditor.min.js
+grep -q "unpkg" assets/vendor/vditor.min.js && fail "Vditor 补丁失败：vditor.min.js 仍含 unpkg 引用"
+echo "OK: vditor 运行时资源（i18n/lute/icons/highlight）本地化"
+
 # ---- Chart.js ----
 fetch assets/vendor/chart.umd.min.js \
   "https://github.com/chartjs/Chart.js/releases/latest/download/chart.umd.min.js" \

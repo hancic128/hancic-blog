@@ -1,0 +1,44 @@
+# hancic 多阶段镜像
+#   builder: rust:1.88.0-alpine（musl 静态编译，默认 crates.io 直连）
+#   runner : alpine:3.20（ca-certificates + 非 root hancic）
+#
+# 构建说明：
+#   - 项目 .cargo/config.toml（rsproxy 镜像源）被 .dockerignore 排除，不进入构建
+#     上下文，镜像内默认 crates.io；本机/CI 网络受限时可临时换镜像源：
+#       docker build --build-arg CARGO_SOURCE_INDEX="sparse+https://rsproxy.cn/index/"
+#   - rust-toolchain.toml 固定 1.88.0，与基础镜像 tag 精确匹配，rustup 不会额外下载。
+#   - 运行产物：/app/hancic（二进制）+ /app/assets（后台前端与 vendor，含本地化的
+#     vditor i18n/lute/icons）+ /app/themes/default（内置主题种子，entrypoint 首启拷入
+#     数据卷）+ /app/config.toml（config.example.toml 默认配置，data_dir=/data）。
+FROM rust:1.88.0-alpine AS builder
+RUN apk add --no-cache musl-dev gcc
+WORKDIR /build
+COPY . .
+# 可选镜像源覆盖（见上文构建说明）；默认空 = crates.io 直连。
+ARG CARGO_SOURCE_INDEX=
+RUN if [ -n "$CARGO_SOURCE_INDEX" ]; then \
+      mkdir -p /build/.cargo && \
+      printf '[source.crates-io]\nreplace-with = "mirror"\n[source.mirror]\nregistry = "%s"\n' "$CARGO_SOURCE_INDEX" > /build/.cargo/config.toml; \
+    fi \
+    && cargo build --release --locked
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates \
+    && adduser -D hancic \
+    && mkdir -p /data \
+    && chown hancic:hancic /data
+WORKDIR /app
+COPY --from=builder /build/target/release/hancic /app/hancic
+COPY --from=builder /build/assets /app/assets
+COPY --from=builder /build/themes /app/themes
+COPY config.example.toml /app/config.toml
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+USER hancic
+ENV RUST_LOG=info
+VOLUME /data
+EXPOSE 8090
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:8090/api/health || exit 1
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["/app/hancic", "/app/config.toml"]

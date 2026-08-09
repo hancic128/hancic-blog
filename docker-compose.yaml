@@ -1,0 +1,23 @@
+services:
+  hancic:
+    build: .
+    image: ghcr.io/angryshark708/hancic:latest
+    container_name: hancic
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      # 数据卷：数据库/上传/主题与站点数据都落在 /data（config.example.toml data_dir=/data）
+      - hancic-data:/data
+      # 覆盖默认配置（可选）：- ./config.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  hancic-data:
