@@ -85,6 +85,15 @@
   <p class="empty">期间无地区数据</p>
   {% endif %}
 </div>
+
+<div class="panel">
+  <h2>危险操作</h2>
+  <p class="muted">清空全部阅读明细日志（page_views 表）后不可恢复，文章累计阅读数（posts.views）保留。</p>
+  <form class="inline-form" method="post" action="/admin/stats/clear" data-confirm="确定清空全部阅读日志？">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn btn-danger" type="submit">清空阅读日志</button>
+  </form>
+</div>
 {% endblock %}
 
 {% block scripts %}
