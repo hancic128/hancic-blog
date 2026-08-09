@@ -180,3 +180,82 @@ async fn restore_rejects_invalid_zip() {
     // 数据未被破坏
     assert!(posts::get_post(&pool, 1).await.unwrap().is_some(), "恢复失败不应影响现有数据");
 }
+
+/// 回归（T22 审查 Critical）：zip-slip 反斜杠绕过。
+///
+/// 恶意条目名 `uploads\..\..\evil.txt` 在 macOS/Linux 上词法无 `..` 组件，
+/// 可过 `enclosed_name()`；归一化（`\`→`/`）后却逃逸 data_dir。restore 必须
+/// 整体拒绝，且不产生 data_dir 外文件、不改动现有数据（预检先于改名）。
+#[tokio::test]
+async fn restore_rejects_backslash_traversal() {
+    let cfg = test_config("backup-zipslip");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    posts::create_post(&pool, posts::NewPost {
+        title: "保留文章".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+
+    // 恶意 zip：合法骨架（过格式校验）+ 反斜杠逃逸条目（zip 8 写入端原样存名）
+    let evil_name = format!(
+        "uploads\\..\\..\\evil-{}.txt",
+        cfg.data_dir.file_name().unwrap().to_string_lossy()
+    );
+    let mut buf = std::io::Cursor::new(Vec::new());
+    {
+        let mut writer = zip::ZipWriter::new(&mut buf);
+        writer
+            .start_file("hancic.db", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut writer, b"fake-db").unwrap();
+        writer
+            .start_file("meta.json", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut writer, br#"{"version":1}"#).unwrap();
+        writer
+            .start_file(&evil_name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut writer, b"pwned").unwrap();
+        writer.finish().unwrap();
+    }
+    let zip_path = cfg.data_dir.join("malicious.zip");
+    std::fs::write(&zip_path, buf.into_inner()).unwrap();
+    // 确认写入端原样保留反斜杠条目名（zip 8 不转义），测试才真正命中反斜杠绕过
+    let check = zip::ZipArchive::new(std::io::Cursor::new(std::fs::read(&zip_path).unwrap()))
+        .unwrap();
+    let stored: Vec<String> = check.file_names().map(String::from).collect();
+    assert!(
+        stored.iter().any(|n| n == &evil_name),
+        "恶意条目名应原样入包: {stored:?}"
+    );
+
+    let res = backup::restore(&cfg.data_dir, &zip_path).await;
+    assert!(res.is_err(), "restore 应拒绝反斜杠逃逸条目: {res:?}");
+
+    // data_dir 外（父级）不应产生逃逸文件
+    let parent = cfg.data_dir.parent().unwrap();
+    let escaped = parent.join(format!(
+        "evil-{}.txt",
+        cfg.data_dir.file_name().unwrap().to_string_lossy()
+    ));
+    assert!(!escaped.exists(), "不应逃逸到 data_dir 外: {}", escaped.display());
+
+    // 现有数据未被改动：data_dir 未被改名（预检在改名前拒绝），原 db 仍可连
+    assert!(
+        !std::fs::read_dir(parent)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .any(|e| {
+                let n = e.file_name().to_string_lossy().into_owned();
+                n.starts_with(&format!(
+                    "{}.bak-",
+                    cfg.data_dir.file_name().unwrap().to_string_lossy()
+                ))
+            }),
+        "预检拒绝后不应发生数据目录改名"
+    );
+    assert!(
+        posts::get_post(&pool, 1).await.unwrap().is_some(),
+        "拒绝恶意备份不应影响现有数据"
+    );
+}

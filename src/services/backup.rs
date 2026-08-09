@@ -3,8 +3,8 @@
 //!
 //! DB 快照用 SQLite `VACUUM INTO`：同一一致性快照，无需手动备份 API；`VACUUM`
 //! 不接受绑定参数，故用 `sqlx::raw_sql` + 单引号转义拼接目标路径。
-//! zip 用 `zip` 8 的 `ZipWriter` / `ZipArchive`；解包路径穿越防护用
-//! `ZipFile::enclosed_name()`（拒绝绝对路径与 `..` 逃逸）。
+//! zip 用 `zip` 8 的 `ZipWriter` / `ZipArchive`；解包路径穿越防护：拒绝含 `\`
+//! 的条目名 + `enclosed_name()` + 全部普通组件校验（见 `entry_name_is_safe`）。
 
 use crate::error::AppError;
 use chrono::{SecondsFormat, Utc};
@@ -130,9 +130,12 @@ pub async fn export_temp(data_dir: &Path) -> Result<(PathBuf, BackupReport), App
     Ok((zip_path, report))
 }
 
-/// 全量恢复：校验 zip 含 `hancic.db` + `meta.json` → WAL checkpoint →
-/// 原数据目录改名 `<data_dir>.bak-<ts>` → 解包 `uploads/` / `themes/` /
-/// `config.toml` 并替换 db。
+/// 全量恢复：校验 zip 含 `hancic.db` + `meta.json` → 预检全部条目路径安全 →
+/// WAL checkpoint → 原数据目录改名 `<data_dir>.bak-<ts>` → 解包 `uploads/` /
+/// `themes/` / `config.toml` 并替换 db。
+///
+/// 路径安全预检先于改名执行：恶意条目在动现有数据前即被拒绝（修复审查发现的
+/// zip-slip 反斜杠绕过，见 `entry_name_is_safe`）。
 ///
 /// zip 必须先打开再改名：备份包可能位于 data_dir 内（测试即如此），改名后
 /// 原路径失效，而 POSIX 下已打开的 fd 不受改名影响，可继续读取。
@@ -144,6 +147,13 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
         return Err(AppError::BadRequest(
             "备份包格式无效：缺少 hancic.db 或 meta.json".into(),
         ));
+    }
+    // 预检全部条目名（在 checkpoint / 改名之前）：任一不安全条目即整体拒绝，
+    // 失败时不改动现有数据
+    for name in &names {
+        if !entry_name_is_safe(name) {
+            return Err(AppError::BadRequest(format!("备份包含非法路径: {name}")));
+        }
     }
 
     // WAL 下未收拢的数据在 -wal 文件中：先 checkpoint(TRUNCATE) 折入主库，
@@ -175,7 +185,7 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
         if entry.is_dir() {
             continue;
         }
-        // enclosed_name：拒绝绝对路径、NUL 与 `..` 逃逸
+        // enclosed_name：拒绝绝对路径、NUL 与 `/` 形式的 `..` 逃逸
         let Some(rel) = entry.enclosed_name() else {
             return Err(AppError::BadRequest(format!(
                 "备份包含非法路径: {}",
@@ -183,6 +193,12 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
             )));
         };
         let name = rel.to_string_lossy().replace('\\', "/");
+        // 防线二：归一化后的条目路径仍须全部为普通组件（防预检被绕过的纵深防御）
+        if !entry_name_is_safe(&name) {
+            return Err(AppError::BadRequest(format!(
+                "备份包含非法路径: {name}"
+            )));
+        }
         let target = match name.as_str() {
             META_ENTRY => continue, // 元数据不落盘
             DB_ENTRY => data_dir.join(DB_ENTRY),
@@ -225,6 +241,23 @@ pub async fn restore(data_dir: &Path, zip_path: &Path) -> Result<RestoreReport, 
         }
     }
     Ok(report)
+}
+
+/// 条目名安全校验（zip-slip 反斜杠绕过修复）：
+///
+/// 不能直接信任 `enclosed_name()`——它作用于原始条目名，而 macOS/Linux 上 `\`
+/// 是普通文件名字符：`uploads\..\..\evil` 词法上无 `..` 组件可通过检查，待调用方
+/// `replace('\\', "/")` 归一化后却构成 `uploads/../../evil` 逃逸 data_dir（甚至可
+/// 覆盖 `hancic.db`）。故这里：
+/// - 拒绝任何含 `\` 的条目名（本工具导出的条目名只用 `/`，合法备份不会含 `\`）
+/// - 拒绝 NUL、绝对路径与一切非普通组件（`.`/`..`/根/盘符前缀）
+fn entry_name_is_safe(name: &str) -> bool {
+    if name.contains('\\') || name.contains('\0') {
+        return false;
+    }
+    Path::new(name)
+        .components()
+        .all(|c| matches!(c, std::path::Component::Normal(_)))
 }
 
 /// 递归把 `dir` 下文件写入 zip，条目名带 `prefix` 前缀（`uploads` / `themes`）。
