@@ -3,7 +3,7 @@
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::{Post, PostStatus, PostType, Tag};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use sqlx::FromRow;
 use sqlx::Row;
 use std::str::FromStr;
@@ -122,11 +122,10 @@ pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| input.title.clone());
     let slug = unique_slug(db, &slugify(&slug_base).await).await?;
-    let excerpt = input
-        .excerpt
-        .clone()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| excerpt_of(&input.content_md));
+    let excerpt = match input.excerpt.clone().filter(|s| !s.trim().is_empty()) {
+        Some(e) => e,
+        None => excerpt_of(&input.content_md).await,
+    };
     let status = input.status.to_str();
     let post_type = input.post_type.to_str();
     let published_at = if input.status == PostStatus::Published {
@@ -144,7 +143,7 @@ pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
     .bind(&excerpt)
     .bind(status)
     .bind(post_type)
-    .bind(published_at.map(|d| d.to_rfc3339()))
+    .bind(published_at.map(|d| d.to_rfc3339_opts(SecondsFormat::Nanos, true)))
     .bind(input.category_id)
     .execute(db)
     .await?
@@ -249,9 +248,12 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         values.push(BindVal::Text(excerpt));
     }
     if let Some(slug) = input.slug {
-        let slug = slugify(&slug).await;
-        sets.push("slug = ?");
-        values.push(BindVal::Text(slug));
+        // 空串视为不变，与 create_post 的过滤行为对齐
+        if !slug.trim().is_empty() {
+            let slug = slugify(&slug).await;
+            sets.push("slug = ?");
+            values.push(BindVal::Text(slug));
+        }
     }
     if let Some(status) = input.status {
         sets.push("status = ?");
@@ -259,7 +261,9 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         // 草稿 → 发布 时设置发布时间
         if old.status == PostStatus::Draft && status == PostStatus::Published {
             sets.push("published_at = ?");
-            values.push(BindVal::Text(Utc::now().to_rfc3339()));
+            values.push(BindVal::Text(
+                Utc::now().to_rfc3339_opts(SecondsFormat::Nanos, true),
+            ));
         }
     }
     if let Some(post_type) = input.post_type {
@@ -286,6 +290,9 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         }
     }
     q.execute(db).await?;
+    if let Some(tags) = input.tags {
+        set_post_tags(db, id, &tags).await?;
+    }
     get_post(db, id)
         .await?
         .ok_or_else(|| AppError::Internal("更新后读取失败".into()))
@@ -317,7 +324,7 @@ pub async fn adjacent_posts(db: &Db, p: &Post) -> Result<(Option<Post>, Option<P
                 "SELECT {POST_COLUMNS} FROM posts WHERE published_at < ? ORDER BY published_at DESC, id DESC LIMIT 1"
             );
             let row = sqlx::query_as::<_, PostRow>(&sql)
-                .bind(ts.to_rfc3339())
+                .bind(ts.to_rfc3339_opts(SecondsFormat::Nanos, true))
                 .fetch_optional(db)
                 .await?;
             row.map(Post::from)
@@ -330,7 +337,7 @@ pub async fn adjacent_posts(db: &Db, p: &Post) -> Result<(Option<Post>, Option<P
                 "SELECT {POST_COLUMNS} FROM posts WHERE published_at > ? ORDER BY published_at ASC, id ASC LIMIT 1"
             );
             let row = sqlx::query_as::<_, PostRow>(&sql)
-                .bind(ts.to_rfc3339())
+                .bind(ts.to_rfc3339_opts(SecondsFormat::Nanos, true))
                 .fetch_optional(db)
                 .await?;
             row.map(Post::from)
@@ -375,7 +382,7 @@ pub async fn set_post_tags(db: &Db, post_id: i64, tags: &[String]) -> Result<(),
 }
 
 /// 纯函数：去掉 markdown 标记后取前 150 字符。
-pub fn excerpt_of(md: &str) -> String {
+pub async fn excerpt_of(md: &str) -> String {
     let mut text = String::new();
     for line in md.lines() {
         let line = line.trim();

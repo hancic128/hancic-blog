@@ -80,6 +80,25 @@ async fn update_and_delete() {
 }
 
 #[tokio::test]
+async fn update_replaces_tags() {
+    let (pool, _cfg) = setup("update-tags").await;
+    let p = posts::create_post(&pool, NewPost {
+        title: "标签替换".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Draft, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec!["a".into(), "b".into()],
+    }).await.unwrap();
+    let old = posts::list_tags_of_post(&pool, p.id).await.unwrap();
+    assert_eq!(old.len(), 2);
+    posts::update_post(&pool, p.id, UpdatePost {
+        title: None, content_md: None, excerpt: None, slug: None,
+        status: None, post_type: None, category_id: None, tags: Some(vec!["c".into()]),
+    }).await.unwrap();
+    let tags = posts::list_tags_of_post(&pool, p.id).await.unwrap();
+    assert_eq!(tags.len(), 1);
+    assert_eq!(tags[0].name, "c");
+}
+
+#[tokio::test]
 async fn adjacent_posts_ordered_by_published_at() {
     let (pool, _cfg) = setup("adjacent").await;
     let mut ids = Vec::new();
