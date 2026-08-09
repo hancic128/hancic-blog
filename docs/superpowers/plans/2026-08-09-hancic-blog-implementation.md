@@ -25,7 +25,7 @@
 - API 统一 JSON：成功 `{ "data": ... }`，失败 `{ "error": { "code", "message" } }`；鉴权 Bearer Token（`hc_` 前缀）
 - 安全：argon2 密码哈希；httpOnly + Secure Cookie session；CSRF 校验；Token 存哈希；上传 mime+扩展名白名单；sqlx 参数化 SQL；Markdown 渲染默认安全（pulldown-cmark 默认）
 - 迁移源：halo-plugin-export-md 导出的带 front-matter Markdown zip
-- 语言：界面文案与文档为中文；代码/命令/提交信息为英文
+- 语言：界面文案与文档为中文；代码与命令为英文；提交信息用中文（conventional commits 前缀，与既有提交一致）
 - 主题契约：`<data>/themes/<name>/theme.toml`（name/author/version/description），模板 `templates/`，静态资源 `static/`；换主题=改 `active_theme` + 重启
 - v1 明确不做：评论、MCP server、视频转码、多用户、主题热切换、RSS、防刷统计、站点地图
 
