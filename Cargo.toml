@@ -8,12 +8,12 @@ anyhow = "1.0.104"
 argon2 = "0.5.3"
 axum = { version = "0.8.9", features = ["multipart"] }
 base64 = "0.23.1"
-chrono = "0.4.45"
+chrono = { version = "0.4.45", features = ["serde"] }
 image = { version = "0.25.10", features = ["jpeg", "png", "webp", "gif"] }
 ip2region = "0.1.0"
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 rand = "0.10.2"
-reqwest = { version = "0.13.4", features = ["json", "form", "cookies"] }
+reqwest = { version = "0.13.4", features = ["json", "form", "cookies", "multipart"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.11.0"

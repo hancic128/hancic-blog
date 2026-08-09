@@ -133,7 +133,7 @@ pub struct Tag {
     pub name: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Attachment {
     pub id: i64,
     pub uuid_name: String,

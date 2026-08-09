@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod api;
 pub mod auth;
 pub mod config;
 pub mod db;
@@ -14,9 +15,7 @@ pub mod web;
 use crate::config::Config;
 use crate::error::AppError;
 use crate::session::LoginLimiter;
-use axum::routing::get;
-use axum::{Json, Router};
-use serde_json::{Value, json};
+use axum::Router;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tera::Tera;
@@ -38,6 +37,12 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
             (Tera::default(), themes_dir.join(&config.active_theme))
         }
     };
+    // /api 上传接受最大文件上限（100MB 视频）+ multipart 边界/字段头开销余量。
+    let max_upload = config
+        .upload_max_video
+        .max(config.upload_max_image)
+        .max(config.upload_max_file);
+    let body_limit = max_upload + 2 * 1024 * 1024;
     let state = AppState {
         config: Arc::new(config),
         db: db.clone(),
@@ -47,7 +52,10 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
         ip_searcher: Arc::new(init_ip_searcher(&db_data_dir)?),
     };
     Ok(Router::new()
-        .route("/api/health", get(health))
+        .nest(
+            "/api",
+            api::router().layer(axum::extract::DefaultBodyLimit::max(body_limit as usize)),
+        )
         .nest("/admin", admin::router())
         .merge(web::front::routes())
         .fallback(web::front::not_found)
@@ -69,8 +77,4 @@ pub struct AppState {
     pub tera: Tera,
     pub theme_dir: PathBuf,
     pub ip_searcher: Arc<ipregion::Searcher>,
-}
-
-async fn health() -> Json<Value> {
-    Json(json!({ "data": { "status": "ok" } }))
 }
