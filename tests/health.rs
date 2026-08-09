@@ -4,7 +4,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn health_returns_ok() {
     let cfg = Config::default_for_temp_dir();
-    let app = hancic::app(cfg);
+    let app = hancic::app(cfg).await.unwrap();
     let res = app
         .oneshot(
             axum::http::Request::builder()

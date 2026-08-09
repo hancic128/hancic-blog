@@ -14,7 +14,10 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load(&config_path).map_err(anyhow::Error::msg)?;
     let addr = format!("{}:{}", config.host, config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let app = hancic::app(config)
+        .await
+        .map_err(|_| anyhow::anyhow!("数据库初始化失败"))?;
     tracing::info!("hancic listening on {addr}");
-    axum::serve(listener, hancic::app(config)).await?;
+    axum::serve(listener, app).await?;
     Ok(())
 }
