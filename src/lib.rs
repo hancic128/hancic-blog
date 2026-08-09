@@ -61,10 +61,17 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
     // 回退到可执行文件同目录的 assets/（镜像内为 /app/assets，T25）。
     let mut assets_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
     if !assets_dir.is_dir() {
+        // 容器部署：编译期路径（Docker builder 的 /build/assets）不存在，
+        // 回退到可执行文件同目录的 assets/（镜像内为 /app/assets）。
         let exe_assets = std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|d| d.join("assets")));
         if let Some(dir) = exe_assets.filter(|d| d.is_dir()) {
+            tracing::warn!(
+                "编译期静态资源目录不存在（{}），回退到可执行文件同目录: {}",
+                assets_dir.display(),
+                dir.display()
+            );
             assets_dir = dir;
         }
     }

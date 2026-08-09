@@ -73,6 +73,10 @@ echo "OK: vditor.min.js / vditor.min.css（Vditor ${VDITOR_VERSION}）"
 # Vditor 运行时资源本地化（T25/M120）：i18n/lute/icons/highlight/content-theme 等
 # 从 npm 包提取到 assets/vendor/vditor/dist/，并把 vditor.min.js 内硬编码的
 # unpkg CDN 常量改成本地 /static/vendor/vditor，消除浏览器侧外网依赖。
+# ⚠️ 残留外网依赖（已知，非本段可消除）：plantuml 渲染器不读 Vditor.CDN，
+#    显式向 https://www.plantuml.com/plantuml/svg/ 发 `<object>` 请求——受限网络下
+#    编辑/预览侧为破图（非静默）；服务端 pulldown-cmark 渲染不受影响。其余按需
+#    渲染器（katex/mermaid/echarts/graphviz 等）均经本地 CDN 懒加载，缺失时静默。
 mkdir -p assets/vendor/vditor
 tar -xzf "$TMP/vditor.tgz" -C assets/vendor/vditor --strip-components 1 \
   package/dist/js/i18n/zh_CN.js \

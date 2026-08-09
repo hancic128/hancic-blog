@@ -7,7 +7,12 @@ set -eu
 if [ ! -f /data/themes/default/theme.toml ]; then
   echo "[entrypoint] 初始化内置主题 default → /data/themes/"
   mkdir -p /data/themes
-  cp -r /app/themes/default /data/themes/
+  # 先写临时目录再 mv（同文件系统内原子）：中断不会留下半套主题；
+  # 仅当 theme.toml 缺失才进入本分支，此时旧目录必为残留/损坏种子，可安全移除。
+  tmp="/data/themes/.default.$$"
+  rm -rf "$tmp" /data/themes/default
+  cp -r /app/themes/default "$tmp"
+  mv "$tmp" /data/themes/default
 fi
 
 exec "$@"
