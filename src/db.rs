@@ -28,7 +28,7 @@ async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
     let defaults: &[(&str, &str)] = &[
         ("site_name", "寒蝉 Hancic"),
         ("site_desc", ""),
-        ("site_nav", r#"[{"label":"首页","url":"/"},{"label":"说说","url":"/moments"},{"label":"关于","url":"/about"}]"#),
+        ("site_nav", r#"[{"label":"首页","url":"/"},{"label":"文章","url":"/archives"},{"label":"说说","url":"/moments"},{"label":"关于","url":"/about"}]"#),
         ("site_social", r#"{}"#),
         ("active_theme", "default"),
         ("theme_mode", "auto"),        // auto | light | dark

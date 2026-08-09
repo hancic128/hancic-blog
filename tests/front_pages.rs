@@ -142,3 +142,39 @@ async fn about_page_renders_page_type() {
     assert!(html.contains("关于本站"));
     assert!(html.contains("<h2"));
 }
+
+#[tokio::test]
+async fn homepage_has_heatmap_activity_and_more_link() {
+    let (app, pool) = test_app("front-home-aggregate").await;
+    for i in 1..=6 {
+        posts::create_post(&pool, NewPost {
+            title: format!("聚合页文章{i}"), content_md: "内容".into(), excerpt: None, slug: None,
+            status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+            category_id: None, tags: vec!["标签甲".into()],
+        }).await.unwrap();
+    }
+    let res = app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let html = String::from_utf8(axum::body::to_bytes(res.into_body(), 1024*1024).await.unwrap().to_vec()).unwrap();
+    assert!(html.contains("heatmap"), "首页应含发布热力图");
+    assert!(html.contains("activity-timeline"), "首页应含活动时间轴");
+    assert!(html.contains("查看更多文章"), "首页应有查看更多链接");
+    assert!(html.contains("标签甲"), "列表项应显示标签");
+}
+
+#[tokio::test]
+async fn archives_page_lists_all_posts() {
+    let (app, pool) = test_app("front-archives").await;
+    for t in ["归档文章甲", "归档文章乙"] {
+        posts::create_post(&pool, NewPost {
+            title: t.into(), content_md: "x".into(), excerpt: None, slug: None,
+            status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+            category_id: None, tags: vec![],
+        }).await.unwrap();
+    }
+    let res = app.oneshot(Request::builder().uri("/archives").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let html = String::from_utf8(axum::body::to_bytes(res.into_body(), 1024*1024).await.unwrap().to_vec()).unwrap();
+    assert!(html.contains("归档文章甲") && html.contains("归档文章乙"));
+    assert!(html.contains("全部文章"));
+}

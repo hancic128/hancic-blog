@@ -514,3 +514,52 @@ button, a, [role="button"], label { cursor: pointer; }
   .site-main { padding: 1.25rem 1rem 3rem; font-size: 16.5px; }
   .post-adjacent { flex-direction: column; }
 }
+
+/* ===== 首页聚合：热力图 + 活动时间轴 + 最新文章 ===== */
+.section-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 2.5rem 0 1rem; display: flex; align-items: baseline; gap: .6rem; }
+.section-title small { font-size: .8rem; font-weight: 400; color: var(--muted); }
+
+/* 热力图：53 列 × 7 行，GitHub Contribution 风格 */
+.heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
+.heatmap-col { display: flex; flex-direction: column; gap: 3px; }
+.heat-cell { width: 10px; height: 10px; border-radius: 2px; background: var(--border); }
+html[data-mode="dark"] .heat-cell.l0, .heat-cell.l0 { background: var(--border); }
+.heat-cell.l1 { background: #FBCFE8; }
+.heat-cell.l2 { background: #F472B6; }
+.heat-cell.l3 { background: #DB2777; }
+.heat-cell.l4 { background: #9D174D; }
+.heat-legend { display: flex; align-items: center; gap: 3px; margin-top: .5rem;
+  font-size: .7rem; color: var(--muted); }
+
+/* 活动时间轴 */
+.activity-timeline { border-left: 2px solid var(--border); margin-left: 5px;
+  padding-left: 1.25rem; display: flex; flex-direction: column; gap: 1.1rem; }
+.activity-day { position: relative; }
+.activity-date { display: flex; align-items: center; gap: .5rem; font-size: .85rem;
+  font-weight: 600; color: var(--muted); margin-bottom: .35rem; }
+.activity-dot { width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 2px var(--accent); }
+.activity-items summary { cursor: pointer; font-size: .8rem; color: var(--muted);
+  list-style: none; user-select: none; padding: .2rem 0; }
+.activity-items summary::-webkit-details-marker { display: none; }
+.activity-items summary:hover { color: var(--accent); }
+.activity-items ul { list-style: none; margin: .4rem 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: .45rem; }
+.activity-item { font-size: .92rem; display: flex; align-items: baseline; gap: .5rem; }
+.activity-item a { color: var(--fg); text-decoration: none; }
+.activity-item a:hover { color: var(--accent); }
+.activity-badge { flex-shrink: 0; font-size: .68rem; padding: .1rem .45rem;
+  border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.activity-item.is-post .activity-badge { color: var(--accent); border-color: var(--accent); }
+
+/* 最新文章尾部链接与列表标签 */
+.more-link { margin-top: 1.5rem; text-align: center; }
+.more-link a { color: var(--accent); text-decoration: none; font-size: .92rem; }
+.more-link a:hover { text-decoration: underline; }
+.post-list-item .post-tags { margin-top: .6rem; }
+@media (max-width: 768px) {
+  .heat-cell { width: 8px; height: 8px; }
+  .heatmap { gap: 2px; }
+  .heatmap-col { gap: 2px; }
+}

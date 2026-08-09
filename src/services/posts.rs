@@ -582,3 +582,93 @@ fn strip_md_markers(s: &str) -> String {
     }
     out
 }
+
+/// 发布热力图：近 `days` 天按天统计已发布文章数（UTC 日期前缀）。
+/// 返回 `Vec<(日期 YYYY-MM-DD, 数量)>`，仅含有发布的日期。
+pub async fn heatmap(db: &Db, days: i64) -> Result<Vec<(String, i64)>, AppError> {
+    let since = chrono::Utc::now() - chrono::Duration::days(days);
+    let since = since.format("%Y-%m-%dT00:00:00Z").to_string();
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT substr(published_at, 1, 10) AS d, COUNT(*) AS c
+         FROM posts
+         WHERE status = 'published' AND post_type = 'post'
+           AND published_at IS NOT NULL AND published_at >= ?
+         GROUP BY d",
+    )
+    .bind(&since)
+    .fetch_all(db)
+    .await?;
+    Ok(rows)
+}
+
+/// 一条活动（文章发布 / 说说）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Activity {
+    pub kind: &'static str, // "post" | "moment"
+    pub title: String,      // 文章标题或说说首段
+    pub url: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// 最近活动流：合并已发布文章与说说，按时间倒序。
+/// `days` 为回溯窗口，`limit` 为每类最大条数。
+pub async fn recent_activity(
+    db: &Db,
+    days: i64,
+    limit: i64,
+) -> Result<Vec<Activity>, AppError> {
+    let since = chrono::Utc::now() - chrono::Duration::days(days);
+    let since = since.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let posts: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT published_at, title, slug FROM posts
+         WHERE status = 'published' AND post_type = 'post'
+           AND published_at IS NOT NULL AND published_at >= ?
+         ORDER BY published_at DESC LIMIT ?",
+    )
+    .bind(&since)
+    .bind(limit)
+    .fetch_all(db)
+    .await?;
+    let moments: Vec<(String, String)> = sqlx::query_as(
+        "SELECT created_at, content FROM moments
+         WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?",
+    )
+    .bind(&since)
+    .bind(limit)
+    .fetch_all(db)
+    .await?;
+
+    let mut acts: Vec<Activity> = Vec::with_capacity(posts.len() + moments.len());
+    for (ts, title, slug) in posts {
+        acts.push(Activity {
+            kind: "post",
+            title,
+            url: Some(format!("/post/{slug}")),
+            created_at: parse_ts(&ts),
+        });
+    }
+    for (ts, content) in moments {
+        let title = content
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(60)
+            .collect::<String>();
+        acts.push(Activity {
+            kind: "moment",
+            title,
+            url: Some("/moments".into()),
+            created_at: parse_ts(&ts),
+        });
+    }
+    acts.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(acts)
+}
+
+/// 解析 RFC3339 时间串；失败回退 Unix 纪元（不应发生）。
+fn parse_ts(s: &str) -> chrono::DateTime<chrono::Utc> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .map(|d| d.with_timezone(&chrono::Utc))
+        .unwrap_or_else(|_| chrono::DateTime::<chrono::Utc>::UNIX_EPOCH)
+}

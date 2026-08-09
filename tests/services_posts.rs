@@ -221,3 +221,41 @@ async fn adjacent_posts_skip_pages() {
     assert_ne!(prev.as_ref().map(|x| x.id), Some(p.id));
     assert_ne!(next.as_ref().map(|x| x.id), Some(p.id));
 }
+
+#[tokio::test]
+async fn heatmap_counts_only_published() {
+    let (pool, _cfg) = setup("heatmap").await;
+    posts::create_post(&pool, NewPost {
+        title: "已发布A".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    posts::create_post(&pool, NewPost {
+        title: "已发布B".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    posts::create_post(&pool, NewPost {
+        title: "草稿C".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Draft, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    let h = posts::heatmap(&pool, 7).await.unwrap();
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    assert!(h.iter().any(|(d, c)| *d == today && *c == 2), "当日应计 2 篇（草稿不计），实际 {h:?}");
+}
+
+#[tokio::test]
+async fn recent_activity_merges_posts_and_moments() {
+    let (pool, _cfg) = setup("activity").await;
+    posts::create_post(&pool, NewPost {
+        title: "活动文章".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    hancic::services::moments::create_moment(&pool, "活动说说", &[]).await.unwrap();
+    let acts = posts::recent_activity(&pool, 7, 10).await.unwrap();
+    assert_eq!(acts.len(), 2);
+    assert!(acts.iter().any(|a| a.kind == "post" && a.title == "活动文章"));
+    assert!(acts.iter().any(|a| a.kind == "moment" && a.title.starts_with("活动说说")));
+}

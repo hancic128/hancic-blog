@@ -1,7 +1,63 @@
-{# 首页：文章流（分页）+ 导航 #}
+{# 首页：发布热力图 + 活动时间轴 + 最近文章 #}
 {% include "partials/header.html" %}
-<section class="post-list">
-{% include "partials/post_list.html" %}
+
+{# 1. 发布热力图（近一年，GitHub Contribution 风格） #}
+{% if heatmap %}
+<section class="heatmap-section">
+  <h3 class="section-title">发布热力图 <small>近一年文章发布</small></h3>
+  <div class="heatmap">
+    {% for week in heatmap %}
+    <div class="heatmap-col">
+      {% for day in week %}
+      <span class="heat-cell l{{ day.level }}" title="{{ day.date }}：{{ day.count }} 篇"></span>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="heat-legend">
+    <span>少</span>
+    {% for i in [0,1,2,3,4] %}<span class="heat-cell l{{ i }}"></span>{% endfor %}
+    <span>多</span>
+  </div>
 </section>
-{% include "partials/pagination.html" %}
+{% endif %}
+
+{# 2. 活动时间轴（Contribution activity 风格，可折叠） #}
+{% if activities %}
+<section class="activity-section">
+  <h3 class="section-title">最近动态</h3>
+  <div class="activity-timeline">
+    {% for group in activities %}
+    <div class="activity-day">
+      <div class="activity-date">
+        <span class="activity-dot"></span>{{ group.date }}
+      </div>
+      <details class="activity-items" {% if loop.index <= 3 %}open{% endif %}>
+        <summary>
+          {{ group.items | length }} 条动态
+          <span class="activity-toggle"></span>
+        </summary>
+        <ul>
+          {% for item in group.items %}
+          <li class="activity-item {% if item.kind == 'post' %}is-post{% else %}is-moment{% endif %}">
+            <span class="activity-badge">{% if item.kind == 'post' %}文章{% else %}说说{% endif %}</span>
+            {% if item.url %}<a href="{{ item.url }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# 3. 最近文章列表 #}
+<section class="post-list">
+  <h3 class="section-title">最新文章</h3>
+  {% include "partials/post_list.html" %}
+  {% if post_total > 5 %}
+  <p class="more-link"><a href="/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
+  {% endif %}
+</section>
 {% include "partials/footer.html" %}
