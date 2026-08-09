@@ -1,4 +1,4 @@
-{# 搜索页：本任务渲染表单与空结果，T9 接入全文检索 #}
+{# 搜索页：FTS5 全文搜索（查询框 + 结果 + 分页 + 空态） #}
 {% include "partials/header.html" %}
 <section class="search-page">
   <form class="search-form" method="get" action="/search">
@@ -7,9 +7,31 @@
   </form>
   {% if search_query %}
   <p class="search-result-info">「{{ search_query }}」的结果：{{ posts | length }} 条</p>
-  {% endif %}
+  {% if posts %}
   <section class="post-list">
-  {% include "partials/post_list.html" %}
+    {% for hit in posts %}
+    <article class="post-list-item">
+      <h2><a href="{{ hit.url }}">{{ hit.title }}</a></h2>
+      <div class="meta">
+        {% if hit.published_at %}<time datetime="{{ hit.published_at }}">{{ hit.published_at | date }}</time>{% endif %}
+        <span>{{ hit.views }} 阅读</span>
+      </div>
+      {% if hit.snippet %}<p class="excerpt">{{ hit.snippet | safe }}</p>{% endif %}
+    </article>
+    {% endfor %}
   </section>
+  {% if pagination.total_pages > 1 %}
+  <nav class="pagination">
+    {% if pagination.prev_url %}<a class="page-prev" href="{{ pagination.prev_url }}">← 上一页</a>{% endif %}
+    <span class="page-info">第 {{ pagination.current }} / {{ pagination.total_pages }} 页</span>
+    {% if pagination.next_url %}<a class="page-next" href="{{ pagination.next_url }}">下一页 →</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="empty">未找到与「{{ search_query }}」相关的内容</p>
+  {% endif %}
+  {% else %}
+  <p class="empty">输入关键词搜索文章</p>
+  {% endif %}
 </section>
 {% include "partials/footer.html" %}

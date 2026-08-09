@@ -251,19 +251,26 @@ async fn tag_page(
     }
 }
 
-/// 搜索页：本任务仅渲染表单与空结果，T9 接入 FTS5 全文检索。
+/// 搜索页：FTS5 全文检索，支持分页（分页链接保留 q）。
 async fn search_page(
     State(state): State<AppState>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let q = query.get("q").cloned().unwrap_or_default();
-    let mut ctx = match site_context(&state.db).await {
-        Ok(c) => c,
-        Err(e) => return render_error(&state, e).await,
-    };
-    ctx.insert("search_query", &q);
-    ctx.insert("posts", &json!([]));
-    render(&state, "search.html", &ctx).await
+    let page = page_param(&query);
+    let out = async {
+        let (hits, total) = posts::search_posts(&state.db, &q, page, PAGE_SIZE).await?;
+        let mut ctx = site_context(&state.db).await?;
+        ctx.insert("search_query", &q);
+        ctx.insert("posts", &search_hit_list_value(&hits));
+        ctx.insert("pagination", &search_pagination_value(page, total, &q));
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "search.html", &ctx).await,
+        Err(e) => render_error(&state, e).await,
+    }
 }
 
 /// 未匹配路由 → 404 错误页。
@@ -379,6 +386,20 @@ fn post_list_value(items: &[Post]) -> Value {
         .collect::<Vec<_>>())
 }
 
+/// 搜索页命中 JSON：标题/链接/高亮片段（`| safe` 渲染 `<mark>`）/日期/阅读量。
+fn search_hit_list_value(hits: &[posts::SearchHit]) -> Value {
+    json!(hits
+        .iter()
+        .map(|h| json!({
+            "title": h.post.title,
+            "snippet": h.snippet,
+            "published_at": h.post.published_at.map(|d| d.to_rfc3339()),
+            "views": h.post.views,
+            "url": post_url(&h.post),
+        }))
+        .collect::<Vec<_>>())
+}
+
 /// 文章页上下文 JSON。
 fn post_value(p: &Post) -> Value {
     json!({
@@ -417,6 +438,32 @@ fn pagination_value(page: i64, total: i64) -> Value {
         "prev": (page > 1).then_some(page - 1),
         "next": (page < total_pages).then_some(page + 1),
     })
+}
+
+/// 搜索页分页：与 `pagination_value` 同构，但 prev_url/next_url 预编码保留 `q`。
+/// （tera 2.1.0 已移除 urlencode 过滤器，故在 Rust 侧完成编码。）
+fn search_pagination_value(page: i64, total: i64, q: &str) -> Value {
+    let total_pages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+    let q_enc = urlencode_q(q);
+    json!({
+        "current": page,
+        "total": total,
+        "total_pages": total_pages,
+        "prev_url": (page > 1).then(|| format!("/search?q={q_enc}&page={}", page - 1)),
+        "next_url": (page < total_pages).then(|| format!("/search?q={q_enc}&page={}", page + 1)),
+    })
+}
+
+/// 查询串百分号编码（RFC 3986 保留字符，用于拼搜索分页链接）。
+fn urlencode_q(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
 }
 
 /// 文章所属分类（按 id 查找）。

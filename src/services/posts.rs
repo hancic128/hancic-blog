@@ -239,6 +239,102 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     Ok((items, total))
 }
 
+/// 搜索命中：文章 + FTS5 高亮片段（`<mark>` 包裹，空则回退摘要）。
+pub struct SearchHit {
+    pub post: Post,
+    pub snippet: String,
+}
+
+/// FTS5 全文搜索：按相关性排序分页返回命中与总数。
+///
+/// 用户输入整体作为短语查询：双引号翻倍（`"` → `""`）后包在双引号里，
+/// 使 `--`、`'` 等 FTS5 语法字符全部字面化；解析不了查询时按空结果处理，
+/// 不把 500 抛给搜索页。`snippet()` 列索引 0=title、1=content_md。
+pub async fn search_posts(
+    db: &Db,
+    q: &str,
+    page: i64,
+    page_size: i64,
+) -> Result<(Vec<SearchHit>, i64), AppError> {
+    let q = q.trim();
+    if q.is_empty() {
+        return Ok((vec![], 0));
+    }
+    let escaped = q.replace('"', "\"\"");
+    let match_expr = format!("\"{escaped}\"");
+    let offset = (page - 1).max(0) * page_size;
+
+    // 不 SELECT rank：FTS5 的 rank 是 REAL，sqlx 0.8.6 严格类型检查下无法解码为 i64；
+    // `ORDER BY rank` 无需选中该列。
+    let rows: Vec<i64> = match sqlx::query_scalar::<_, i64>(
+        "SELECT rowid FROM posts_fts WHERE posts_fts MATCH ? ORDER BY rank LIMIT ? OFFSET ?",
+    )
+    .bind(&match_expr)
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(db)
+    .await
+    {
+        Ok(rows) => rows,
+        Err(e) if fts_syntax_error(&e) => return Ok((vec![], 0)),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut hits = Vec::with_capacity(rows.len());
+    for id in rows {
+        let post = get_post(db, id)
+            .await?
+            .ok_or_else(|| AppError::Internal("FTS 命中丢失".into()))?;
+        let snippet = hit_snippet(db, id, &match_expr, &post.excerpt).await?;
+        hits.push(SearchHit { post, snippet });
+    }
+
+    let total: i64 = match sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM posts_fts WHERE posts_fts MATCH ?",
+    )
+    .bind(&match_expr)
+    .fetch_one(db)
+    .await
+    {
+        Ok(n) => n,
+        Err(e) if fts_syntax_error(&e) => 0,
+        Err(e) => return Err(e.into()),
+    };
+    Ok((hits, total))
+}
+
+/// 命中行的高亮片段：正文命中优先展示正文片段，其次标题片段，均无则回退摘要。
+/// `snippet()` 对未命中的列返回无高亮的原文，据此判断命中列。
+async fn hit_snippet(
+    db: &Db,
+    id: i64,
+    match_expr: &str,
+    excerpt: &str,
+) -> Result<String, AppError> {
+    let (title_snip, content_snip): (String, String) = sqlx::query_as::<_, (String, String)>(
+        "SELECT snippet(posts_fts, 0, '<mark>', '</mark>', '…', 12), \
+                snippet(posts_fts, 1, '<mark>', '</mark>', '…', 12) \
+         FROM posts_fts WHERE rowid = ? AND posts_fts MATCH ?",
+    )
+    .bind(id)
+    .bind(match_expr)
+    .fetch_one(db)
+    .await?;
+    let snippet = if content_snip.contains("<mark>") {
+        content_snip
+    } else if title_snip.contains("<mark>") {
+        title_snip
+    } else {
+        excerpt.to_string()
+    };
+    Ok(snippet)
+}
+
+/// FTS5 对无法解析的查询报 `fts5: syntax error ...`，视为无结果而非 500。
+fn fts_syntax_error(e: &sqlx::Error) -> bool {
+    matches!(e, sqlx::Error::Database(dbe) if dbe.message().contains("syntax error"))
+}
+
 pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, AppError> {
     let old = get_post(db, id)
         .await?

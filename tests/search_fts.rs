@@ -1,0 +1,106 @@
+//! FTS5 全文搜索集成测试：命中与高亮、空查询提示、特殊字符转义。
+
+mod common;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use common::test_app;
+use hancic::db;
+use hancic::models::{PostStatus, PostType};
+use hancic::services::posts::{self, NewPost};
+use tower::ServiceExt;
+
+/// 便捷：创建一篇已发布文章（FTS 触发器同步索引到 posts_fts）。
+async fn create_published_post(pool: &db::Db, title: &str, content: &str) {
+    posts::create_post(
+        pool,
+        NewPost {
+            title: title.into(),
+            content_md: content.into(),
+            excerpt: None,
+            slug: None,
+            status: PostStatus::Published,
+            post_type: PostType::Post,
+            category_id: None,
+            tags: vec![],
+        },
+    )
+    .await
+    .unwrap();
+}
+
+async fn get_html(app: &axum::Router, uri: &str) -> (StatusCode, String) {
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let status = res.status();
+    let bytes = axum::body::to_bytes(res.into_body(), 1024 * 1024)
+        .await
+        .unwrap()
+        .to_vec();
+    (status, String::from_utf8(bytes).unwrap())
+}
+
+#[tokio::test]
+async fn search_finds_matching_posts() {
+    let (app, pool) = test_app("search-hit").await;
+    for (title, body) in [
+        ("Rust 所有权", "借用检查器如何工作"),
+        ("Go 并发", "goroutine 使用"),
+        ("投资笔记", "定投策略"),
+    ] {
+        create_published_post(&pool, title, body).await;
+    }
+
+    let (status, html) = get_html(&app, "/search?q=Rust").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("Rust 所有权"));
+    assert!(!html.contains("Go 并发"));
+    assert!(html.contains("<mark>Rust</mark>") || html.contains("<mark>rust</mark>"));
+}
+
+#[tokio::test]
+async fn search_empty_query_returns_prompt() {
+    let (app, pool) = test_app("search-empty").await;
+    create_published_post(&pool, "测试文章", "一些正文").await;
+
+    let (status, html) = get_html(&app, "/search?q=").await;
+    assert_eq!(status, StatusCode::OK);
+    // 空查询不列文章，只显示输入提示
+    assert!(!html.contains("测试文章"));
+    assert!(html.contains("输入关键词"));
+}
+
+#[tokio::test]
+async fn search_escapes_special_chars() {
+    let (app, pool) = test_app("search-special").await;
+    for (title, body) in [
+        ("Rust 所有权", "借用检查器如何工作"),
+        ("Go 并发", "goroutine 使用"),
+        ("投资笔记", "定投策略"),
+    ] {
+        create_published_post(&pool, title, body).await;
+    }
+
+    // q = `" -- 恶意'`：双引号/连字符等 FTS5 语法字符应被字面化——
+    // 查询要么为空结果要么语法错误按空处理，不能崩溃也不能返回全部文章。
+    let q = r#"" -- 恶意'"#;
+    let (status, html) = get_html(&app, &format!("/search?q={}", urlencode(q))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!html.contains("Rust 所有权"));
+    assert!(!html.contains("Go 并发"));
+    assert!(!html.contains("投资笔记"));
+}
+
+/// 简单百分号编码（查询串中的非保留字符）。
+fn urlencode(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
