@@ -49,7 +49,8 @@
   /* ---------- 图片懒加载 + lightbox ---------- */
 
   function addLazyAndLightbox() {
-    var images = document.querySelectorAll(".md-body img");
+    // 正文图片与说说宫格图片共用同一套懒加载 + lightbox
+    var images = document.querySelectorAll(".md-body img, .moment-grid img");
     for (var i = 0; i < images.length; i++) {
       var img = images[i];
       if (!img.hasAttribute("loading")) {
