@@ -7,7 +7,7 @@
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
 use crate::models::{Post, PostStatus, PostType};
-use crate::services::{posts, settings, stats, taxonomy};
+use crate::services::{moments, posts, settings, stats, taxonomy};
 use crate::AppState;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -24,6 +24,8 @@ use tower_http::services::ServeDir;
 
 /// 列表页每页文章数。
 const PAGE_SIZE: i64 = 10;
+/// 说说页每页条数。
+const MOMENTS_PAGE_SIZE: i64 = 20;
 /// 静态资源缓存头：7 天（T17 允许配置后调整）。
 const STATIC_CACHE: &str = "public, max-age=604800";
 
@@ -38,6 +40,7 @@ pub fn routes() -> Router<AppState> {
         .route("/category/{slug}", get(category_page))
         .route("/tag/{slug}", get(tag_page))
         .route("/about", get(about_page))
+        .route("/moments", get(moments_page))
         .route("/search", get(search_page))
         .route("/uploads/{*path}", get(serve_uploads))
         .route("/theme/{name}/static/{*path}", get(serve_theme_static))
@@ -202,6 +205,27 @@ async fn about_page(State(state): State<AppState>) -> Response {
     .await;
     match out {
         Ok(ctx) => render(&state, "page.html", &ctx).await,
+        Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 说说页：朋友圈式按天分组展示（分页 20/页）。
+async fn moments_page(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let page = page_param(&query);
+    let out = async {
+        let (items, total) = moments::list_moments(&state.db, page, MOMENTS_PAGE_SIZE).await?;
+        let days = moments::group_by_day(&state.db, items).await?;
+        let mut ctx = site_context(&state.db).await?;
+        ctx.insert("days", &days_value(&state.db, &days).await?);
+        ctx.insert("pagination", &moments_pagination_value(page, total));
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "moments.html", &ctx).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -430,13 +454,65 @@ fn adjacent_value(p: Option<&Post>) -> Value {
 }
 
 fn pagination_value(page: i64, total: i64) -> Value {
-    let total_pages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+    pagination_with(page, total, PAGE_SIZE)
+}
+
+/// 说说页分页：与 `pagination_value` 同构，但按 MOMENTS_PAGE_SIZE（20）算总页数。
+fn moments_pagination_value(page: i64, total: i64) -> Value {
+    pagination_with(page, total, MOMENTS_PAGE_SIZE)
+}
+
+fn pagination_with(page: i64, total: i64, page_size: i64) -> Value {
+    let total_pages = (total + page_size - 1) / page_size;
     json!({
         "current": page,
         "total": total,
         "total_pages": total_pages,
         "prev": (page > 1).then_some(page - 1),
         "next": (page < total_pages).then_some(page + 1),
+    })
+}
+
+/// 说说页按天分组上下文：`days: Vec<{date, moments: Vec<{moment, attachments}>}>`，
+/// 每组内时刻倒序，附件按 sort_order 升序。
+async fn days_value(db: &Db, days: &[(String, Vec<crate::models::Moment>)]) -> AppResult<Value> {
+    let mut out = Vec::with_capacity(days.len());
+    for (date, ms) in days {
+        let mut moments_json = Vec::with_capacity(ms.len());
+        for m in ms {
+            let atts = moments::list_moment_attachments(db, m.id).await?;
+            moments_json.push(json!({
+                "moment": moment_value(m),
+                "attachments": json!(
+                    atts.iter()
+                        .map(|(att, _)| attachment_value(att))
+                        .collect::<Vec<_>>()
+                ),
+            }));
+        }
+        out.push(json!({ "date": date, "moments": moments_json }));
+    }
+    Ok(json!(out))
+}
+
+/// 单条说说 JSON：id/内容/创建时间（RFC3339，模板 `| date` 过滤器展示本地时间）。
+fn moment_value(m: &crate::models::Moment) -> Value {
+    json!({
+        "id": m.id,
+        "content": m.content,
+        "created_at": m.created_at.to_rfc3339(),
+    })
+}
+
+/// 附件 JSON：kind 供模板分支（图片/视频/文件卡片），url 指向 /uploads 静态路径。
+fn attachment_value(att: &crate::models::Attachment) -> Value {
+    json!({
+        "id": att.id,
+        "kind": att.kind.to_str(),
+        "orig_name": att.orig_name,
+        "mime": att.mime,
+        "size": att.size,
+        "url": format!("/uploads/{}", att.path),
     })
 }
 

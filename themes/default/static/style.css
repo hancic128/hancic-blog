@@ -298,6 +298,86 @@ body {
 .error-code { font-size: 4rem; margin: 0; color: var(--accent); }
 .error-message { color: var(--muted); }
 
+/* ---------- 说说（朋友圈式按天分组） ---------- */
+
+.moments { display: flex; flex-direction: column; gap: 2.5rem; }
+
+.moment-day { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.moment-day-label {
+  align-self: flex-start;
+  font-size: .875rem;
+  color: var(--muted);
+  background: var(--code-bg);
+  border-radius: 999px;
+  padding: .25rem .9rem;
+}
+
+.moment { padding-bottom: 1.25rem; }
+.moment-day > .moment:not(:last-child) { border-bottom: 1px solid var(--border); }
+
+.moment-content { margin-bottom: .75rem; }
+.moment-content:empty { display: none; }
+
+/* 宫格：1 图大图 / 2-4 图 2 列 / 5+ 图 3 列 */
+.moment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.moment-grid.single { grid-template-columns: 1fr; }
+.moment-grid.many { grid-template-columns: repeat(3, 1fr); }
+
+.moment-media { display: block; line-height: 0; }
+
+.moment-media img,
+.moment-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--code-bg);
+}
+
+.moment-grid.single .moment-media img {
+  aspect-ratio: auto;
+  object-fit: contain;
+  max-height: 560px;
+}
+
+/* 文件附件卡片 */
+.moment-file {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  padding: .75rem .9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--fg);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.moment-file:hover { border-color: var(--accent); }
+
+.moment-file-name {
+  font-size: .9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moment-file-size { font-size: .78rem; color: var(--muted); }
+
+.moment-meta { margin-top: .5rem; font-size: .8rem; color: var(--muted); }
+
 /* ---------- lightbox ---------- */
 
 .lightbox {

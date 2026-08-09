@@ -9,6 +9,7 @@ argon2 = "0.5.3"
 axum = { version = "0.8.9", features = ["multipart"] }
 base64 = "0.23.1"
 chrono = { version = "0.4.45", features = ["serde"] }
+chrono-tz = "0.10.4"
 image = { version = "0.25.10", features = ["jpeg", "png", "webp", "gif"] }
 ip2region = "0.1.0"
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }

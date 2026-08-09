@@ -1,1 +1,37 @@
-{# 动态（moments）模板骨架：T7 填充，上下文含 site / moments #}
+{# 说说页：朋友圈式按天分组（日期徽标 + 内容 + 宫格） #}
+{% include "partials/header.html" %}
+<section class="moments">
+{% for day in days %}
+  <section class="moment-day">
+    <div class="moment-day-label">{{ day.date }}</div>
+    {% for item in day.moments %}
+    <article class="moment" id="moment-{{ item.moment.id }}">
+      <div class="moment-content">{{ item.moment.content | markdown | safe }}</div>
+      {% if item.attachments %}
+      <div class="moment-grid{% if item.attachments | length == 1 %} single{% elif item.attachments | length >= 5 %} many{% endif %}">
+        {% for att in item.attachments %}
+          {% if att.kind == "image" %}
+          <a class="moment-media" href="{{ att.url }}" target="_blank">
+            <img src="{{ att.url }}" alt="{{ att.orig_name }}" loading="lazy">
+          </a>
+          {% elif att.kind == "video" %}
+          <video class="moment-media" src="{{ att.url }}" controls preload="metadata"></video>
+          {% else %}
+          <a class="moment-file" href="{{ att.url }}" target="_blank" download>
+            <span class="moment-file-name">{{ att.orig_name }}</span>
+            <span class="moment-file-size">{{ att.size }} 字节</span>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="moment-meta"><time datetime="{{ item.moment.created_at }}">{{ item.moment.created_at | date }}</time></div>
+    </article>
+    {% endfor %}
+  </section>
+{% else %}
+<p class="empty">暂无说说</p>
+{% endfor %}
+</section>
+{% include "partials/pagination.html" %}
+{% include "partials/footer.html" %}
