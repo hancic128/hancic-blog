@@ -13,7 +13,11 @@
   <nav class="site-nav" id="site-nav">
     {% for item in site.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}
   </nav>
-  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题" title="切换亮暗色">◐</button>
-  <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单">☰</button>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题" title="切换亮暗色">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+  </button>
 </header>
 <main class="site-main">

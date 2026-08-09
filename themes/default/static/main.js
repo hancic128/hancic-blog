@@ -89,4 +89,31 @@
   if (document.readyState !== "loading") {
     addLazyAndLightbox();
   }
+
+  /* ---------- 首页文章列表滚动浮现（淡入 + 上移 8px，300ms ease-out） ---------- */
+
+  function initScrollReveal() {
+    var items = document.querySelectorAll(".post-list-item");
+    if (items.length === 0) return;
+    // 无 IntersectionObserver 或用户偏好减弱动效时不加类，内容保持默认可见
+    if (!("IntersectionObserver" in window)) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.add("reveal");
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      for (var j = 0; j < entries.length; j++) {
+        if (entries[j].isIntersecting) {
+          entries[j].target.classList.add("is-visible");
+          observer.unobserve(entries[j].target);
+        }
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.1 });
+    for (var k = 0; k < items.length; k++) {
+      observer.observe(items[k]);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initScrollReveal);
 })();

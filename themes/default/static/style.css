@@ -1,41 +1,66 @@
-/* 默认主题：Typora 式极简风格（亮/暗双套 CSS 变量） */
+/* 默认主题：Exaggerated Minimalism / Content First（基于 ui-ux-pro-max 设计系统）
+   编辑感排版 + 高对比近黑/粉配色 + 克制动效；保持 Typora 式阅读体验（720px 正文行宽、无卡片） */
 
 :root {
-  --bg: #ffffff;
-  --fg: #2c3e50;
-  --muted: #94a3b8;
-  --accent: #2563eb;
-  --border: #e5e7eb;
-  --code-bg: #f6f8fa;
+  --bg: #fafafa;
+  --fg: #09090b;
+  --muted: #3f3f46;
+  --accent: #ec4899;
+  --border: #e4e4e7;
+  --primary: #18181b;
+  --code-bg: #f4f4f5;
   --content-width: 720px;
 }
 
 html[data-mode="dark"] {
-  --bg: #1e1e1e;
-  --fg: #d4d4d4;
-  --muted: #8a8a8a;
-  --accent: #4d9fff;
-  --border: #333333;
-  --code-bg: #2d2d2d;
+  --bg: #09090b;
+  --fg: #e4e4e7;
+  --muted: #a1a1aa;
+  --accent: #f472b6;
+  --border: #27272a;
+  --primary: #fafafa;
+  --code-bg: #18181b;
 }
 
 @media (prefers-color-scheme: dark) {
   html[data-mode="auto"] {
-    --bg: #1e1e1e;
-    --fg: #d4d4d4;
-    --muted: #8a8a8a;
-    --accent: #4d9fff;
-    --border: #333333;
-    --code-bg: #2d2d2d;
+    --bg: #09090b;
+    --fg: #e4e4e7;
+    --muted: #a1a1aa;
+    --accent: #f472b6;
+    --border: #27272a;
+    --primary: #fafafa;
+    --code-bg: #18181b;
   }
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
-  font: 17px/1.8 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 17px/1.8 -apple-system, "PingFang SC", "Noto Sans SC", "Inter", sans-serif;
   margin: 0;
   transition: background .3s, color .3s;
+}
+
+/* ---------- 可访问性 / Pre-Delivery Checklist ---------- */
+
+/* 所有可点击元素显式光标 */
+button, a, [role="button"], label { cursor: pointer; }
+
+/* 键盘焦点可见（accent 描边） */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 尊重系统减弱动效偏好：关闭全部动画与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ---------- 布局 ---------- */
@@ -53,7 +78,7 @@ body {
 .site-main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 4rem;
+  padding: 3rem 1.25rem 4rem;
 }
 
 .site-footer {
@@ -63,11 +88,13 @@ body {
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: .875rem;
+  overflow-wrap: break-word;
 }
 
 .site-brand {
-  font-weight: 600;
-  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.2rem;
   color: var(--fg);
   text-decoration: none;
 }
@@ -80,6 +107,7 @@ body {
 .site-nav a {
   color: var(--muted);
   text-decoration: none;
+  transition: color 200ms ease;
 }
 
 .site-nav a:hover {
@@ -87,13 +115,22 @@ body {
 }
 
 .nav-toggle, .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   background: none;
   border: 0;
-  font-size: 1.3rem;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--fg);
-  padding: 0 .25rem;
-  line-height: 1;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.nav-toggle:hover, .theme-toggle:hover {
+  background: color-mix(in srgb, var(--border) 55%, transparent);
 }
 
 .nav-toggle { display: none; }
@@ -102,7 +139,7 @@ body {
 /* ---------- 文章列表 ---------- */
 
 .post-list-item {
-  padding: 1.75rem 0;
+  padding: 2.25rem 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -110,13 +147,16 @@ body {
 
 .post-list-item h2 {
   margin: 0 0 .5rem;
-  font-size: 1.35rem;
-  line-height: 1.4;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
 }
 
 .post-list-item h2 a {
   color: var(--fg);
   text-decoration: none;
+  transition: color 200ms ease;
 }
 
 .post-list-item h2 a:hover { color: var(--accent); }
@@ -127,10 +167,26 @@ body {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  overflow-wrap: break-word;
 }
 
-.meta a { color: var(--muted); text-decoration: none; }
+.meta a { color: var(--muted); text-decoration: none; transition: color 200ms ease; }
 .meta a:hover { color: var(--accent); }
+
+/* 标签 chip：accent 细边框 */
+.meta a[href^="/tag/"] {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: .05em .7em;
+  line-height: 1.5;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.meta a[href^="/tag/"]:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
 
 .excerpt {
   margin: .6rem 0 0;
@@ -142,6 +198,19 @@ body {
   color: var(--muted);
   text-align: center;
   padding: 3rem 0;
+}
+
+/* ---------- 首页列表滚动浮现（类名由 main.js 添加，无 JS 时内容保持可见） ---------- */
+
+.post-list-item.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.post-list-item.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ---------- 分页 ---------- */
@@ -156,15 +225,21 @@ body {
   font-size: .9375rem;
 }
 
-.pagination a { color: var(--accent); text-decoration: none; }
+.pagination a { color: var(--accent); text-decoration: none; transition: color 200ms ease; }
 .pagination a:hover { text-decoration: underline; }
 
 /* ---------- 文章 / 独立页 ---------- */
 
 .post-header h1, .page h1, .archive-title {
-  font-size: 1.8rem;
-  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   margin: 0 0 .75rem;
+}
+
+/* 文章页 editorial 超大标题 */
+.post-header h1, .page h1 {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
 }
 
 .archive-title { font-size: 1.4rem; }
@@ -178,9 +253,10 @@ body {
   gap: 1rem;
   flex-wrap: wrap;
   font-size: .9375rem;
+  overflow-wrap: break-word;
 }
 
-.post-adjacent a { color: var(--accent); text-decoration: none; }
+.post-adjacent a { color: var(--accent); text-decoration: none; transition: color 200ms ease; }
 .post-adjacent a:hover { text-decoration: underline; }
 
 /* ---------- Markdown 正文（Typora 式排版） ---------- */
@@ -189,15 +265,27 @@ body {
 
 .md-body h1, .md-body h2, .md-body h3,
 .md-body h4, .md-body h5, .md-body h6 {
-  line-height: 1.3;
+  line-height: 1.25;
   margin: 1.8em 0 .8em;
 }
+
+.md-body h1, .md-body h2, .md-body h3 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-body h1 { font-weight: 800; }
+.md-body h4, .md-body h5, .md-body h6 { font-weight: 600; }
 
 .md-body p { margin: 1em 0; }
 .md-body ul, .md-body ol { padding-left: 1.6em; }
 .md-body li { margin: .35em 0; }
 
-.md-body a { color: var(--accent); }
+.md-body a {
+  color: var(--accent);
+  transition: color 200ms ease;
+}
+
 .md-body a:hover { text-decoration: underline; }
 
 .md-body img {
@@ -274,22 +362,25 @@ body {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
+  transition: border-color 200ms ease;
 }
 
 .search-form input[type="search"]:focus {
-  outline: none;
   border-color: var(--accent);
 }
 
 .search-form button {
   padding: .55em 1.2em;
   font: inherit;
-  color: #fff;
-  background: var(--accent);
+  color: var(--bg);
+  background: var(--primary);
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+  transition: opacity 200ms ease;
 }
+
+.search-form button:hover { opacity: .85; }
 
 .search-result-info { color: var(--muted); font-size: .9375rem; }
 
@@ -362,6 +453,7 @@ body {
   color: var(--fg);
   text-decoration: none;
   min-width: 0;
+  transition: border-color 200ms ease;
 }
 
 .moment-file:hover { border-color: var(--accent); }
@@ -389,6 +481,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  cursor: pointer;
 }
 
 .lightbox img {
@@ -415,7 +508,7 @@ body {
   }
 
   .site-nav.open { display: flex; }
-  .nav-toggle { display: block; }
+  .nav-toggle { display: flex; }
   .theme-toggle { margin-left: 0; }
   .site-main { padding: 1.25rem 1rem 3rem; font-size: 16.5px; }
   .post-adjacent { flex-direction: column; }
