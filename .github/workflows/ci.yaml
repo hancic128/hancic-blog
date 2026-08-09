@@ -81,6 +81,17 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          load: true
           tags: ghcr.io/angryshark128/hancic:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Deploy to Shanghai
+        run: |
+          docker tag ghcr.io/angryshark128/hancic:latest hancic:latest
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HANCIC_SH_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.HANCIC_SH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          docker save hancic:latest | ssh -o StrictHostKeyChecking=no root@${{ secrets.HANCIC_SH_HOST }} 'docker load'
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.HANCIC_SH_HOST }} 'cd /opt/hancic && docker compose up -d --force-recreate hancic && sleep 8 && curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"'
