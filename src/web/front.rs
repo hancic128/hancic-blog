@@ -7,11 +7,11 @@
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
 use crate::models::{Post, PostStatus, PostType};
-use crate::services::{posts, settings, taxonomy};
+use crate::services::{posts, settings, stats, taxonomy};
 use crate::AppState;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{Request, StatusCode, Uri, header};
+use axum::http::{HeaderMap, Request, StatusCode, Uri, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
@@ -91,7 +91,11 @@ async fn index(
     }
 }
 
-async fn post_page(State(state): State<AppState>, Path(slug): Path<String>) -> Response {
+async fn post_page(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    headers: HeaderMap,
+) -> Response {
     let out = async {
         let post = posts::get_post_by_slug(&state.db, &slug)
             .await?
@@ -118,12 +122,52 @@ async fn post_page(State(state): State<AppState>, Path(slug): Path<String>) -> R
         );
         ctx.insert("prev", &adjacent_value(prev.as_ref()));
         ctx.insert("next", &adjacent_value(next.as_ref()));
+        record_view_once(&state, &post, &headers).await;
         Ok::<_, AppError>(ctx)
     }
     .await;
     match out {
         Ok(ctx) => render(&state, "post.html", &ctx).await,
         Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 记一次阅读：优先 `x-real-ip`（nginx 反代），其次 `x-forwarded-for` 首段；
+/// 失败仅告警，不阻断页面渲染。
+async fn record_view_once(state: &AppState, post: &Post, headers: &HeaderMap) {
+    let ip = headers
+        .get("x-real-ip")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+        .or_else(|| {
+            headers
+                .get("x-forwarded-for")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.split(',').next())
+                .map(|s| s.trim().to_string())
+        })
+        .unwrap_or_default();
+    let ua = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let referer = headers
+        .get("referer")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    if let Err(e) = stats::record_view(
+        &state.db,
+        post.id,
+        &ip,
+        &ua,
+        &referer,
+        &state.ip_searcher,
+    )
+    .await
+    {
+        tracing::warn!("记录阅读失败 post_id={}: {e:?}", post.id);
     }
 }
 

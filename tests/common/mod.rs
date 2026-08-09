@@ -9,6 +9,23 @@ use std::path::PathBuf;
 /// 测试用管理员密码（与 setup 流程配合）。
 pub const TEST_PASSWORD: &str = "test-password-123";
 
+/// ip2region 测试用 xdb 路径：经 `ensure_xdb` 从内嵌资产写出到临时目录
+/// （顺带覆盖 `ipregion::ensure_xdb` 的写出逻辑）。
+///
+/// 每次调用使用唯一目录：测试并行执行时避免共用路径导致互删/竞态。
+pub fn xdb_path() -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static XDB_SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = XDB_SEQ.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "hancic-test-xdb-{}-{seq}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    hancic::ipregion::ensure_xdb(&dir).unwrap();
+    dir.join("ip2region.xdb")
+}
+
 pub fn temp_data_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("hancic-test-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
