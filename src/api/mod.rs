@@ -14,6 +14,7 @@ pub mod uploads;
 
 use crate::error::AppError;
 use crate::{session, AppState};
+use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
@@ -46,6 +47,14 @@ pub async fn require_admin_or_token(
         return Ok(());
     }
     auth::verify_bearer(state, headers).await
+}
+
+/// Json 拒绝（非法 JSON / 缺 Content-Type）统一转 400 AppError，
+/// 保证失败响应仍是统一 JSON 错误体（axum 默认会回 text/plain 400/415）。
+pub(crate) fn valid_json(
+    body: Result<Json<Value>, JsonRejection>,
+) -> Result<Json<Value>, AppError> {
+    body.map_err(|_| AppError::BadRequest("请求体必须是合法 JSON".into()))
 }
 
 /// GET /api/health：存活探针（不鉴权）。

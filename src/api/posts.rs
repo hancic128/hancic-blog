@@ -14,54 +14,48 @@ use crate::error::AppError;
 use crate::models::{PostStatus, PostType};
 use crate::services::{posts as service, taxonomy};
 use crate::AppState;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
-use serde::Deserialize;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 use tower_sessions::Session;
-
-/// GET /api/posts 查询参数（全部可选；`page` 从 1 起、`page_size` 上限 100）。
-#[derive(Deserialize)]
-pub struct ListParams {
-    pub page: Option<i64>,
-    pub page_size: Option<i64>,
-    pub status: Option<String>,
-    pub category: Option<String>,
-    pub tag: Option<String>,
-}
 
 /// POST /api/posts：创建文章（含可选 slug/excerpt/status/category_id/tags）。
 pub async fn create(
     State(state): State<AppState>,
     session: Session,
     headers: HeaderMap,
-    Json(body): Json<Value>,
+    body: Result<Json<Value>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
     let input = parse_new_post(&state, &body).await?;
     let post = service::create_post(&state.db, input).await?;
     Ok((StatusCode::CREATED, Json(json!({ "data": post }))))
 }
 
 /// GET /api/posts：分页列表，支持 status/category/tag 筛选。
+/// Query 取 `HashMap` 避免 serde 结构反序列化 rejection（如 `page=abc`），
+/// 字段手动解析，非法整数 → 400。
 pub async fn list(
     State(state): State<AppState>,
     session: Session,
     headers: HeaderMap,
-    Query(params): Query<ListParams>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Result<Json<Value>, AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
-    let page = params.page.unwrap_or(1).max(1);
-    let page_size = params.page_size.unwrap_or(10).clamp(1, 100);
-    let status = parse_status_opt(params.status.as_deref())?;
+    let page = parse_int_param(&query, "page", 1)?.max(1);
+    let page_size = parse_int_param(&query, "page_size", 10)?.clamp(1, 100);
+    let status = parse_status_opt(query.get("status").map(String::as_str))?;
     let (items, total) = service::list_posts(
         &state.db,
         service::PostListOptions {
             status,
             post_type: Some(PostType::Post),
-            category_slug: params.category.filter(|s| !s.is_empty()),
-            tag_slug: params.tag.filter(|s| !s.is_empty()),
+            category_slug: query.get("category").filter(|s| !s.is_empty()).cloned(),
+            tag_slug: query.get("tag").filter(|s| !s.is_empty()).cloned(),
             page,
             page_size,
         },
@@ -90,9 +84,10 @@ pub async fn update(
     session: Session,
     headers: HeaderMap,
     Path(id): Path<i64>,
-    Json(body): Json<Value>,
+    body: Result<Json<Value>, JsonRejection>,
 ) -> Result<Json<Value>, AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
     let input = parse_update_post(&state, &body).await?;
     let post = service::update_post(&state.db, id, input).await?;
     Ok(Json(json!({ "data": post })))
@@ -262,5 +257,19 @@ async fn check_category(state: &AppState, id: i64) -> Result<(), AppError> {
         Ok(())
     } else {
         Err(AppError::BadRequest(format!("分类不存在: {id}")))
+    }
+}
+
+/// 查询参数转整数：缺省返回默认值，非法值 400（统一 JSON 错误体）。
+fn parse_int_param(
+    query: &HashMap<String, String>,
+    key: &str,
+    default: i64,
+) -> Result<i64, AppError> {
+    match query.get(key) {
+        None => Ok(default),
+        Some(s) => s
+            .parse::<i64>()
+            .map_err(|_| AppError::BadRequest(format!("{key} 必须是整数"))),
     }
 }

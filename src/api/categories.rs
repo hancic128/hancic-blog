@@ -8,6 +8,7 @@ use crate::api;
 use crate::error::AppError;
 use crate::services::{posts, taxonomy};
 use crate::AppState;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
@@ -30,9 +31,10 @@ pub async fn create(
     State(state): State<AppState>,
     session: Session,
     headers: HeaderMap,
-    Json(body): Json<Value>,
+    body: Result<Json<Value>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
     let name = require_nonempty(&body, "name")?.to_string();
     let slug = match opt_str(&body, "slug") {
         Some(s) if !s.trim().is_empty() => s.to_string(),
@@ -49,9 +51,10 @@ pub async fn update(
     session: Session,
     headers: HeaderMap,
     Path(id): Path<i64>,
-    Json(body): Json<Value>,
+    body: Result<Json<Value>, JsonRejection>,
 ) -> Result<Json<Value>, AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
     let old = taxonomy::get_category_by_id(&state.db, id)
         .await?
         .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;

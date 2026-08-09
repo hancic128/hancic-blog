@@ -8,6 +8,7 @@ use crate::api;
 use crate::error::AppError;
 use crate::services::{moments, uploads};
 use crate::AppState;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
@@ -19,9 +20,10 @@ pub async fn create(
     State(state): State<AppState>,
     session: Session,
     headers: HeaderMap,
-    Json(body): Json<Value>,
+    body: Result<Json<Value>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
     let content = match body.get("content") {
         Some(Value::String(s)) if !s.trim().is_empty() => s.clone(),
         _ => return Err(AppError::BadRequest("content 必须是非空字符串".into())),

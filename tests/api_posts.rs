@@ -313,3 +313,80 @@ async fn api_crud_walkthrough() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["data"]["status"], "ok");
 }
+
+/// 拒绝路径（Query 非法、请求体非法 JSON、缺 Content-Type）必须返回统一 JSON
+/// 错误体，而不是 axum 默认的 text/plain 400/415。
+#[tokio::test]
+async fn rejections_return_json_errors() {
+    let (app, pool) = test_app("api-reject").await;
+    let (_tok, raw) = tokens::generate(&pool, "ci").await.unwrap();
+    let auth = format!("Bearer {raw}");
+
+    // Query `page=abc` → 400 JSON 错误体
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/posts?page=abc")
+                .header(header::AUTHORIZATION, auth.as_str())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_json_error(res, StatusCode::BAD_REQUEST, "page 必须是整数").await;
+
+    // 请求体非法 JSON → 400 JSON 错误体
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/posts")
+                .header(header::AUTHORIZATION, auth.as_str())
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from("not json"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_json_error(res, StatusCode::BAD_REQUEST, "请求体必须是合法 JSON").await;
+
+    // 缺 Content-Type（合法 JSON body）→ 400 JSON 错误体（统一归 BadRequest）
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/posts")
+                .header(header::AUTHORIZATION, auth.as_str())
+                .body(Body::from(r#"{"title":"x","content_md":"y"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_json_error(res, StatusCode::BAD_REQUEST, "请求体必须是合法 JSON").await;
+}
+
+/// 断言响应为统一 JSON 错误体：状态码 + Content-Type json + error.code/message。
+async fn assert_json_error(res: axum::response::Response, status: StatusCode, message: &str) {
+    assert_eq!(res.status(), status);
+    let ct = res
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert!(
+        ct.starts_with("application/json"),
+        "错误响应 Content-Type 应为 application/json: {ct}"
+    );
+    let body: Value = serde_json::from_slice(
+        &axum::body::to_bytes(res.into_body(), 8 * 1024 * 1024)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(body["error"]["code"], json!(status.as_u16()));
+    assert_eq!(body["error"]["message"], message);
+}

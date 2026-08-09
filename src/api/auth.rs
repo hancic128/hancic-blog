@@ -21,12 +21,15 @@ pub async fn require_token(
 }
 
 /// 提取 `Authorization: Bearer <raw>` 的明文；无头/非 Bearer 格式/空明文返回 None。
-/// Scheme 按 RFC 9110 大小写不敏感（兼容 `bearer`）。
+/// Scheme 按 RFC 9110 大小写不敏感（支持 `Bearer`/`bearer`/`BEARER` 等任意大小写）。
+/// 头值形如 `Bearer hc_...`（空格分隔，无冒号），故以首个空格切分。
 pub fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
-    let raw = value
-        .strip_prefix("Bearer ")
-        .or_else(|| value.strip_prefix("bearer "))?;
+    let (scheme, raw) = value.split_once(' ')?;
+    if !scheme.eq_ignore_ascii_case("bearer") {
+        return None;
+    }
+    let raw = raw.trim();
     if raw.is_empty() {
         None
     } else {

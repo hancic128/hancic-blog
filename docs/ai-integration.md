@@ -30,7 +30,7 @@
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
-  https://example.com/api/health
+  https://example.com/api/posts
 ```
 
 Token 无效或缺失返回：
@@ -52,7 +52,7 @@ curl -s -X POST https://example.com/api/posts \
     "title": "我的第一篇 API 文章",
     "content_md": "# 标题\n\n正文用 **Markdown** 书写，原文会被完整保存。",
     "slug": "my-first-api-post",
-    "excerpt": "可选，不传则服务端自动从正文截取前 150 字",
+    "excerpt": "正文用 Markdown 书写，原文会被完整保存。",
     "status": "draft",
     "category_id": 1,
     "tags": ["ai", "指南"]
@@ -68,7 +68,7 @@ curl -s -X POST https://example.com/api/posts \
     "slug": "my-first-api-post",
     "title": "我的第一篇 API 文章",
     "content_md": "# 标题\n\n正文用 **Markdown** 书写，原文会被完整保存。",
-    "excerpt": "可选，不传则服务端自动从正文截取前 150 字",
+    "excerpt": "正文用 Markdown 书写，原文会被完整保存。",
     "status": "draft",
     "post_type": "post",
     "published_at": null,
