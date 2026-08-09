@@ -16,6 +16,21 @@ pub fn temp_data_dir(tag: &str) -> PathBuf {
     dir
 }
 
+/// 递归复制目录（主题骨架等静态资源复制到测试数据目录用）。
+pub fn copy_recursive(src: &str, dst: &std::path::Path) {
+    std::fs::create_dir_all(dst).unwrap();
+    for entry in std::fs::read_dir(src).unwrap() {
+        let entry = entry.unwrap();
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() {
+            copy_recursive(&from.to_string_lossy(), &to);
+        } else {
+            std::fs::copy(&from, &to).unwrap();
+        }
+    }
+}
+
 pub fn test_config(tag: &str) -> Config {
     Config::default_for_temp_dir().with_data_dir(temp_data_dir(tag))
 }
