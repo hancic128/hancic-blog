@@ -120,3 +120,48 @@
     initScrollReveal();
   }
 })();
+
+// 更新日历 tooltip：body 级悬浮层（避免被热力图滚动容器裁剪），跟随鼠标
+(function initHeatTooltip() {
+  const tip = document.createElement("div");
+  tip.className = "heat-tooltip";
+  tip.style.display = "none";
+  document.body.appendChild(tip);
+  const show = (cell, e) => {
+    tip.textContent = cell.getAttribute("data-tip") || "";
+    tip.style.display = "block";
+    move(cell, e);
+  };
+  const move = (_cell, e) => {
+    const w = tip.offsetWidth || 220;
+    let x = e.clientX + 14;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+    tip.style.left = x + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+  };
+  const hide = () => { tip.style.display = "none"; };
+  const on = (cell) => {
+    cell.addEventListener("mouseenter", (e) => show(cell, e));
+    cell.addEventListener("mousemove", (e) => move(cell, e));
+    cell.addEventListener("mouseleave", hide);
+    // 触屏：点击切换
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      tip.style.display === "block" ? hide() : show(cell, e);
+    });
+  };
+  document.querySelectorAll(".heat-cell").forEach(on);
+})();
+
+// 最近说说折叠/展开：点击切换 .expanded（不依赖 details 原生行为）
+(function initMomentToggle() {
+  document.querySelectorAll(".moment-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const body = btn.closest(".moment-body");
+      const expanded = body.classList.toggle("expanded");
+      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      const arrow = btn.querySelector(".moment-arrow");
+      if (arrow) arrow.textContent = expanded ? "▾" : "▸";
+    });
+  });
+})();

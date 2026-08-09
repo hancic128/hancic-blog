@@ -33,13 +33,14 @@
         {% for m in moments %}
         <article class="moment-item">
           <span class="moment-dot"></span>
-          <details class="moment-body" {% if loop.index <= 2 %}open{% endif %}>
-            <summary>
+          <div class="moment-body {% if loop.index <= 2 %}expanded{% endif %}">
+            <button class="moment-toggle" type="button" aria-expanded="{% if loop.index <= 2 %}true{% else %}false{% endif %}">
               <span class="moment-time">{{ m.created_at }}</span>
               <span class="moment-preview">{{ m.content | truncate(length=40) }}</span>
-            </summary>
+              <span class="moment-arrow">▾</span>
+            </button>
             <p class="moment-full">{{ m.content }}</p>
-          </details>
+          </div>
         </article>
         {% endfor %}
       </div>
