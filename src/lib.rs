@@ -14,6 +14,7 @@ pub mod web;
 
 use crate::config::Config;
 use crate::error::AppError;
+use crate::services::tokens::PlainStore;
 use crate::session::LoginLimiter;
 use axum::Router;
 use std::path::{Path, PathBuf};
@@ -52,6 +53,7 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
         tera_admin: admin::build_tera(),
         theme_dir,
         ip_searcher: Arc::new(init_ip_searcher(&db_data_dir)?),
+        token_plain: PlainStore::default(),
     };
     // 后台前端资源（admin.css/admin.js/vendor/）以仓库 assets/ 为根，
     // 与源码一同发布；编译期路径保证 cargo test 等任意 cwd 下可用。
@@ -84,4 +86,5 @@ pub struct AppState {
     pub tera_admin: Tera,
     pub theme_dir: PathBuf,
     pub ip_searcher: Arc<ipregion::Searcher>,
+    pub token_plain: PlainStore,
 }

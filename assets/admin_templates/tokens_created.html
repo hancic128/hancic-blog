@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}Token 已生成{% endblock %}
+{% block content %}
+<h1>Token 已生成</h1>
+
+{% if expired %}
+<p class="error">该 Token 明文已展示过或已失效，不可再次查看。如需新 Token 请返回列表重新生成。</p>
+<div class="form-actions">
+  <a class="btn" href="/admin/tokens">返回 Token 列表</a>
+</div>
+{% else %}
+<p class="error">⚠ 明文仅显示一次，请立即复制保存；刷新或关闭页面后将无法再次查看。</p>
+<section class="panel">
+  <h2>{{ token_name }}</h2>
+  <div class="token-plain"><code id="token-plain">{{ plain }}</code></div>
+  <div class="form-actions">
+    <button class="btn btn-primary" id="copy-token" type="button" data-token="{{ plain }}">复制</button>
+    <a class="btn" href="/admin/tokens">返回列表</a>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not expired %}
+<script>
+// 复制按钮：明文经 tera 转义写入 data-token（base64url 字符集无 HTML 特殊字符）。
+(function () {
+  'use strict';
+  var btn = document.getElementById('copy-token');
+  if (!btn) return;
+  var token = btn.getAttribute('data-token');
+  btn.addEventListener('click', function () {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(token).then(function () {
+      btn.textContent = '已复制';
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

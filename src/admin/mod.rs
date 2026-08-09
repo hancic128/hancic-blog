@@ -30,6 +30,7 @@ pub mod settings;
 pub mod stats;
 pub mod taxonomy;
 pub mod themes;
+pub mod tokens;
 
 /// 仪表盘最近草稿条数。
 const DASHBOARD_DRAFT_LIMIT: i64 = 5;
@@ -71,6 +72,9 @@ pub fn router() -> Router<AppState> {
         .route("/stats/posts", get(stats::ranking))
         .route("/stats/regions", get(stats::regions))
         .route("/stats/clear", post(stats::clear))
+        .route("/tokens", get(tokens::list).post(tokens::create))
+        .route("/tokens/{id}/created", get(tokens::created_page))
+        .route("/tokens/{id}/revoke", post(tokens::revoke))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -90,6 +94,8 @@ pub fn build_tera() -> Tera {
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
         ("stats.html", include_str!("../../assets/admin_templates/stats.html")),
+        ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
+        ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera

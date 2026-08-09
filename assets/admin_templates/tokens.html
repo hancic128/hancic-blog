@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+{% block title %}API Token{% endblock %}
+{% block content %}
+<h1>API Token</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+<section class="panel">
+  <h2>生成新 Token</h2>
+  <form method="post" action="/admin/tokens">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="token-name">名称</label>
+      <input id="token-name" name="name" placeholder="如：CI 部署" required>
+    </div>
+    <p class="muted">明文仅显示一次，请生成后立即复制保存；库中只存哈希。</p>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">生成 Token</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Token 列表</h2>
+  {% if tokens %}
+  <table class="data-table">
+    <thead>
+      <tr><th>名称</th><th>前缀</th><th>创建时间</th><th>状态</th><th class="col-ops">操作</th></tr>
+    </thead>
+    <tbody>
+      {% for t in tokens %}
+      <tr>
+        <td>{{ t.name }}</td>
+        <td><code>{{ t.prefix }}…</code></td>
+        <td>{{ t.created_at }}</td>
+        <td>{% if t.status == "revoked" %}<span class="muted">已吊销</span>{% else %}有效{% endif %}</td>
+        <td class="col-ops">
+          {% if t.status == "active" %}
+          <form class="inline-form" method="post" action="/admin/tokens/{{ t.id }}/revoke" data-confirm="确认吊销该 Token？吊销后立即失效且无法恢复。">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="btn btn-sm btn-danger" type="submit">吊销</button>
+          </form>
+          {% else %}
+          <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">暂无 Token</p>
+  {% endif %}
+</section>
+{% endblock %}
