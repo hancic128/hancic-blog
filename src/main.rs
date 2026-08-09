@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     let app = hancic::app(config)
         .await
-        .map_err(|_| anyhow::anyhow!("数据库初始化失败"))?;
+        .map_err(|e| anyhow::anyhow!("应用启动失败: {}", e.message()))?;
     tracing::info!("hancic listening on {addr}");
     // 必须带 ConnectInfo：/admin/login 按 IP 限流依赖该扩展（与 tests/common 一致）
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())

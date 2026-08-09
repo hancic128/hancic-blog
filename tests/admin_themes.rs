@@ -10,8 +10,11 @@
 
 mod common;
 use common::{extract_csrf, login_admin, start_server_with_cfg, test_config};
+use axum::body::Body;
+use axum::http::Request;
 use hancic::db;
 use hancic::services::settings;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn theme_admin_flow() {
@@ -20,8 +23,9 @@ async fn theme_admin_flow() {
     hancic::auth::set_password(&pool, common::TEST_PASSWORD)
         .await
         .unwrap();
-    // 启动即复制仓库 themes/（default + test-theme 夹具）到数据目录
-    let (addr, client) = start_server_with_cfg(cfg).await;
+    // 启动即复制仓库 themes/（default + test-theme 夹具）到数据目录；
+    // cfg 保留副本供「模拟重启」步骤再次调用 hancic::app
+    let (addr, client) = start_server_with_cfg(cfg.clone()).await;
     let base = format!("http://{addr}");
     assert!(login_admin(&client, &addr).await);
 
@@ -134,5 +138,27 @@ async fn theme_admin_flow() {
     assert!(
         html.contains(r#"/theme/test-theme/static/style.css"#),
         "激活后前台静态资源路径应指向 test-theme: {html}"
+    );
+
+    // 7. 模拟重启（C2 修复）：重新 hancic::app()——启动读 settings.active_theme
+    //    覆盖 config 默认值，前台模板渲染器应切换到 test-theme 的 index.html
+    let app2 = hancic::app(cfg.clone()).await.unwrap();
+    let res = app2
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200, "重启后前台首页应可访问");
+    let bytes = axum::body::to_bytes(res.into_body(), 1024 * 1024)
+        .await
+        .unwrap()
+        .to_vec();
+    let html = String::from_utf8(bytes).unwrap();
+    assert!(
+        html.contains("Test Theme"),
+        "重启后应渲染 test-theme 的 index.html: {html}"
+    );
+    assert!(
+        html.contains(r#"data-theme="test-theme""#),
+        "重启后模板应标记 test-theme: {html}"
     );
 }

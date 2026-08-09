@@ -25,8 +25,8 @@ impl AppError {
             AppError::Conflict(_) => StatusCode::CONFLICT,
         }
     }
-    /// 错误消息（前台错误页等内部模块使用）。
-    pub(crate) fn message(&self) -> &str {
+    /// 错误消息（前台错误页、二进制启动错误等使用）。
+    pub fn message(&self) -> &str {
         match self {
             AppError::NotFound(m) | AppError::BadRequest(m) | AppError::Unauthorized(m)
             | AppError::Forbidden(m) | AppError::Internal(m) | AppError::Conflict(m) => m,

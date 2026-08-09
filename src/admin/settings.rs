@@ -142,7 +142,15 @@ pub async fn password(
         return render(&state, &session, uri.path(), None, "", "两次输入的新密码不一致").await;
     }
     match auth::set_password(&state.db, new).await {
-        Ok(()) => super::redirect("/admin/settings"),
+        Ok(()) => {
+            // 改密后失效全部既有会话（多端登录一并踢出）；当前会话 flush
+            // 让中间件下发清除 cookie，随后跳登录页强制重新登录（I3）。
+            let _ = sqlx::query(&format!("DELETE FROM {}", session::SESSION_TABLE))
+                .execute(&state.db)
+                .await;
+            let _ = session::logout(&session).await;
+            super::redirect("/admin/login")
+        }
         Err(e) => {
             tracing::error!("修改密码失败: {e:?}");
             render(&state, &session, uri.path(), None, "", "密码修改失败，请重试").await

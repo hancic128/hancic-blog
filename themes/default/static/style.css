@@ -435,7 +435,8 @@ button, a, [role="button"], label { cursor: pointer; }
   background: var(--code-bg);
 }
 
-.moment-grid.single .moment-media img {
+.moment-grid.single .moment-media img,
+.moment-grid.single .moment-media video {
   aspect-ratio: auto;
   object-fit: contain;
   max-height: 560px;

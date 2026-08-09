@@ -110,30 +110,49 @@
     document.addEventListener('DOMContentLoaded', initEditor);
   }
 
+  // 新建页本地草稿的 localStorage key（Vditor cache 的 id，恢复/清除共用）。
+  var DRAFT_KEY = 'vditor-draft';
+
   function initEditor() {
     var form = document.getElementById('post-form');
     var statusInput = document.getElementById('post-status');
     var statusEl = document.getElementById('save-status');
     var editor = null;
     var lastSaved = null;
+    // 新建页（_post 无 id）：无服务端 autosave，改走 Vditor 本地草稿（I1）
+    var isNewPost = !window._post || !window._post.id;
 
     // Vditor 上传处理器：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）。
     // Vditor 3.x 的 upload.handler 契约要求处理器自行把结果插入编辑器：
     // 返回 undefined 表示成功，返回字符串会被当作错误提示展示。
-    // （旧式 { code, data: { succMap } } 返回在此版本中被忽略，图片不会自动插入。）
+    // res 非 2xx 直接抛错（I2：上传失败不得静默当作成功），错误消息带
+    // 服务端返回/401 场景提示。
     window.vditorUpload = function (files) {
       var data = new FormData();
       files.forEach(function (file) { data.append('files', file); });
       return window.hancicFetch('/api/uploads', { method: 'POST', body: data })
-        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          if (res.ok) return res.json();
+          return res.json().then(function (body) {
+            var serverMsg = body && body.error && body.error.message;
+            var msg = serverMsg || ('上传失败（HTTP ' + res.status + '）');
+            if (res.status === 401 || res.status === 403) {
+              msg = '登录已过期，请刷新页面重新登录';
+            }
+            throw new Error(msg);
+          }).catch(function (e) {
+            if (e instanceof Error && e.message) throw e;
+            throw new Error('上传失败（HTTP ' + res.status + '）');
+          });
+        })
         .then(function (json) {
           (json.data || []).forEach(function (att) {
             editor.insertValue('![' + att.orig_name + '](/uploads/' + att.path + ')\n');
           });
           return undefined;
         })
-        .catch(function () {
-          return '上传失败，请重试';
+        .catch(function (err) {
+          return err && err.message ? err.message : '上传失败，请重试';
         });
     };
 
@@ -153,21 +172,54 @@
       statusEl.textContent = '已保存 ' + hh + ':' + mm;
     }
 
-    function autosave() {
+    // 统一自动保存入口（I1）：keepalive 保证 pagehide/关页时请求随页面提交；
+    // 请求体超 keepalive 64KB 上限（fetch 会同步抛 TypeError）时回退同步 XHR
+    // ——页面卸载场景也能把请求发完，杜绝大正文关页丢稿。
+    function autosaveNow() {
       if (!editor || !window._post || !window._post.id) return;
       if (!contentChanged()) return;
+      var md = currentContent();
+      var url = '/admin/posts/' + window._post.id + '/autosave';
+      if (md.length > 65536) {
+        saveSyncXhr(url, md);
+      } else {
+        saveWithKeepalive(url, md);
+      }
+    }
+
+    function saveWithKeepalive(url, md) {
       var data = new FormData();
-      data.append('content_md', currentContent());
-      window.hancicFetch('/admin/posts/' + window._post.id + '/autosave', {
-        method: 'POST',
-        body: data
-      })
-        .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
-        .then(function () {
-          lastSaved = currentContent();
+      data.append('content_md', md);
+      try {
+        window.hancicFetch(url, { method: 'POST', body: data, keepalive: true })
+          .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+          .then(function () {
+            lastSaved = md;
+            showSaved();
+          })
+          .catch(function () { /* 静默失败：下一次间隔/pagehide/blur 重试 */ });
+      } catch (e) {
+        // 同步抛错 = 超出 keepalive 上限，回退同步 XHR
+        saveSyncXhr(url, md);
+      }
+    }
+
+    function saveSyncXhr(url, md) {
+      var token = csrfToken();
+      var data = new URLSearchParams();
+      data.append('content_md', md);
+      data.append('csrf', token);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, false); // 同步：pagehide 场景必须发完才返回
+      if (token) xhr.setRequestHeader('X-CSRF-Token', token);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      try {
+        xhr.send(data.toString());
+        if (xhr.status >= 200 && xhr.status < 300) {
+          lastSaved = md;
           showSaved();
-        })
-        .catch(function () { /* 静默失败：下一次间隔或 pagehide 重试 */ });
+        }
+      } catch (e) { /* 同步 XHR 失败只能静默 */ }
     }
 
     // 存草稿 / 发布：点击的按钮 data-action 写入隐藏 status；正文 content_md
@@ -188,21 +240,34 @@
     // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）。
     // cdn 指向本地 /static/vendor/vditor（i18n/lute/icons 已随仓库 assets 发布，
     // 见 scripts/fetch-assets.sh），避免运行时外网依赖（M120）。
+    // 新建页启用 Vditor 内置 cache（写入 localStorage 草稿并恢复，I1）；
+    // 编辑页关闭 cache（服务端内容为准，autosave 负责落库）。
     editor = new window.Vditor('editor', {
       mode: 'ir',
       cdn: '/static/vendor/vditor',
-      cache: false,
+      cache: isNewPost ? { enable: true, id: DRAFT_KEY } : false,
       height: 460,
       value: editorEl.getAttribute('data-content') || '',
-      after: function () { lastSaved = editor.getValue(); },
+      after: function () {
+        lastSaved = editor.getValue();
+        // 已保存文章（有 id）进入编辑页时清掉新建页草稿，防止误恢复（I1）
+        if (!isNewPost && window.localStorage) {
+          window.localStorage.removeItem(DRAFT_KEY);
+        }
+      },
+      blur: function () { autosaveNow(); },
       upload: { handler: window.vditorUpload }
     });
 
-    // 自动保存：30s 轮询 + pagehide 兜底（仅内容变化时发请求）
-    setInterval(autosave, 30000);
-    window.addEventListener('pagehide', function () {
-      if (contentChanged()) autosave();
-    });
+    // 自动保存：30s 轮询 + blur（编辑器失焦）+ pagehide 兜底（仅内容变化时发请求）
+    setInterval(autosaveNow, 30000);
+    window.addEventListener('pagehide', autosaveNow);
+  }
+
+  // CSRF token：编辑器 IIFE 无法访问外层闭包变量，直接读 meta（sync XHR 需要）。
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
   }
 })();
 

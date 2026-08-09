@@ -87,7 +87,22 @@
     var data = new FormData();
     files.forEach(function (f) { data.append('files', f); });
     window.hancicFetch('/api/uploads', { method: 'POST', body: data })
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        // res 非 2xx 直接抛错（I2：上传失败不得静默当作成功），消息带服务端
+        // 返回/401 场景提示；与附件页一致
+        if (res.ok) return res.json();
+        return res.json().then(function (body) {
+          var serverMsg = body && body.error && body.error.message;
+          var msg = serverMsg || ('上传失败（HTTP ' + res.status + '）');
+          if (res.status === 401 || res.status === 403) {
+            msg = '登录已过期，请刷新页面重新登录';
+          }
+          throw new Error(msg);
+        }).catch(function (e) {
+          if (e instanceof Error && e.message) throw e;
+          throw new Error('上传失败（HTTP ' + res.status + '）');
+        });
+      })
       .then(function (json) {
         if (!json.data || !json.data.length) return;
         json.data.forEach(function (att) {
@@ -110,7 +125,11 @@
         syncHidden();
         fileInput.value = '';
       })
-      .catch(function () { /* 上传失败：静默，可重试 */ });
+      .catch(function (err) {
+        // 失败不再静默：弹出错误消息（含 CSRF/401 场景），可重试
+        window.alert(err && err.message ? err.message : '上传失败，请重试');
+        fileInput.value = '';
+      });
   });
 
   function syncHidden() {

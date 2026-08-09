@@ -10,6 +10,7 @@ pub mod models;
 pub mod services;
 pub mod session;
 pub mod themes;
+pub mod util;
 pub mod web;
 
 use crate::config::Config;
@@ -25,6 +26,19 @@ use tower_http::services::ServeDir;
 pub async fn app(config: Config) -> Result<Router, AppError> {
     let db = db::init(&config.data_dir).await?;
     session::migrate(&db).await?;
+    // 后台切主题只写 settings.active_theme（C2）：启动以 DB 为准、优先于
+    // config 默认值，使「重启后生效」真正生效（此前按 config.active_theme
+    // 构建 tera，重启后永远切不回 DB 里激活的主题）。
+    let mut config = config;
+    if let Some(theme) = crate::services::settings::get(&db, "active_theme")
+        .await
+        .ok()
+        .flatten()
+    {
+        if !theme.trim().is_empty() {
+            config.active_theme = theme;
+        }
+    }
     // config 构造 AppState 时被 move，先备份数据目录供 ip 搜索器初始化使用。
     let db_data_dir = config.data_dir.clone();
     // 主题加载失败（如全新部署尚未安装主题）时回退空 Tera 并告警，渲染侧在 T7 接入。

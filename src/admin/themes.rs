@@ -2,10 +2,11 @@
 //!
 //! 鉴权约定同其他后台模块：GET 未登录 302 跳登录；POST 先 `require_admin`
 //! 再过 CSRF。activate 写 settings.active_theme——前台 `site_context` 每次
-//! 请求重读该键，站点信息层即时生效；但前台模板渲染器 `AppState.tera` 在
-//! 启动时按 `config.active_theme` 固定，模板/样式层面需重启才完全生效，
-//! 故切换后提示「重启服务后完全生效」。preview 302 到 `/?theme_preview=`，
-//! 前台按预览主题名临时构建 tera 渲染（只读覆盖，不落库，见 front.rs）。
+//! 请求重读该键，站点信息层即时生效；前台模板渲染器 `AppState.tera` 在
+//! 启动时按 `settings.active_theme`（优先于 `config.active_theme`）构建
+//! （见 lib.rs），故切主题=写 DB，重启后模板/样式完全切换。
+//! preview 302 到 `/?theme_preview=`，前台按预览主题名临时构建 tera 渲染
+//! （只读覆盖，不落库，见 front.rs）。
 
 use crate::services::settings;
 use crate::themes;
@@ -94,7 +95,8 @@ pub async fn activate(
         tracing::error!("切换主题 {name} 失败: {e:?}");
         return redirect_msg("切换失败，请重试");
     }
-    // 前台模板渲染器启动时固定：样式/布局需重启后才完全切换，故提示重启生效
+    // 前台模板渲染器在启动时按 DB 的 active_theme 构建：模板/样式需重启才切换，
+    // 重启后以 DB 为准（C2），故提示重启生效
     redirect_msg(&format!("已切换到 {name}，重启服务后完全生效"))
 }
 

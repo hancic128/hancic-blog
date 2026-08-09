@@ -302,7 +302,7 @@ async fn change_password_flow() {
         .send()
         .await
         .unwrap();
-    assert_eq!(res.status(), 302, "修改成功应 302 回设置页");
+    assert_eq!(res.status(), 302, "修改成功应 302 跳登录页（会话已失效）");
 
     // 登出后用新密码登录
     let res = client.get(format!("{base}/admin/logout")).send().await.unwrap();
@@ -364,5 +364,72 @@ async fn change_password_flow() {
     assert!(
         location.contains("error"),
         "旧密码登录失败应跳转错误页: {location}"
+    );
+}
+
+/// I3：改密成功后既有会话全部失效——旧 cookie 直接访问 /admin 应 302 跳登录，
+/// 且改密响应本身跳转登录页（不再回设置页）。
+#[tokio::test]
+async fn change_password_invalidates_existing_sessions() {
+    let cfg = test_config("admin-settings-sess");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    // 登录后后台可访问（前置：会话有效）
+    let res = client.get(format!("{base}/admin")).send().await.unwrap();
+    assert_eq!(res.status(), 200, "登录后后台应可访问");
+
+    // 修改密码成功 → 302 跳登录页
+    let html = client
+        .get(format!("{base}/admin/settings"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let csrf = extract_csrf(&html);
+    let res = client
+        .post(format!("{base}/admin/settings/password"))
+        .form(&[
+            ("old_password", common::TEST_PASSWORD),
+            ("new_password", "new-password-456"),
+            ("confirm", "new-password-456"),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302, "修改成功应 302");
+    let location = res
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .expect("应带跳转地址")
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        location.contains("/admin/login"),
+        "改密后应跳登录页: {location}"
+    );
+
+    // 旧 cookie 访问 /admin：会话已全部失效 → 302 跳登录
+    let res = client.get(format!("{base}/admin")).send().await.unwrap();
+    assert_eq!(res.status(), 302, "改密后旧会话访问 /admin 应 302");
+    let location = res
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .expect("应带跳转地址")
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        location.contains("/admin/login"),
+        "应跳登录页: {location}"
     );
 }

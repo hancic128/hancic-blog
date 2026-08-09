@@ -61,6 +61,37 @@ async fn list_published_only_and_paginate() {
     assert_eq!(items.len(), 2);
 }
 
+/// I4：create 传纯标点 slug（slugify 后为空，如 `---`）→ 回退标题生成 slug，
+/// 不写入空 slug。
+#[tokio::test]
+async fn create_punctuation_slug_falls_back_to_title() {
+    let (pool, _cfg) = setup("slug-punct-create").await;
+    let p = posts::create_post(&pool, NewPost {
+        title: "Hello 世界".into(), content_md: "x".into(), excerpt: None,
+        slug: Some("---".into()), status: PostStatus::Draft,
+        post_type: hancic::models::PostType::Post, category_id: None, tags: vec![],
+    }).await.unwrap();
+    assert_eq!(p.slug, "hello-世界", "纯标点 slug 应回退标题");
+    assert!(!p.slug.is_empty(), "slug 不得为空");
+}
+
+/// I4：update 传纯标点 slug（`---`）→ 视为不变，保留原 slug。
+#[tokio::test]
+async fn update_punctuation_slug_keeps_original() {
+    let (pool, _cfg) = setup("slug-punct-update").await;
+    let p = posts::create_post(&pool, NewPost {
+        title: "原标题".into(), content_md: "x".into(), excerpt: None,
+        slug: Some("original-slug".into()), status: PostStatus::Draft,
+        post_type: hancic::models::PostType::Post, category_id: None, tags: vec![],
+    }).await.unwrap();
+    let updated = posts::update_post(&pool, p.id, UpdatePost {
+        title: Some("新标题".into()), content_md: None, excerpt: None,
+        slug: Some("---".into()), status: None, post_type: None, category_id: None, tags: None,
+    }).await.unwrap();
+    assert_eq!(updated.slug, "original-slug", "纯标点 slug 应视为不变");
+    assert_eq!(updated.title, "新标题", "其余字段更新不受影响");
+}
+
 #[tokio::test]
 async fn update_and_delete() {
     let (pool, _cfg) = setup("update-delete").await;

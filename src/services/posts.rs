@@ -122,12 +122,18 @@ async fn unique_slug(db: &Db, base: &str) -> Result<String, AppError> {
 }
 
 pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
-    let slug_base = input
+    // slug 来源：显式 slug（trim 非空）→ 标题；slugify 结果为空（纯标点如
+    // `---`）时回退标题再 slugify，避免写入空 slug（I4）。
+    let slug_source = input
         .slug
         .clone()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| input.title.clone());
-    let slug = unique_slug(db, &slugify(&slug_base).await).await?;
+    let mut slug_candidate = slugify(&slug_source).await;
+    if slug_candidate.is_empty() {
+        slug_candidate = slugify(&input.title).await;
+    }
+    let slug = unique_slug(db, &slug_candidate).await?;
     let excerpt = match input.excerpt.clone().filter(|s| !s.trim().is_empty()) {
         Some(e) => e,
         None => excerpt_of(&input.content_md).await,
@@ -313,30 +319,44 @@ pub async fn search_posts(
 
 /// 命中行的高亮片段：正文命中优先展示正文片段，其次标题片段，均无则回退摘要。
 /// `snippet()` 对未命中的列返回无高亮的原文，据此判断命中列。
+///
+/// 安全：snippet() 输出正文原文，正文里的 HTML（如 `<script>`）在文章页经
+/// pulldown-cmark 转义，但搜索页片段直接 `| safe` 输出——故先让 snippet() 用
+/// 哨兵字符包裹命中词，整体 `html_escape` 后再还原 `<mark>`，杜绝存储型 XSS（C1）。
 async fn hit_snippet(
     db: &Db,
     id: i64,
     match_expr: &str,
     excerpt: &str,
 ) -> Result<String, AppError> {
-    let (title_snip, content_snip): (String, String) = sqlx::query_as::<_, (String, String)>(
-        "SELECT snippet(posts_fts, 0, '<mark>', '</mark>', '…', 12), \
-                snippet(posts_fts, 1, '<mark>', '</mark>', '…', 12) \
+    let sql = format!(
+        "SELECT snippet(posts_fts, 0, '{SNIPPET_MARK_OPEN}', '{SNIPPET_MARK_CLOSE}', '…', 12), \
+                snippet(posts_fts, 1, '{SNIPPET_MARK_OPEN}', '{SNIPPET_MARK_CLOSE}', '…', 12) \
          FROM posts_fts WHERE rowid = ? AND posts_fts MATCH ?",
-    )
-    .bind(id)
-    .bind(match_expr)
-    .fetch_one(db)
-    .await?;
-    let snippet = if content_snip.contains("<mark>") {
+    );
+    let (title_snip, content_snip): (String, String) =
+        sqlx::query_as::<_, (String, String)>(&sql)
+            .bind(id)
+            .bind(match_expr)
+            .fetch_one(db)
+            .await?;
+    let snippet = if content_snip.contains(SNIPPET_MARK_OPEN) {
         content_snip
-    } else if title_snip.contains("<mark>") {
+    } else if title_snip.contains(SNIPPET_MARK_OPEN) {
         title_snip
     } else {
         excerpt.to_string()
     };
-    Ok(snippet)
+    // 正文/标题/摘要原文一律先 HTML 转义，再把哨兵还原为 `<mark>` 高亮
+    Ok(crate::util::html_escape(&snippet)
+        .replace(SNIPPET_MARK_OPEN, "<mark>")
+        .replace(SNIPPET_MARK_CLOSE, "</mark>"))
 }
+
+/// FTS5 snippet() 高亮哨兵：用正文几乎不可能出现的控制字符包裹命中词，
+/// 转义后还原，避免把正文里的原始 HTML 原样带回（见 `hit_snippet` 注释）。
+const SNIPPET_MARK_OPEN: &str = "\u{1}";
+const SNIPPET_MARK_CLOSE: &str = "\u{2}";
 
 /// FTS5 对无法解析的查询报 `fts5: syntax error ...`，视为无结果而非 500。
 fn fts_syntax_error(e: &sqlx::Error) -> bool {
@@ -364,9 +384,9 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         values.push(BindVal::Text(excerpt.unwrap_or_default()));
     }
     if let Some(slug) = input.slug {
-        // 空串视为不变，与 create_post 的过滤行为对齐
-        if !slug.trim().is_empty() {
-            let slug = slugify(&slug).await;
+        // slugify 后为空（纯标点如 `---`）视为不变，避免写入空 slug（I4）
+        let slug = slugify(&slug).await;
+        if !slug.is_empty() {
             sets.push("slug = ?");
             values.push(BindVal::Text(slug));
         }

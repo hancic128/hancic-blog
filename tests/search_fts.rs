@@ -127,6 +127,36 @@ async fn search_excludes_drafts() {
     assert!(html.contains("公开文章"));
 }
 
+/// C1（Critical）：正文含 `<script>` 的命中片段必须被转义，高亮 `<mark>` 保留。
+/// 正文 HTML 在文章页被 pulldown-cmark 转义，但搜索页片段直出——回归测试
+/// 确保 snippet() 原文先转义再还原高亮，杜绝存储型 XSS。
+#[tokio::test]
+async fn search_escapes_html_in_snippet() {
+    let (app, pool) = test_app("search-xss").await;
+    create_published_post(
+        &pool,
+        "XSS 测试",
+        "正文包含 <script>alert(1)</script> 的恶意内容",
+    )
+    .await;
+
+    let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("script"))).await;
+    assert_eq!(status, StatusCode::OK);
+    // 命中词被高亮包裹，正文中的 `<`/`>` 必须转义：不得出现未转义的 <script>
+    assert!(
+        !html.contains("<script>"),
+        "不得出现未转义的 <script>: {html}"
+    );
+    assert!(
+        html.contains("&lt;") && html.contains("&gt;"),
+        "snippet 中尖括号应转义: {html}"
+    );
+    assert!(
+        html.contains("<mark>script</mark>") || html.contains("<mark>"),
+        "命中词高亮应保留: {html}"
+    );
+}
+
 #[tokio::test]
 async fn search_excludes_pages() {
     let (app, pool) = test_app("search-pages").await;

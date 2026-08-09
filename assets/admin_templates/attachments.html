@@ -94,8 +94,18 @@
     status.textContent = '上传中…';
     window.hancicFetch('/api/uploads', { method: 'POST', body: data })
       .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
+        if (res.ok) return res.json();
+        return res.json().then(function (body) {
+          var serverMsg = body && body.error && body.error.message;
+          var msg = serverMsg || ('上传失败（HTTP ' + res.status + '）');
+          if (res.status === 401 || res.status === 403) {
+            msg = '登录已过期，请刷新页面重新登录';
+          }
+          throw new Error(msg);
+        }).catch(function (e) {
+          if (e instanceof Error && e.message) throw e;
+          throw new Error('上传失败（HTTP ' + res.status + '）');
+        });
       })
       .then(function (json) {
         var n = (json.data || []).length;
@@ -106,8 +116,8 @@
           status.textContent = '没有成功上传的文件';
         }
       })
-      .catch(function () {
-        status.textContent = '上传失败，请重试';
+      .catch(function (err) {
+        status.textContent = err && err.message ? err.message : '上传失败，请重试';
         fileInput.value = '';
       });
   }

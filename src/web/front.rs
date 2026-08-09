@@ -369,10 +369,13 @@ async fn serve_from(base: PathBuf, prefix: &str, req: Request<Body>) -> Response
     *req.uri_mut() = uri;
     match ServeDir::new(&base).oneshot(req).await {
         Ok(mut res) => {
-            res.headers_mut().insert(
-                header::CACHE_CONTROL,
-                header::HeaderValue::from_static(STATIC_CACHE),
-            );
+            // 缓存头只加在成功响应上（M27）：404/错误响应不应被浏览器/中间层缓存
+            if res.status().is_success() {
+                res.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    header::HeaderValue::from_static(STATIC_CACHE),
+                );
+            }
             res.map(Body::new)
         }
         Err(never) => match never {},
@@ -636,10 +639,11 @@ async fn render_error(state: &AppState, err: AppError) -> Response {
     }
 }
 
-/// 错误页最后兜底：纯内联 HTML。
+/// 错误页最后兜底：纯内联 HTML（message 先转义，M23：错误消息可能来自用户输入）。
 fn fallback_error_page(status: StatusCode, message: &str) -> Response {
     let code = status.as_u16();
     let reason = status.canonical_reason().unwrap_or("");
+    let safe_message = crate::util::html_escape(message);
     (
         status,
         Html(format!(
@@ -647,7 +651,7 @@ fn fallback_error_page(status: StatusCode, message: &str) -> Response {
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
              <title>{code} {reason}</title>\
              <body style=\"font:17px/1.8 -apple-system,'PingFang SC',sans-serif;max-width:720px;margin:4rem auto;padding:0 1.25rem\">\
-             <h1>{code} {reason}</h1><p>{message}</p>\
+             <h1>{code} {reason}</h1><p>{safe_message}</p>\
              <p><a href=\"/\">返回首页</a></p></body></html>"
         )),
     )
