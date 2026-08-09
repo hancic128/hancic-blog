@@ -1,0 +1,11 @@
+# Rust build
+/target
+
+# Visual companion mockups (brainstorming artifacts)
+/.superpowers/
+
+# Local data (never commit)
+/data/
+
+# OS
+.DS_Store
