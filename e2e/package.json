@@ -1,0 +1,13 @@
+{
+  "name": "hancic-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hancic 博客端到端测试（Playwright，desktop + 375px mobile）",
+  "scripts": {
+    "test": "playwright test",
+    "test:report": "playwright test --reporter=html"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

@@ -1,4 +1,5 @@
 use hancic::config::Config;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -18,6 +19,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|_| anyhow::anyhow!("数据库初始化失败"))?;
     tracing::info!("hancic listening on {addr}");
-    axum::serve(listener, app).await?;
+    // 必须带 ConnectInfo：/admin/login 按 IP 限流依赖该扩展（与 tests/common 一致）
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+        .await?;
     Ok(())
 }

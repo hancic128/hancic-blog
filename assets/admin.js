@@ -101,89 +101,105 @@
   'use strict';
 
   var editorEl = document.getElementById('editor');
-  if (!editorEl || !window.Vditor) return;
+  // vditor.min.js 在 admin.js 之后加载（layout.html 的 block scripts 在其后），
+  // 故等到 DOMContentLoaded（此时所有经典脚本已执行完毕）再初始化编辑器。
+  if (!editorEl) return;
+  if (window.Vditor) {
+    initEditor();
+  } else {
+    document.addEventListener('DOMContentLoaded', initEditor);
+  }
 
-  var form = document.getElementById('post-form');
-  var statusInput = document.getElementById('post-status');
-  var statusEl = document.getElementById('save-status');
-  var editor = null;
-  var lastSaved = null;
+  function initEditor() {
+    var form = document.getElementById('post-form');
+    var statusInput = document.getElementById('post-status');
+    var statusEl = document.getElementById('save-status');
+    var editor = null;
+    var lastSaved = null;
 
-  // Vditor 上传处理器：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）
-  // → 组装 Vditor 期望的 { msg, code, data: { errFiles, succMap } }。
-  window.vditorUpload = function (files) {
-    var data = new FormData();
-    files.forEach(function (file) { data.append('files', file); });
-    return window.hancicFetch('/api/uploads', { method: 'POST', body: data })
-      .then(function (res) { return res.json(); })
-      .then(function (json) {
-        var succMap = {};
-        (json.data || []).forEach(function (att) {
-          succMap[att.orig_name] = '/uploads/' + att.path;
+    // Vditor 上传处理器：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）。
+    // Vditor 3.x 的 upload.handler 契约要求处理器自行把结果插入编辑器：
+    // 返回 undefined 表示成功，返回字符串会被当作错误提示展示。
+    // （旧式 { code, data: { succMap } } 返回在此版本中被忽略，图片不会自动插入。）
+    window.vditorUpload = function (files) {
+      var data = new FormData();
+      files.forEach(function (file) { data.append('files', file); });
+      return window.hancicFetch('/api/uploads', { method: 'POST', body: data })
+        .then(function (res) { return res.json(); })
+        .then(function (json) {
+          (json.data || []).forEach(function (att) {
+            editor.insertValue('![' + att.orig_name + '](/uploads/' + att.path + ')\n');
+          });
+          return undefined;
+        })
+        .catch(function () {
+          return '上传失败，请重试';
         });
-        return { msg: '', code: 0, data: { errFiles: [], succMap: succMap } };
+    };
+
+    function currentContent() {
+      return editor ? editor.getValue() : '';
+    }
+
+    function contentChanged() {
+      return lastSaved === null || currentContent() !== lastSaved;
+    }
+
+    function showSaved() {
+      if (!statusEl) return;
+      var now = new Date();
+      var hh = ('0' + now.getHours()).slice(-2);
+      var mm = ('0' + now.getMinutes()).slice(-2);
+      statusEl.textContent = '已保存 ' + hh + ':' + mm;
+    }
+
+    function autosave() {
+      if (!editor || !window._post || !window._post.id) return;
+      if (!contentChanged()) return;
+      var data = new FormData();
+      data.append('content_md', currentContent());
+      window.hancicFetch('/admin/posts/' + window._post.id + '/autosave', {
+        method: 'POST',
+        body: data
       })
-      .catch(function () {
-        return { msg: '上传失败，请重试', code: 1, data: { errFiles: [], succMap: {} } };
+        .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+        .then(function () {
+          lastSaved = currentContent();
+          showSaved();
+        })
+        .catch(function () { /* 静默失败：下一次间隔或 pagehide 重试 */ });
+    }
+
+    // 存草稿 / 发布：点击的按钮 data-action 写入隐藏 status；正文 content_md
+    // 由 Vditor 取值补进隐藏字段（编辑器是 div，不会随表单自动提交）。
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        if (e.submitter && e.submitter.dataset && e.submitter.dataset.action) {
+          statusInput.value = e.submitter.dataset.action;
+        }
+        var md = document.createElement('input');
+        md.type = 'hidden';
+        md.name = 'content_md';
+        md.value = currentContent();
+        form.appendChild(md);
       });
-  };
+    }
 
-  function currentContent() {
-    return editor ? editor.getValue() : '';
-  }
+    // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）
+    editor = new window.Vditor('editor', {
+      mode: 'ir',
+      cache: false,
+      height: 460,
+      value: editorEl.getAttribute('data-content') || '',
+      after: function () { lastSaved = editor.getValue(); },
+      upload: { handler: window.vditorUpload }
+    });
 
-  function contentChanged() {
-    return lastSaved === null || currentContent() !== lastSaved;
-  }
-
-  function showSaved() {
-    if (!statusEl) return;
-    var now = new Date();
-    var hh = ('0' + now.getHours()).slice(-2);
-    var mm = ('0' + now.getMinutes()).slice(-2);
-    statusEl.textContent = '已保存 ' + hh + ':' + mm;
-  }
-
-  function autosave() {
-    if (!editor || !window._post || !window._post.id) return;
-    if (!contentChanged()) return;
-    var data = new FormData();
-    data.append('content_md', currentContent());
-    window.hancicFetch('/admin/posts/' + window._post.id + '/autosave', {
-      method: 'POST',
-      body: data
-    })
-      .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
-      .then(function () {
-        lastSaved = currentContent();
-        showSaved();
-      })
-      .catch(function () { /* 静默失败：下一次间隔或 pagehide 重试 */ });
-  }
-
-  // 存草稿 / 发布：点击的按钮 data-action 写入隐藏 status 再随表单提交
-  if (form) {
-    form.addEventListener('submit', function (e) {
-      if (e.submitter && e.submitter.dataset && e.submitter.dataset.action) {
-        statusInput.value = e.submitter.dataset.action;
-      }
+    // 自动保存：30s 轮询 + pagehide 兜底（仅内容变化时发请求）
+    setInterval(autosave, 30000);
+    window.addEventListener('pagehide', function () {
+      if (contentChanged()) autosave();
     });
   }
-
-  // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）
-  editor = new window.Vditor('editor', {
-    mode: 'ir',
-    cache: false,
-    height: 460,
-    value: editorEl.getAttribute('data-content') || '',
-    after: function () { lastSaved = editor.getValue(); },
-    upload: { handler: window.vditorUpload }
-  });
-
-  // 自动保存：30s 轮询 + pagehide 兜底（仅内容变化时发请求）
-  setInterval(autosave, 30000);
-  window.addEventListener('pagehide', function () {
-    if (contentChanged()) autosave();
-  });
 })();
 

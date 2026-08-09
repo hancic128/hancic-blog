@@ -6,6 +6,12 @@
 
 # Local data (never commit)
 /data/
+/data-e2e/
+
+# E2E (Playwright)
+/e2e/node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
 
 # OS
 .DS_Store
