@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block title %}{% if post.id %}编辑文章{% else %}新建文章{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if post.id %}编辑文章{% else %}新建文章{% endif %}</h1>
+
+{% if error_tip %}<p class="error">{{ error_tip }}</p>{% endif %}
+
+<form id="post-form" method="post" action="{% if post.id %}/admin/posts/{{ post.id }}/update{% else %}/admin/posts{% endif %}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="status" id="post-status" value="{{ post.status }}">
+
+  <div class="field">
+    <label for="post-title">标题</label>
+    <input id="post-title" name="title" value="{{ post.title }}" required>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="post-slug">固定链接</label>
+      <input id="post-slug" name="slug" value="{{ post.slug }}" placeholder="留空自动生成">
+    </div>
+    <div class="field">
+      <label for="post-category">分类</label>
+      <select id="post-category" name="category_id">
+        <option value=""{% if post.category_id == 0 %} selected{% endif %}>无分类</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}"{% if post.category_id == c.id %} selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="post-tags">标签</label>
+    <input id="post-tags" name="tags" value="{{ post.tags }}" placeholder="逗号分隔">
+  </div>
+
+  <div class="field">
+    <label for="editor">正文（Markdown，支持拖拽/粘贴图片）</label>
+    <div id="editor" data-content="{{ post.content_md }}"></div>
+  </div>
+
+  <div class="field">
+    <label for="post-excerpt">摘要</label>
+    <textarea id="post-excerpt" name="excerpt" rows="3" placeholder="留空自动截取">{{ post.excerpt }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn" type="submit" data-action="draft">存草稿</button>
+    <button class="btn btn-primary" type="submit" data-action="published">发布</button>
+    <a class="btn" href="/admin/posts">返回列表</a>
+    <span id="save-status" class="muted"></span>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/vditor.min.js"></script>
+<script>
+window._post = { id: {{ post.id }}, csrf: "{{ csrf }}" };
+</script>
+{% endblock %}

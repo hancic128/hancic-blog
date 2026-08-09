@@ -49,8 +49,9 @@ pub struct PostListOptions {
 }
 
 /// 数据库行结构：枚举字段以 String 存取，经 `to_str`/`from_str` 与模型互转。
+/// `pub(crate)`：后台文章管理（`admin/posts.rs` 关键词列表查询）复用。
 #[derive(FromRow)]
-struct PostRow {
+pub(crate) struct PostRow {
     id: i64,
     slug: String,
     title: String,
@@ -84,7 +85,8 @@ impl From<PostRow> for Post {
     }
 }
 
-const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
+/// `pub(crate)`：后台文章管理复用。
+pub(crate) const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
     published_at, created_at, updated_at, views, category_id";
 
 pub async fn slugify(input: &str) -> String {

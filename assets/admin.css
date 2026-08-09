@@ -181,6 +181,52 @@ h2 { font-size: 16px; margin: 0 0 14px; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table .col-ops { width: 1%; white-space: nowrap; text-align: right; }
 
+/* ---- 文章管理 ---- */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.filter-bar select,
+.filter-bar input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+}
+.filter-bar input { min-width: 180px; }
+.inline-form { display: inline; }
+.pagination { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+
+.field-row { display: flex; flex-wrap: wrap; gap: 0 16px; }
+.field-row .field { flex: 1; min-width: 240px; }
+.field select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+}
+.field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  resize: vertical;
+}
+.field select:focus,
+.field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+#editor { min-height: 460px; }
+.form-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.form-actions #save-status { margin-left: auto; }
+
 /* ---- 响应式：≤768px 侧边栏变抽屉 ---- */
 @media (max-width: 768px) {
   .admin-side {

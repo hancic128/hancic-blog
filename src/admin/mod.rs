@@ -7,14 +7,14 @@
 
 use crate::error::AppError;
 use crate::models::{PostStatus, PostType};
-use crate::services::{posts, settings, stats};
+use crate::services::{posts as posts_service, settings, stats};
 use crate::AppState;
 use crate::{auth, session};
 use axum::Router;
 use axum::extract::{ConnectInfo, Form, OriginalUri, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use chrono::{DateTime, Days, FixedOffset, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use tera::{Context, Tera};
 use tower_sessions::Session;
+
+pub mod posts;
 
 /// 仪表盘最近草稿条数。
 const DASHBOARD_DRAFT_LIMIT: i64 = 5;
@@ -36,6 +38,12 @@ pub fn router() -> Router<AppState> {
         .route("/logout", get(logout))
         .route("/setup", get(setup_page).post(post_setup))
         .route("/", get(admin_index))
+        .route("/posts", get(posts::list).post(posts::create))
+        .route("/posts/new", get(posts::new_page))
+        .route("/posts/{id}/edit", get(posts::edit_page))
+        .route("/posts/{id}/update", post(posts::update))
+        .route("/posts/{id}/delete", post(posts::delete))
+        .route("/posts/{id}/autosave", post(posts::autosave))
 }
 
 /// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
@@ -47,18 +55,20 @@ pub fn build_tera() -> Tera {
         ("login.html", include_str!("../../assets/admin_templates/login.html")),
         ("setup.html", include_str!("../../assets/admin_templates/setup.html")),
         ("dashboard.html", include_str!("../../assets/admin_templates/dashboard.html")),
+        ("posts_list.html", include_str!("../../assets/admin_templates/posts_list.html")),
+        ("post_edit.html", include_str!("../../assets/admin_templates/post_edit.html")),
     ])
     .expect("内嵌后台模板注册失败");
     tera
 }
 
 /// 302 重定向（FOUND，与测试约定一致）。
-fn redirect(location: &str) -> Response {
+pub(crate) fn redirect(location: &str) -> Response {
     (StatusCode::FOUND, [(header::LOCATION, location)]).into_response()
 }
 
 /// 后台页基础上下文：site_name / csrf / admin_nav（layout.html 消费）。
-async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, String) {
+pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, String) {
     let csrf = session::csrf_token(session).await.unwrap_or_default();
     let site_name = settings::get(&state.db, "site_name")
         .await
@@ -75,7 +85,7 @@ async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, 
 
 /// 渲染后台模板并附 `Cache-Control: no-store`：后台内容动态且页面含 CSRF，
 /// 禁止浏览器/中间层缓存。
-fn render_admin(state: &AppState, template: &str, ctx: &Context) -> Response {
+pub(crate) fn render_admin(state: &AppState, template: &str, ctx: &Context) -> Response {
     let html = match state.tera_admin.render(template, ctx) {
         Ok(html) => html,
         Err(e) => {
@@ -292,9 +302,9 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
         .map(|d| counts.get(d.as_str()).copied().unwrap_or(0))
         .collect();
 
-    let (drafts, _total) = posts::list_posts(
+    let (drafts, _total) = posts_service::list_posts(
         &state.db,
-        posts::PostListOptions {
+        posts_service::PostListOptions {
             status: Some(PostStatus::Draft),
             post_type: Some(PostType::Post),
             category_slug: None,
@@ -350,7 +360,7 @@ fn trend_dates() -> Vec<String> {
 }
 
 /// 后台时间展示：UTC → Asia/Shanghai（UTC+8）格式化 `YYYY-MM-DD HH:MM`。
-fn format_local(dt: DateTime<Utc>) -> String {
+pub(crate) fn format_local(dt: DateTime<Utc>) -> String {
     let tz = FixedOffset::east_opt(TZ_OFFSET_SECS).expect("UTC+8 偏移量合法");
     dt.with_timezone(&tz).format("%Y-%m-%d %H:%M").to_string()
 }
