@@ -19,6 +19,7 @@ use axum::Router;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tera::Tera;
+use tower_http::services::ServeDir;
 
 pub async fn app(config: Config) -> Result<Router, AppError> {
     let db = db::init(&config.data_dir).await?;
@@ -48,15 +49,20 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
         db: db.clone(),
         login_limiter: Arc::new(LoginLimiter::new()),
         tera,
+        tera_admin: admin::build_tera(),
         theme_dir,
         ip_searcher: Arc::new(init_ip_searcher(&db_data_dir)?),
     };
+    // 后台前端资源（admin.css/admin.js/vendor/）以仓库 assets/ 为根，
+    // 与源码一同发布；编译期路径保证 cargo test 等任意 cwd 下可用。
+    let assets_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
     Ok(Router::new()
         .nest(
             "/api",
             api::router().layer(axum::extract::DefaultBodyLimit::max(body_limit as usize)),
         )
         .nest("/admin", admin::router())
+        .nest_service("/static", ServeDir::new(&assets_dir))
         .merge(web::front::routes())
         .fallback(web::front::not_found)
         .layer(session::session_layer(&db))
@@ -75,6 +81,7 @@ pub struct AppState {
     pub db: db::Db,
     pub login_limiter: Arc<LoginLimiter>,
     pub tera: Tera,
+    pub tera_admin: Tera,
     pub theme_dir: PathBuf,
     pub ip_searcher: Arc<ipregion::Searcher>,
 }

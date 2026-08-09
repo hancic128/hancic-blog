@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block title %}仪表盘{% endblock %}
+{% block content %}
+<h1>仪表盘</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.total_posts }}</div>
+    <div class="stat-label">文章</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.total_moments }}</div>
+    <div class="stat-label">说说</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.total_attachments }}</div>
+    <div class="stat-label">附件</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.total_views }}</div>
+    <div class="stat-label">总阅读</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>近 30 日阅读趋势</h2>
+  <canvas id="trend" height="240" aria-label="近 30 日阅读趋势折线图"></canvas>
+</div>
+
+<div class="panel">
+  <h2>最近草稿</h2>
+  {% if drafts %}
+  <table class="data-table">
+    <thead>
+      <tr><th>标题</th><th>更新时间</th><th class="col-ops">操作</th></tr>
+    </thead>
+    <tbody>
+      {% for d in drafts %}
+      <tr>
+        <td><a class="draft-title" href="/admin/posts/{{ d.id }}/edit">{{ d.title }}</a></td>
+        <td class="muted">{{ d.updated_at }}</td>
+        <td class="col-ops"><a class="btn btn-sm" href="/admin/posts/{{ d.id }}/edit">编辑</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">暂无草稿</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/chart.umd.min.js"></script>
+<script>window.chartData = {{ chart_data | safe }};</script>
+{% endblock %}

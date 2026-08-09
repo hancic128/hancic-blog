@@ -1,0 +1,205 @@
+/* 管理后台样式：侧边栏布局，≤768px 侧边栏变抽屉（由 admin.js 切换 body.drawer-open）。 */
+
+:root {
+  --bg: #f4f6fa;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #3d6df0;
+  --accent-soft: #eef2fe;
+  --danger: #dc2626;
+  --side-bg: #111827;
+  --side-text: #d1d5db;
+  --side-active: #ffffff;
+  --side-active-bg: rgba(61, 109, 240, 0.25);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #334155;
+    --accent-soft: #1e3a8a;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---- 布局骨架 ---- */
+.admin-shell { display: flex; min-height: 100vh; }
+
+.admin-side {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--side-bg);
+  color: var(--side-text);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.admin-brand {
+  padding: 18px 20px 14px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.admin-brand small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+
+.admin-nav { flex: 1; padding: 10px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.admin-nav-item {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 6px;
+  color: var(--side-text);
+  font-size: 14px;
+}
+.admin-nav-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; text-decoration: none; }
+.admin-nav-item.active { background: var(--side-active-bg); color: var(--side-active); }
+
+.admin-logout {
+  display: block;
+  margin: 8px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 14px;
+}
+.admin-logout:hover { background: rgba(220, 38, 38, 0.15); color: #fecaca; text-decoration: none; }
+
+.admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-content { flex: 1; padding: 24px; max-width: 1080px; width: 100%; margin: 0 auto; }
+
+.admin-toggle {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  align-self: flex-start;
+  margin: 12px 12px -12px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ---- 通用元素 ---- */
+h1 { font-size: 22px; margin: 0 0 20px; }
+h2 { font-size: 16px; margin: 0 0 14px; }
+.muted { color: var(--muted); }
+.tip { background: var(--accent-soft); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; }
+.error { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; }
+.empty { color: var(--muted); padding: 24px 0; text-align: center; }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow); }
+
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { border-color: var(--accent); text-decoration: none; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { opacity: 0.92; }
+.btn-sm { padding: 3px 10px; font-size: 13px; }
+.btn-danger { color: var(--danger); border-color: #fecaca; }
+.btn-danger:hover { background: #fef2f2; }
+
+.field { display: block; margin-bottom: 14px; color: var(--muted); }
+.field input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+}
+.field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+
+.stack { display: flex; flex-direction: column; align-items: flex-start; }
+.stack .btn { margin-top: 4px; }
+
+/* ---- 登录/初始化卡片 ---- */
+.auth-box {
+  max-width: 400px;
+  margin: 8vh auto 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+.auth-box h1 { margin-bottom: 18px; }
+
+/* ---- 仪表盘 ---- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.stat-num { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.stat-label { color: var(--muted); margin-top: 4px; font-size: 13px; }
+
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.data-table th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table .col-ops { width: 1%; white-space: nowrap; text-align: right; }
+
+/* ---- 响应式：≤768px 侧边栏变抽屉 ---- */
+@media (max-width: 768px) {
+  .admin-side {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.25);
+  }
+  body.drawer-open .admin-side { transform: translateX(0); }
+  body.drawer-open .admin-main::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(15, 23, 42, 0.45);
+  }
+  .admin-toggle { display: block; }
+  .admin-content { padding: 16px; }
+}

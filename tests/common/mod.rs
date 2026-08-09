@@ -75,10 +75,17 @@ pub async fn test_app(tag: &str) -> (axum::Router, Db) {
     (app, pool)
 }
 
-/// 启动真实 HTTP 服务（带 ConnectInfo 以支持按 IP 限流），
-/// 返回地址、cookie 会话客户端（不跟随重定向）与数据库。
-pub async fn start_server(tag: &str) -> (SocketAddr, reqwest::Client, Db) {
-    let (app, pool) = test_app(tag).await;
+/// 用给定配置启动真实 HTTP 服务（带 ConnectInfo 以支持按 IP 限流），
+/// 返回地址与 cookie 会话客户端（不跟随重定向）。
+///
+/// 前台渲染依赖真实主题模板：把仓库 themes/ 复制到数据目录
+/// （与 `test_app` 一致），其余初始化由 `hancic::app` 完成。
+pub async fn start_server_with_cfg(cfg: Config) -> (SocketAddr, reqwest::Client) {
+    copy_recursive(
+        &format!("{}/themes", env!("CARGO_MANIFEST_DIR")),
+        &cfg.data_dir.join("themes"),
+    );
+    let app = hancic::app(cfg).await.unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -94,6 +101,14 @@ pub async fn start_server(tag: &str) -> (SocketAddr, reqwest::Client, Db) {
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .unwrap();
+    (addr, client)
+}
+
+/// 启动真实 HTTP 服务（默认配置），返回地址、cookie 会话客户端与数据库。
+pub async fn start_server(tag: &str) -> (SocketAddr, reqwest::Client, Db) {
+    let cfg = test_config(tag);
+    let pool = hancic::db::init(&cfg.data_dir).await.unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
     (addr, client, pool)
 }
 

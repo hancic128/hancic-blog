@@ -1,20 +1,34 @@
 //! 后台管理路由：登录 / 登出 / 首启 setup / 仪表盘。
 //!
-//! T12 统一布局前页面使用内联 HTML，每个页面输出
-//! `<meta name="csrf-token" content="...">`（测试依赖它提取 token）。
+//! T12 起页面统一渲染到 `assets/admin_templates/`（`include_str!` 编译期嵌入，
+//! `build_tera` 注册进 `AppState::tera_admin`），`layout.html` 提供侧边栏导航
+//! 与 CSRF meta。后台页全部附 `Cache-Control: no-store`（M19），渲染走 tera
+//! 自动转义（M22：输出用户内容一律 `{{ }}`，脚本/HTML 不落地在模板里）。
 
+use crate::error::AppError;
+use crate::models::{PostStatus, PostType};
+use crate::services::{posts, settings, stats};
 use crate::AppState;
-use crate::auth;
-use crate::session;
+use crate::{auth, session};
 use axum::Router;
-use axum::extract::{ConnectInfo, Form, Query, State};
+use axum::extract::{ConnectInfo, Form, OriginalUri, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
+use chrono::{DateTime, Days, FixedOffset, Utc};
 use serde::Deserialize;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use tera::{Context, Tera};
 use tower_sessions::Session;
+
+/// 仪表盘最近草稿条数。
+const DASHBOARD_DRAFT_LIMIT: i64 = 5;
+/// 近 30 日趋势窗口（含今天）。
+const TREND_DAYS: i64 = 30;
+/// 后台时间显示时区偏移（Asia/Shanghai，UTC+8；T17 允许配置时区后再调整）。
+const TZ_OFFSET_SECS: i32 = 8 * 3600;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -24,10 +38,110 @@ pub fn router() -> Router<AppState> {
         .route("/", get(admin_index))
 }
 
+/// 注册后台模板集：`include_str!` 编译期嵌入，全部为仓库内嵌模板，
+/// `add_raw_templates` 仅做语法校验，理论上不会失败。
+pub fn build_tera() -> Tera {
+    let mut tera = Tera::default();
+    tera.add_raw_templates(vec![
+        ("layout.html", include_str!("../../assets/admin_templates/layout.html")),
+        ("login.html", include_str!("../../assets/admin_templates/login.html")),
+        ("setup.html", include_str!("../../assets/admin_templates/setup.html")),
+        ("dashboard.html", include_str!("../../assets/admin_templates/dashboard.html")),
+    ])
+    .expect("内嵌后台模板注册失败");
+    tera
+}
+
 /// 302 重定向（FOUND，与测试约定一致）。
 fn redirect(location: &str) -> Response {
     (StatusCode::FOUND, [(header::LOCATION, location)]).into_response()
 }
+
+/// 后台页基础上下文：site_name / csrf / admin_nav（layout.html 消费）。
+async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, String) {
+    let csrf = session::csrf_token(session).await.unwrap_or_default();
+    let site_name = settings::get(&state.db, "site_name")
+        .await
+        .ok()
+        .flatten()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| state.config.site_name.clone());
+    let mut ctx = Context::new();
+    ctx.insert("site_name", &site_name);
+    ctx.insert("csrf", &csrf);
+    ctx.insert("admin_nav", &nav_value(&admin_nav(path)));
+    (ctx, csrf)
+}
+
+/// 渲染后台模板并附 `Cache-Control: no-store`：后台内容动态且页面含 CSRF，
+/// 禁止浏览器/中间层缓存。
+fn render_admin(state: &AppState, template: &str, ctx: &Context) -> Response {
+    let html = match state.tera_admin.render(template, ctx) {
+        Ok(html) => html,
+        Err(e) => {
+            tracing::error!("渲染后台模板 {template} 失败: {e}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, Html("后台页面渲染失败"))
+                .into_response();
+        }
+    };
+    ([(header::CACHE_CONTROL, "no-store")], Html(html)).into_response()
+}
+
+// ---------- 侧边栏导航 ----------
+
+/// 导航项（url 为后台路由或前台链接）。
+struct NavItem {
+    url: &'static str,
+    label: &'static str,
+    active: bool,
+}
+
+/// 侧边栏 11 模块 + 「查看站点」；active 按当前请求路径匹配。
+fn admin_nav(path: &str) -> Vec<NavItem> {
+    let items: [(&str, &str); 12] = [
+        ("/admin", "仪表盘"),
+        ("/admin/posts", "文章"),
+        ("/admin/moments", "说说"),
+        ("/admin/attachments", "附件库"),
+        ("/admin/taxonomy", "分类标签"),
+        ("/admin/settings", "站点设置"),
+        ("/admin/themes", "主题"),
+        ("/admin/stats", "统计"),
+        ("/admin/tokens", "API Token"),
+        ("/admin/backup", "备份"),
+        ("/admin/import", "迁移导入"),
+        ("/", "查看站点"),
+    ];
+    items
+        .iter()
+        .map(|(url, label)| NavItem {
+            url,
+            label,
+            active: is_active(path, url),
+        })
+        .collect()
+}
+
+/// 路径匹配：仪表盘仅精确命中 `/admin`（含结尾斜杠），其余按前缀匹配，
+/// 避免 `/admin/settings` 与 `/admin/setup` 等前导相似路径互相误伤。
+fn is_active(path: &str, url: &str) -> bool {
+    if url == "/admin" {
+        return path == "/admin" || path == "/admin/";
+    }
+    if url == "/" {
+        return false; // 查看站点永不高亮
+    }
+    path.starts_with(url)
+}
+
+fn nav_value(items: &[NavItem]) -> Value {
+    json!(items
+        .iter()
+        .map(|i| json!({ "url": i.url, "label": i.label, "active": i.active }))
+        .collect::<Vec<_>>())
+}
+
+// ---------- 表单 ----------
 
 #[derive(Deserialize)]
 struct LoginForm {
@@ -43,41 +157,25 @@ struct SetupForm {
     csrf: Option<String>,
 }
 
+// ---------- 登录 / 登出 / 初始化 ----------
+
 async fn login_page(
     State(state): State<AppState>,
     session: Session,
     Query(query): Query<HashMap<String, String>>,
+    uri: OriginalUri,
 ) -> Response {
     let has_password = auth::has_password(&state.db).await.unwrap_or(false);
-    let csrf = session::csrf_token(&session).await.unwrap_or_default();
-    let setup_tip = if has_password {
-        ""
-    } else {
-        r#"<p class="tip">尚未设置管理员密码，<a href="/admin/setup">前往初始化</a>。</p>"#
-    };
+    let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
     let error_tip = match query.get("error").map(String::as_str) {
         Some("rate") => Some("尝试过于频繁，请 10 分钟后再试。"),
         Some("csrf") => Some("安全校验失败，请刷新页面后重试。"),
         Some(_) => Some("登录失败，请检查密码。"),
         None => None,
     };
-    let error_html = error_tip
-        .map(|m| format!(r#"<p class="error">{m}</p>"#))
-        .unwrap_or_default();
-    Html(page(
-        "登录 - 寒蝉 Hancic",
-        &csrf,
-        &format!(
-            r#"{setup_tip}
-{error_html}
-<form method="post" action="/admin/login">
-  <input type="hidden" name="csrf" value="{csrf}">
-  <label>密码 <input type="password" name="password" required autofocus></label>
-  <button type="submit">登录</button>
-</form>"#
-        ),
-    ))
-    .into_response()
+    ctx.insert("has_password", &has_password);
+    ctx.insert("error_tip", &error_tip.unwrap_or_default());
+    render_admin(&state, "login.html", &ctx)
 }
 
 async fn post_login(
@@ -117,26 +215,13 @@ async fn logout(session: Session) -> Response {
     redirect("/admin/login")
 }
 
-async fn setup_page(State(state): State<AppState>, session: Session) -> Response {
+async fn setup_page(State(state): State<AppState>, session: Session, uri: OriginalUri) -> Response {
     if auth::has_password(&state.db).await.unwrap_or(true) {
         return redirect("/admin/login");
     }
-    let csrf = session::csrf_token(&session).await.unwrap_or_default();
-    Html(page(
-        "初始化管理员密码 - 寒蝉 Hancic",
-        &csrf,
-        &format!(
-            r#"<h1>初始化管理员密码</h1>
-<p>首次使用请设置管理员密码（至少 {} 个字符）。</p>
-<form method="post" action="/admin/setup">
-  <input type="hidden" name="csrf" value="{csrf}">
-  <label>新密码 <input type="password" name="password" required minlength="{0}"></label>
-  <button type="submit">设置并进入后台</button>
-</form>"#,
-            auth::PASSWORD_MIN_LEN
-        ),
-    ))
-    .into_response()
+    let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
+    ctx.insert("password_min_len", &auth::PASSWORD_MIN_LEN);
+    render_admin(&state, "setup.html", &ctx)
 }
 
 async fn post_setup(
@@ -169,27 +254,145 @@ async fn post_setup(
     }
 }
 
-async fn admin_index(session: Session) -> Response {
+// ---------- 仪表盘 ----------
+
+async fn admin_index(
+    State(state): State<AppState>,
+    session: Session,
+    uri: OriginalUri,
+) -> Response {
     if session::require_admin(&session).await.is_err() {
         return redirect("/admin/login");
     }
-    let csrf = session::csrf_token(&session).await.unwrap_or_default();
-    Html(page(
-        "仪表盘 - 寒蝉 Hancic",
-        &csrf,
-        r#"<h1>仪表盘</h1>
-<p>后台管理首页，T12 完善。</p>
-<a href="/admin/logout">退出登录</a>"#,
-    ))
-    .into_response()
+    let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
+    if let Err(e) = fill_dashboard(&state, &mut ctx).await {
+        tracing::error!("仪表盘数据查询失败: {e:?}");
+    }
+    render_admin(&state, "dashboard.html", &ctx)
 }
 
-/// 内联页面骨架：输出 csrf-token meta，供表单页与测试使用。
-fn page(title: &str, csrf: &str, body: &str) -> String {
-    format!(
-        "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">\
-         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-         <meta name=\"csrf-token\" content=\"{csrf}\"><title>{title}</title></head>\
-         <body>{body}</body></html>"
+/// 仪表盘上下文：四类总数 + 近 30 日趋势 + 最近草稿。
+async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppError> {
+    let summary = stats::summary(&state.db, None, None).await?;
+    let days = trend_dates();
+    let trend = stats::summary(
+        &state.db,
+        Some(days.first().map(String::as_str).unwrap_or_default()),
+        Some(days.last().map(String::as_str).unwrap_or_default()),
     )
+    .await?;
+    // 无阅读的日期补 0，保证折线图横轴完整覆盖近 30 天。
+    let counts: HashMap<&str, i64> = trend
+        .trend
+        .iter()
+        .map(|d| (d.date.as_str(), d.count))
+        .collect();
+    let trend_data: Vec<i64> = days
+        .iter()
+        .map(|d| counts.get(d.as_str()).copied().unwrap_or(0))
+        .collect();
+
+    let (drafts, _total) = posts::list_posts(
+        &state.db,
+        posts::PostListOptions {
+            status: Some(PostStatus::Draft),
+            post_type: Some(PostType::Post),
+            category_slug: None,
+            tag_slug: None,
+            page: 1,
+            page_size: DASHBOARD_DRAFT_LIMIT,
+        },
+    )
+    .await?;
+
+    ctx.insert(
+        "stats",
+        &json!({
+            "total_posts": summary.total_posts,
+            "total_moments": summary.total_moments,
+            "total_attachments": summary.total_attachments,
+            "total_views": summary.total_views,
+        }),
+    );
+    ctx.insert(
+        "drafts",
+        &json!(
+            drafts
+                .iter()
+                .map(|p| json!({
+                    "id": p.id,
+                    "title": p.title,
+                    "updated_at": format_local(p.updated_at),
+                }))
+                .collect::<Vec<_>>()
+        ),
+    );
+    // 内嵌 JSON 供 admin.js 画图：safe_string 标记避免 tera 自动转义破坏脚本。
+    // 注意必须走 insert_value——insert 会重新序列化并丢失 safe 标记。
+    let chart_json = json!({ "labels": days, "data": trend_data }).to_string();
+    ctx.insert_value("chart_data", tera::Value::safe_string(&chart_json));
+    Ok(())
+}
+
+/// 近 30 天日期序列（含今天，升序，UTC 日期）。
+fn trend_dates() -> Vec<String> {
+    let today = Utc::now().date_naive();
+    (0..TREND_DAYS)
+        .rev()
+        .map(|i| {
+            today
+                .checked_sub_days(Days::new(i as u64))
+                .expect("30 天内日期不会下溢")
+                .format("%Y-%m-%d")
+                .to_string()
+        })
+        .collect()
+}
+
+/// 后台时间展示：UTC → Asia/Shanghai（UTC+8）格式化 `YYYY-MM-DD HH:MM`。
+fn format_local(dt: DateTime<Utc>) -> String {
+    let tz = FixedOffset::east_opt(TZ_OFFSET_SECS).expect("UTC+8 偏移量合法");
+    dt.with_timezone(&tz).format("%Y-%m-%d %H:%M").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nav_active_matches_by_path() {
+        let nav = |path: &str| {
+            admin_nav(path)
+                .into_iter()
+                .filter(|i| i.active)
+                .map(|i| i.label)
+                .collect::<Vec<_>>()
+        };
+        // 仪表盘仅精确命中 /admin（含结尾斜杠）
+        assert_eq!(nav("/admin"), vec!["仪表盘"]);
+        assert_eq!(nav("/admin/"), vec!["仪表盘"]);
+        assert_eq!(nav("/admin/login"), Vec::<&str>::new());
+        // 其余按前缀匹配
+        assert_eq!(nav("/admin/stats"), vec!["统计"]);
+        assert_eq!(nav("/admin/settings"), vec!["站点设置"]);
+        // 前导相似路径不误伤
+        assert_eq!(nav("/admin/setup"), Vec::<&str>::new());
+        // 查看站点永不高亮
+        assert_eq!(nav("/"), Vec::<&str>::new());
+        assert_eq!(nav("/post/x"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn layout_renders_active_nav() {
+        let tera = build_tera();
+        let mut ctx = Context::new();
+        ctx.insert("site_name", "寒蝉 Hancic");
+        ctx.insert("csrf", "token");
+        ctx.insert("admin_nav", &nav_value(&admin_nav("/admin")));
+        let html = tera.render("layout.html", &ctx).unwrap();
+        assert!(
+            html.contains(r#"class="admin-nav-item active"#),
+            "仪表盘应高亮: {html}"
+        );
+    }
 }
