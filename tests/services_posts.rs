@@ -53,7 +53,8 @@ async fn list_published_only_and_paginate() {
         }).await.unwrap();
     }
     let (items, total) = posts::list_posts(&pool, PostListOptions {
-        status: Some(PostStatus::Published), category_slug: None, tag_slug: None,
+        status: Some(PostStatus::Published), post_type: None,
+        category_slug: None, tag_slug: None,
         page: 1, page_size: 2,
     }).await.unwrap();
     assert_eq!(total, 2);
@@ -114,4 +115,41 @@ async fn adjacent_posts_ordered_by_published_at() {
     let (prev, next) = posts::adjacent_posts(&pool, &mid).await.unwrap();
     assert_eq!(prev.unwrap().id, ids[0]);
     assert_eq!(next.unwrap().id, ids[2]);
+}
+
+#[tokio::test]
+async fn adjacent_posts_skip_pages() {
+    let (pool, _cfg) = setup("adjacent-page").await;
+    use std::time::Duration;
+    // 时间序：post A < page P < post B；P 不能成为 A/B 的相邻文章
+    let a = posts::create_post(&pool, NewPost {
+        title: "前文".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    let p = posts::create_post(&pool, NewPost {
+        title: "中间页".into(), content_md: "x".into(), excerpt: None, slug: Some("mid-page".into()),
+        status: PostStatus::Published, post_type: hancic::models::PostType::Page,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    let b = posts::create_post(&pool, NewPost {
+        title: "后文".into(), content_md: "x".into(), excerpt: None, slug: None,
+        status: PostStatus::Published, post_type: hancic::models::PostType::Post,
+        category_id: None, tags: vec![],
+    }).await.unwrap();
+
+    let (prev, next) = posts::adjacent_posts(&pool, &a).await.unwrap();
+    assert!(prev.is_none());
+    assert_eq!(next.unwrap().id, b.id);
+
+    let (prev, next) = posts::adjacent_posts(&pool, &b).await.unwrap();
+    assert_eq!(prev.unwrap().id, a.id);
+    assert!(next.is_none());
+
+    // 相邻结果不得出现 page
+    let (prev, next) = posts::adjacent_posts(&pool, &a).await.unwrap();
+    assert_ne!(prev.as_ref().map(|x| x.id), Some(p.id));
+    assert_ne!(next.as_ref().map(|x| x.id), Some(p.id));
 }

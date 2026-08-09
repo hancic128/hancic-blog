@@ -93,6 +93,32 @@ async fn category_page_filters() {
 }
 
 #[tokio::test]
+async fn homepage_excludes_pages() {
+    let (app, pool) = test_app("front-home-no-page").await;
+    create_published_post(&pool, "普通文章", None, vec![]).await;
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "独立页面".into(),
+            content_md: "x".into(),
+            excerpt: None,
+            slug: Some("standalone".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            tags: vec![],
+        },
+    )
+    .await
+    .unwrap();
+
+    let (status, html) = get_html(&app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("普通文章"));
+    assert!(!html.contains("独立页面"));
+}
+
+#[tokio::test]
 async fn about_page_renders_page_type() {
     let (app, pool) = test_app("front-about").await;
     posts::create_post(

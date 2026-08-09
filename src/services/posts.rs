@@ -40,6 +40,8 @@ pub struct UpdatePost {
 
 pub struct PostListOptions {
     pub status: Option<PostStatus>,
+    /// None = 全部类型（向后兼容，T3 调用不受影响）
+    pub post_type: Option<PostType>,
     pub category_slug: Option<String>,
     pub tag_slug: Option<String>,
     pub page: i64,
@@ -174,11 +176,14 @@ pub async fn get_post_by_slug(db: &Db, slug: &str) -> Result<Option<Post>, AppEr
     Ok(row.map(Post::from))
 }
 
-/// 依据 opts 拼接 WHERE 子句（全部参数化，`?` 按 status/category/tag 顺序）。
+/// 依据 opts 拼接 WHERE 子句（全部参数化，`?` 按 status/post_type/category/tag 顺序）。
 fn build_list_where(opts: &PostListOptions) -> String {
     let mut sql = String::from(" WHERE 1=1");
     if opts.status.is_some() {
         sql.push_str(" AND status = ?");
+    }
+    if opts.post_type.is_some() {
+        sql.push_str(" AND post_type = ?");
     }
     if opts.category_slug.is_some() {
         sql.push_str(
@@ -201,6 +206,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     if let Some(status) = opts.status {
         count_q = count_q.bind(status.to_str());
     }
+    if let Some(post_type) = opts.post_type {
+        count_q = count_q.bind(post_type.to_str());
+    }
     if let Some(cat) = opts.category_slug.as_deref() {
         count_q = count_q.bind(cat);
     }
@@ -215,6 +223,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     let mut q = sqlx::query_as::<_, PostRow>(&item_sql);
     if let Some(status) = opts.status {
         q = q.bind(status.to_str());
+    }
+    if let Some(post_type) = opts.post_type {
+        q = q.bind(post_type.to_str());
     }
     if let Some(cat) = opts.category_slug.as_deref() {
         q = q.bind(cat);
@@ -318,10 +329,13 @@ pub async fn increment_views(db: &Db, id: i64) -> Result<(), AppError> {
 }
 
 pub async fn adjacent_posts(db: &Db, p: &Post) -> Result<(Option<Post>, Option<Post>), AppError> {
+    // 只关联普通文章：独立页（page）走 /page/ 路由，不能作为文章上一篇/下一篇
     let prev = match &p.published_at {
         Some(ts) => {
             let sql = format!(
-                "SELECT {POST_COLUMNS} FROM posts WHERE published_at < ? ORDER BY published_at DESC, id DESC LIMIT 1"
+                "SELECT {POST_COLUMNS} FROM posts \
+                 WHERE published_at < ? AND post_type = 'post' \
+                 ORDER BY published_at DESC, id DESC LIMIT 1"
             );
             let row = sqlx::query_as::<_, PostRow>(&sql)
                 .bind(ts.to_rfc3339_opts(SecondsFormat::Nanos, true))
@@ -334,7 +348,9 @@ pub async fn adjacent_posts(db: &Db, p: &Post) -> Result<(Option<Post>, Option<P
     let next = match &p.published_at {
         Some(ts) => {
             let sql = format!(
-                "SELECT {POST_COLUMNS} FROM posts WHERE published_at > ? ORDER BY published_at ASC, id ASC LIMIT 1"
+                "SELECT {POST_COLUMNS} FROM posts \
+                 WHERE published_at > ? AND post_type = 'post' \
+                 ORDER BY published_at ASC, id ASC LIMIT 1"
             );
             let row = sqlx::query_as::<_, PostRow>(&sql)
                 .bind(ts.to_rfc3339_opts(SecondsFormat::Nanos, true))

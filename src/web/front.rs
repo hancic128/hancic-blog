@@ -306,6 +306,7 @@ async fn listing_ctx(
         db,
         posts::PostListOptions {
             status: Some(PostStatus::Published),
+            post_type: Some(PostType::Post),
             category_slug,
             tag_slug,
             page,

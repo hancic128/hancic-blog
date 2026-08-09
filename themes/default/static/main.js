@@ -68,11 +68,19 @@
     var clone = img.cloneNode(false);
     overlay.appendChild(clone);
     document.body.appendChild(overlay);
-    var close = function () { document.body.removeChild(overlay); };
+    function close() {
+      if (overlay.parentNode) {
+        document.body.removeChild(overlay);
+      }
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") {
+        close();
+      }
+    }
     overlay.addEventListener("click", close);
-    document.addEventListener("keydown", function onKey(e) {
-      if (e.key === "Escape") { close(); document.removeEventListener("keydown", onKey); }
-    });
+    document.addEventListener("keydown", onKey);
   }
 
   // 懒加载：页面渲染后即可绑定（正文为服务端渲染，无动态插入）
