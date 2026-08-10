@@ -57,6 +57,7 @@ pub async fn list(
             category_slug: query.get("category").filter(|s| !s.is_empty()).cloned(),
             tag_slug: query.get("tag").filter(|s| !s.is_empty()).cloned(),
             month: None,
+            sort: None,
             page,
             page_size,
         },

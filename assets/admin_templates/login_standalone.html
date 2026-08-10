@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf }}">
+<title>登录 · {{ site_name }}</title>
+<link rel="stylesheet" href="{{ base_path }}/theme/default/static/style.css">
+<style>
+/* 独立登录页：延续 Swiss Modernism / Exaggerated Minimalism（编辑黑 + accent 配色）
+   全屏居中卡片，亮暗/配色跟随主题变量（var(--bg)/--fg/--accent） */
+.auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem; background: var(--bg); color: var(--fg); }
+.auth-card { width: 100%; max-width: 360px; }
+.auth-brand { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;
+  line-height: 1.25; margin: 0 0 .35rem; }
+.auth-sub { color: var(--muted); margin: 0 0 2.25rem; font-size: .95rem; }
+.auth-form { display: flex; flex-direction: column; gap: .55rem; }
+.auth-label { font-size: .85rem; font-weight: 600; color: var(--muted); }
+.auth-input { font: inherit; font-size: 1rem; padding: .72rem .9rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+  color: var(--fg); transition: border-color .15s ease; }
+.auth-input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-btn { font: inherit; font-size: 1rem; font-weight: 600; margin-top: .6rem;
+  padding: .78rem 1rem; border: 0; border-radius: 8px; background: var(--fg);
+  color: var(--bg); cursor: pointer; transition: opacity .15s ease; }
+.auth-btn:hover { opacity: .85; }
+.auth-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-error { color: #dc2626; font-size: .9rem; margin: 0 0 1.1rem; }
+html[data-mode="dark"] .auth-error { color: #f87171; }
+.auth-tip { color: var(--muted); font-size: .9rem; margin: 0 0 1.1rem; }
+.auth-tip a { color: var(--accent); }
+.auth-back { display: inline-block; margin-top: 1.75rem; font-size: .88rem;
+  color: var(--muted); text-decoration: none; }
+.auth-back:hover { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .auth-input, .auth-btn { transition: none; }
+}
+</style>
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <h1 class="auth-brand">{{ site_name }}</h1>
+  <p class="auth-sub">登录管理后台</p>
+  {% if not has_password %}
+  <p class="auth-tip">尚未设置管理员密码，<a href="{{ base_path }}/admin/setup">前往初始化</a>。</p>
+  {% endif %}
+  {% if error_tip %}<p class="auth-error" role="alert">{{ error_tip }}</p>{% endif %}
+  <form method="post" action="{{ base_path }}/admin/login" class="auth-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="auth-label" for="password">密码</label>
+    <input class="auth-input" id="password" type="password" name="password"
+           required autofocus autocomplete="current-password">
+    <button type="submit" class="auth-btn">登录</button>
+  </form>
+  <a class="auth-back" href="{{ base_path }}/">← 返回首页</a>
+</main>
+<script src="{{ base_path }}/theme/default/static/main.js"></script>
+</body>
+</html>

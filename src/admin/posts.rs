@@ -25,6 +25,27 @@ const PAGE_SIZE: i64 = 20;
 
 // ---------- 列表 ----------
 
+/// 生成固定链接：8 位短 uuid（唯一性由 `create_post` 的 unique_slug 兜底）。
+fn short_slug() -> String {
+    let full = uuid::Uuid::new_v4().simple().to_string();
+    full[..8].to_string()
+}
+
+/// 从查询参数解析文章列表排序：`sort=字段` + `dir=asc|desc`；字段白名单校验，
+/// 非法字段回退 None（默认时间倒序）。
+fn admin_sort(query: &HashMap<String, String>) -> Option<posts::PostSort> {
+    let field: &'static str = match query.get("sort").map(String::as_str).unwrap_or("") {
+        "title" => "title",
+        "views" => "views",
+        "updated_at" => "updated_at",
+        "published_at" => "published_at",
+        "status" => "status",
+        _ => return None,
+    };
+    let asc = query.get("dir").map(String::as_str).unwrap_or("desc") == "asc";
+    Some(posts::PostSort { field, asc })
+}
+
 pub async fn list(
     State(state): State<AppState>,
     session: Session,
@@ -32,7 +53,7 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let status = match query.get("status").map(String::as_str).unwrap_or("") {
         "draft" => Some(PostStatus::Draft),
@@ -63,6 +84,7 @@ pub async fn list(
                 category_slug: category_slug.clone(),
                 tag_slug: None,
                 month: None,
+                sort: admin_sort(&query),
                 page,
                 page_size: PAGE_SIZE,
             },
@@ -76,7 +98,7 @@ pub async fn list(
             }
         }
     } else {
-        match list_by_keyword(&state.db, status, category_slug.as_deref(), &q, page).await {
+        match list_by_keyword(&state.db, status, category_slug.as_deref(), &q, admin_sort(&query), page).await {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("后台文章关键词查询失败: {e:?}");
@@ -102,6 +124,8 @@ pub async fn list(
             "status": query.get("status").map(String::as_str).unwrap_or(""),
             "category": category_slug.unwrap_or_default(),
             "q": q,
+            "sort": query.get("sort").map(String::as_str).unwrap_or(""),
+            "dir": query.get("dir").map(String::as_str).unwrap_or("desc"),
         }),
     );
     ctx.insert("categories", &categories_value(&categories));
@@ -134,6 +158,7 @@ async fn list_by_keyword(
     status: Option<PostStatus>,
     category_slug: Option<&str>,
     q: &str,
+    sort: Option<posts::PostSort>,
     page: i64,
 ) -> Result<(Vec<Post>, i64), AppError> {
     let mut where_sql = String::from(" WHERE post_type = ? AND title LIKE ?");
@@ -157,8 +182,9 @@ async fn list_by_keyword(
     let total: i64 = count_q.fetch_one(db).await?.get(0);
 
     let item_sql = format!(
-        "SELECT {cols} FROM posts{where_sql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?",
-        cols = posts::POST_COLUMNS
+        "SELECT {cols} FROM posts{where_sql} {order} LIMIT ? OFFSET ?",
+        cols = posts::POST_COLUMNS,
+        order = posts::order_by_clause(sort)
     );
     let mut q = sqlx::query_as::<_, posts::PostRow>(&item_sql);
     for b in &binds {
@@ -178,7 +204,7 @@ pub async fn new_page(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     render_new(&state, &session, uri.path(), "").await
 }
@@ -186,9 +212,11 @@ pub async fn new_page(
 /// 新建页上下文（创建失败回显用）。
 async fn render_new(state: &AppState, session: &Session, path: &str, error_tip: &str) -> Response {
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
+    let tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     ctx.insert("post", &empty_post_value());
     ctx.insert("categories", &categories_value(&categories));
+    ctx.insert("all_tags", &tags_value(&tags));
     ctx.insert("error_tip", error_tip);
     super::render_admin(state, "post_edit.html", &ctx)
 }
@@ -214,13 +242,13 @@ pub async fn edit_page(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     match render_edit(&state, &session, id, uri.path(), "", None).await {
         Ok(resp) => resp,
         Err(e) => {
             tracing::error!("渲染文章编辑页失败: {e:?}");
-            super::redirect("/admin/posts")
+            super::redirect(&state.config.base_path, "/admin/posts")
         }
     }
 }
@@ -238,17 +266,27 @@ async fn render_edit(
     submitted: Option<&HashMap<String, String>>,
 ) -> Result<Response, AppError> {
     let Some(post) = posts::get_post(&state.db, id).await? else {
-        return Ok(super::redirect("/admin/posts"));
+        return Ok(super::redirect(&state.config.base_path, "/admin/posts"));
     };
     let tags = posts::list_tags_of_post(&state.db, id)
         .await
         .unwrap_or_default();
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
+    let all_tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     ctx.insert("post", &post_edit_value(&post, &tags, submitted));
     ctx.insert("categories", &categories_value(&categories));
+    ctx.insert("all_tags", &tags_value(&all_tags));
     ctx.insert("error_tip", error_tip);
     Ok(super::render_admin(state, "post_edit.html", &ctx))
+}
+
+/// 标签 JSON：`[{name}]`，供标签 chips 下拉建议。
+fn tags_value(tags: &[crate::models::Tag]) -> Value {
+    json!(tags
+        .iter()
+        .map(|t| json!({ "name": t.name }))
+        .collect::<Vec<_>>())
 }
 
 /// 编辑页文章 JSON：content_md 由模板 `{{ post.content_md }}` 进 `data-content`
@@ -318,14 +356,15 @@ pub async fn create(
         title,
         content_md: form.get("content_md").cloned().unwrap_or_default(),
         excerpt: optional_field(form.get("excerpt")),
-        slug: optional_field(form.get("slug")),
+        // 固定链接不再由用户填写：默认生成 8 位短 uuid（unique_slug 兜底冲突）
+        slug: Some(short_slug()),
         status: parse_status(form.get("status").map(String::as_str).unwrap_or("")),
         post_type: PostType::Post,
         category_id: parse_id(form.get("category_id")),
         tags: parse_tags(form.get("tags")),
     };
     match posts::create_post(&state.db, input).await {
-        Ok(p) => Ok(super::redirect(&format!("/admin/posts/{}/edit", p.id))),
+        Ok(p) => Ok(super::redirect(&state.config.base_path, &format!("/admin/posts/{}/edit", p.id))),
         Err(e) => {
             tracing::error!("创建文章失败: {e:?}");
             Ok(render_new(&state, &session, "/admin/posts/new", "保存失败，请重试").await)
@@ -344,33 +383,17 @@ pub async fn update(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     if posts::get_post(&state.db, id).await?.is_none() {
-        return Ok(super::redirect("/admin/posts"));
-    }
-    // slug 冲突预检：`update_post` 直接写 slug，撞 UNIQUE 约束会 500，
-    // 提前用 slugify 后的值比对，命中其他文章则用「提交值」回显编辑页
-    // （回填表单而非重取 DB，保证用户刚填的标题/正文/标签不丢）。
-    if let Some(slug) = optional_field(form.get("slug")) {
-        let slug = posts::slugify(&slug).await;
-        if let Some(other) = posts::get_post_by_slug(&state.db, &slug).await? {
-            if other.id != id {
-                return render_edit(
-                    &state,
-                    &session,
-                    id,
-                    "/admin/posts/{id}/edit",
-                    "固定链接已被占用，请换一个",
-                    Some(&form),
-                )
-                .await;
-            }
-        }
+        return Ok(super::redirect(&state.config.base_path, "/admin/posts"));
     }
     let input = posts::UpdatePost {
         title: optional_field(form.get("title")),
         content_md: Some(form.get("content_md").cloned().unwrap_or_default()),
-        // 空串 → Some(None) 显式清空；非空 → Some(Some(v)) 设值
-        excerpt: Some(optional_field(form.get("excerpt"))),
-        slug: form.get("slug").cloned(), // 空串视为不变（T3 已修）
+        // 编辑页已移除摘要输入：未提交（None）→ 保留原值；提交则设值/清空
+        excerpt: match form.get("excerpt") {
+            Some(v) => Some(optional_field(Some(v))),
+            None => None,
+        },
+        slug: None, // 固定链接由系统管理（uuid），编辑不再改动
         status: Some(parse_status(form.get("status").map(String::as_str).unwrap_or(""))),
         post_type: None,
         // 空串 → Some(None) 显式清空分类；合法 id → Some(Some(id))；非法值忽略
@@ -381,7 +404,7 @@ pub async fn update(
         tags: Some(parse_tags(form.get("tags"))),
     };
     let p = posts::update_post(&state.db, id, input).await?;
-    Ok(super::redirect(&format!("/admin/posts/{}/edit", p.id)))
+    Ok(super::redirect(&state.config.base_path, &format!("/admin/posts/{}/edit", p.id)))
 }
 
 // ---------- 删除 ----------
@@ -395,10 +418,10 @@ pub async fn delete(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match posts::delete_post(&state.db, id).await {
-        Ok(()) => Ok(super::redirect("/admin/posts")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path, "/admin/posts")),
         Err(e) => {
             tracing::error!("删除文章失败: {e:?}");
-            Ok(super::redirect("/admin/posts"))
+            Ok(super::redirect(&state.config.base_path, "/admin/posts"))
         }
     }
 }

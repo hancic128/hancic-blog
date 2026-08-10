@@ -26,7 +26,7 @@ async fn export_then_restore_roundtrip() {
     backup::restore(&cfg.data_dir, &zip_path).await.unwrap();
     let pool2 = db::init(&cfg.data_dir).await.unwrap();
     assert!(posts::get_post(&pool2, 1).await.unwrap().is_some());
-    assert_eq!(moments::list_moments(&pool2, 1, 10).await.unwrap().1, 1);
+    assert_eq!(moments::list_moments(&pool2, None, false, None, 1, 10).await.unwrap().1, 1);
 }
 
 /// 备份页 + 导出下载（CSRF）+ API 备份（Bearer）鉴权链路。

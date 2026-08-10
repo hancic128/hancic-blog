@@ -54,6 +54,7 @@ pub fn build_tera(themes_dir: &Path, name: &str) -> Result<Tera, String> {
     // 注意：tera 2.x 在 load_from_glob 时即校验模板引用的过滤器，必须「先注册、后加载」。
     let mut tera = Tera::default();
     tera.register_filter("markdown", markdown_filter);
+    tera.register_filter("markdown_breaks", markdown_breaks_filter);
     tera.register_filter("date", date_filter);
     tera.load_from_glob(&format!("{}/**/*.html", tpl_dir.display()))
         .map_err(|e| e.to_string())?;
@@ -77,6 +78,12 @@ pub fn is_valid_name(name: &str) -> bool {
 /// markdown 过滤器：渲染 Markdown 为 HTML，并标记为安全（不参与自动转义）。
 fn markdown_filter(value: String, _kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
     Ok(Value::safe_string(&crate::markdown::render(&value)))
+}
+
+/// markdown_breaks 过滤器：同 markdown，但软换行（单 `\n`）也渲染为 `<br>`，
+/// 供说说等短文本保留换行与段落结构。
+fn markdown_breaks_filter(value: String, _kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
+    Ok(Value::safe_string(&crate::markdown::render_breaks(&value)))
 }
 
 /// date 过滤器：把 RFC3339 时间字符串按站点时区（当前固定 Asia/Shanghai = UTC+8）

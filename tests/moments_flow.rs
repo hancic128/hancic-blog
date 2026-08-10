@@ -53,7 +53,7 @@ async fn create_and_group_by_day() {
         .await
         .unwrap();
 
-    let (items, total) = moments::list_moments(&pool, 1, 20).await.unwrap();
+    let (items, total) = moments::list_moments(&pool, None, false, None, 1, 20).await.unwrap();
     assert_eq!(total, 2);
     let groups = moments::group_by_day(&pool, items).await.unwrap();
     assert_eq!(groups.len(), 2, "两条不同日期的说说应分为 2 组");

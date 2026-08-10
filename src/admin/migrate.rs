@@ -26,7 +26,7 @@ pub async fn page(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
     ctx.insert(
@@ -45,7 +45,7 @@ pub async fn run(
     mut multipart: Multipart,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let mut csrf: Option<String> = None;
     let mut download_images = false;
@@ -53,7 +53,7 @@ pub async fn run(
     let mut total: u64 = 0;
     while let Some(mut field) = match multipart.next_field().await {
         Ok(f) => f,
-        Err(_) => return redirect_msg("读取上传失败：文件过大或格式错误"),
+        Err(_) => return redirect_msg(&state.config.base_path, "读取上传失败：文件过大或格式错误"),
     } {
         match field.name() {
             Some("csrf") => {
@@ -74,12 +74,12 @@ pub async fn run(
                         Ok(Some(chunk)) => {
                             total += chunk.len() as u64;
                             if total > MIGRATE_MAX_BYTES {
-                                return redirect_msg("迁移包超过 500MB 上限");
+                                return redirect_msg(&state.config.base_path, "迁移包超过 500MB 上限");
                             }
                             bytes.extend_from_slice(&chunk);
                         }
                         Ok(None) => break,
-                        Err(_) => return redirect_msg("读取上传失败：文件过大或格式错误"),
+                        Err(_) => return redirect_msg(&state.config.base_path, "读取上传失败：文件过大或格式错误"),
                     }
                 }
                 zip_bytes = Some(bytes);
@@ -91,13 +91,13 @@ pub async fn run(
         .await
         .is_err()
     {
-        return redirect_msg("安全校验失败，请刷新页面后重试");
+        return redirect_msg(&state.config.base_path, "安全校验失败，请刷新页面后重试");
     }
     let Some(bytes) = zip_bytes else {
-        return redirect_msg("未收到 zip 文件，请选择 Halo 导出包");
+        return redirect_msg(&state.config.base_path, "未收到 zip 文件，请选择 Halo 导出包");
     };
     if bytes.is_empty() {
-        return redirect_msg("迁移包为空");
+        return redirect_msg(&state.config.base_path, "迁移包为空");
     }
 
     // 落临时文件交给服务层（zip 需 seek 定位中央目录）
@@ -106,7 +106,7 @@ pub async fn run(
         uuid::Uuid::new_v4()
     ));
     if std::fs::write(&zip_path, &bytes).is_err() {
-        return redirect_msg("写入临时文件失败，请重试");
+        return redirect_msg(&state.config.base_path, "写入临时文件失败，请重试");
     }
     match migrate::import_halo_zip(&state.db, &state.config.data_dir, &zip_path, download_images)
         .await
@@ -125,7 +125,7 @@ pub async fn run(
         Err(e) => {
             tracing::error!("Halo 迁移导入失败: {e:?}");
             let _ = std::fs::remove_file(&zip_path);
-            redirect_msg(e.message())
+            redirect_msg(&state.config.base_path, e.message())
         }
     }
 }
@@ -156,8 +156,8 @@ async fn render_result(
 }
 
 /// 302 回迁移页并带 URL 编码的错误提示（消息含中文，直接拼 query 会丢非 ASCII）。
-fn redirect_msg(msg: &str) -> Response {
-    super::redirect(&format!("/admin/migrate?msg={}", urlencode(msg)))
+fn redirect_msg(base: &str, msg: &str) -> Response {
+    super::redirect(base, &format!("/admin/migrate?msg={}", urlencode(msg)))
 }
 
 /// 查询参数值百分号编码（RFC 3986：仅保留 unreserved 字符；与 backup 同款）。

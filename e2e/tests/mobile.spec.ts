@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { loginAsAdmin, pastePngToEditor } from "../helpers";
+import { loginAsAdmin, pastePngToEditor, acceptConfirmDialog } from "../helpers";
 
 const FIXTURE = path.resolve(__dirname, "../fixtures/1x1.png");
 const PNG_B64 = readFileSync(FIXTURE).toString("base64");
@@ -9,7 +9,6 @@ const PNG_B64 = readFileSync(FIXTURE).toString("base64");
 // 同文件内用例串行执行（mobile project 独立于 desktop 的发布用例）
 test.describe.configure({ mode: "serial" });
 
-const SLUG = `e2e-mobile-${Date.now()}`;
 const TITLE = `移动端文章 ${Date.now()}`;
 const BODY = "移动端正文内容 e2e-mobile-body";
 const MOMENT_TEXT = `移动端说说 ${Date.now()} e2e-mobile-moment`;
@@ -47,7 +46,13 @@ test("375px 发布带图说说并前台可见", async ({ page }) => {
   await page.waitForURL("**/admin/moments");
 
   await page.goto("/moments");
-  const card = page.locator(".moment", { hasText: MOMENT_TEXT });
+  // 时间线默认折叠：先展开该条
+  const body = page
+    .locator(".moment-body")
+    .filter({ has: page.locator(`text=${MOMENT_TEXT}`) })
+    .first();
+  await body.locator(".moment-toggle").click();
+  const card = page.locator(".moment-item", { hasText: MOMENT_TEXT });
   await expect(card).toBeVisible();
   await expect(card.locator("img[src^='/uploads/']").first()).toBeVisible({
     timeout: 15_000,
@@ -58,7 +63,6 @@ test("375px 发布带图文章", async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto("/admin/posts/new");
   await page.locator("#post-title").fill(TITLE);
-  await page.locator("#post-slug").fill(SLUG);
   await page.locator(".vditor").waitFor({ state: "visible" });
   await page.locator(".vditor-ir").click();
   await page.keyboard.type(BODY);
@@ -79,11 +83,13 @@ test("375px 发布带图文章", async ({ page }) => {
     (r) => r.request().method() === "POST" && /\/admin\/posts$/.test(r.request().url()),
   );
   await page.locator('button[data-action="published"]').click();
+  await acceptConfirmDialog(page);
   await createRes;
   await page.waitForURL("**/admin/posts/*/edit");
 
-  // 前台可见标题与正文图片
-  await page.goto(`/post/${SLUG}`);
+  // 固定链接由系统生成：从编辑页 window._post 读取后访问前台
+  const slug = await page.evaluate(() => (window as any)._post.slug);
+  await page.goto(`/post/${slug}`);
   await expect(page.locator("article.post h1")).toHaveText(TITLE);
   await expect(page.locator(".md-body")).toContainText(BODY);
   await expect(page.locator('.md-body img[src^="/uploads/"]').first()).toBeVisible({
@@ -92,8 +98,11 @@ test("375px 发布带图文章", async ({ page }) => {
 });
 
 test("文章页无横向溢出（375px）", async ({ page }) => {
-  await page.goto(`/post/${SLUG}`);
-  await expect(page.locator("article.post h1")).toHaveText(TITLE);
+  // 打开归档页第一篇已发布文章（固定链接为系统 uuid，无法预知）
+  await page.goto("/archives");
+  const firstPost = page.locator(".post-list-item a[href^='/post/']").first();
+  await firstPost.click();
+  await expect(page.locator("article.post h1")).toBeVisible();
   const { scrollWidth, clientWidth } = await page.evaluate(() => {
     const de = document.documentElement;
     return { scrollWidth: de.scrollWidth, clientWidth: de.clientWidth };

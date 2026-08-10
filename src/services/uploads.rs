@@ -207,11 +207,12 @@ pub fn compress_image(
     Ok(out.into_inner())
 }
 
-/// 分页列出附件（kind=None 全量），排序 `created_at DESC, id DESC`（同前台）。
+/// 分页列出附件（kind=None 全量），支持按时间升降序。
 /// 返回（列表, 总数），供后台附件库卡片网格使用。
 pub async fn list_attachments(
     db: &Db,
     kind: Option<AttachmentKind>,
+    asc: bool,
     page: i64,
     page_size: i64,
 ) -> Result<(Vec<Attachment>, i64), AppError> {
@@ -230,8 +231,10 @@ pub async fn list_attachments(
     }
     let total: i64 = count_q.fetch_one(db).await?.get(0);
 
+    let order = if asc { "ASC" } else { "DESC" };
     let item_sql = format!(
-        "SELECT {COLUMNS} FROM attachments{where_sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+        "SELECT {COLUMNS} FROM attachments{where_sql} \
+         ORDER BY created_at {order}, id {order} LIMIT ? OFFSET ?"
     );
     let mut q = sqlx::query_as::<_, AttachmentRow>(&item_sql);
     for b in &binds {

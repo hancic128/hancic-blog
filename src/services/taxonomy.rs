@@ -139,3 +139,22 @@ pub async fn delete_tag(db: &Db, id: i64) -> Result<(), AppError> {
     }
     Ok(())
 }
+
+/// 某分类下所有文章使用的标签（去重，按名排序）。
+pub async fn tags_of_category(db: &Db, category_id: i64) -> Result<Vec<Tag>, AppError> {
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT DISTINCT t.id, t.slug, t.name
+         FROM tags t
+         JOIN post_tags pt ON pt.tag_id = t.id
+         JOIN posts p ON p.id = pt.post_id
+         WHERE p.category_id = ? AND p.status = 'published'
+         ORDER BY t.name",
+    )
+    .bind(category_id)
+    .fetch_all(db)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, slug, name)| Tag { id, slug, name })
+        .collect())
+}

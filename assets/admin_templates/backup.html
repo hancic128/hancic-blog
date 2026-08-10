@@ -28,7 +28,7 @@
   <h2>导出备份</h2>
   <p class="muted">导出内容：数据库一致性快照（hancic.db）、配置文件（config.toml）、
     上传附件（uploads/）、主题（themes/）。</p>
-  <form method="post" action="/admin/backup/export">
+  <form method="post" action="{{ base_path }}/admin/backup/export">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">下载备份 zip</button>
@@ -41,7 +41,7 @@
   <p class="error">恢复会用备份包<strong>覆盖当前全部数据</strong>；原数据目录将自动改名
     为 <code>&lt;数据目录&gt;.bak-&lt;时间戳&gt;</code> 保留，确认无误后可手动删除。
     恢复完成后请<strong>重启服务</strong>，重启前请勿写入新数据（连接池仍指向旧库）。</p>
-  <form method="post" action="/admin/backup/restore" enctype="multipart/form-data">
+  <form method="post" action="{{ base_path }}/admin/backup/restore" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="backup-file">备份包（zip，≤ 500MB）</label>

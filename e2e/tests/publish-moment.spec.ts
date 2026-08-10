@@ -35,12 +35,17 @@ test("发布带图说说：后台上传图 → 前台可见文字与图片", asy
   // 后台列表应出现该说说
   await expect(page.locator(".moment-admin-content").filter({ hasText: text })).toBeVisible();
 
-  // 前台 /moments：文字 + 图片
+  // 前台 /moments：时间线默认折叠，先展开该条再说
   await page.goto("/moments");
+  const body = page
+    .locator(".moment-body")
+    .filter({ has: page.locator(`text=${text}`) })
+    .first();
+  await body.locator(".moment-toggle").click();
   const moment = page.locator(".moment-content").filter({ hasText: text });
   await expect(moment).toBeVisible();
   // 同一说说卡片内的图片
-  const card = page.locator(".moment").filter({ has: page.locator(`text=${text}`) });
+  const card = page.locator(".moment-item").filter({ has: page.locator(`text=${text}`) });
   await expect(card.locator("img[src^='/uploads/']").first()).toBeVisible({
     timeout: 15_000,
   });

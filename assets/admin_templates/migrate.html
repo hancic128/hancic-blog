@@ -34,7 +34,7 @@
     会被识别；无 front-matter 时以正文首行 <code># 标题</code> 为标题、文件名作 slug。
     正文图片：zip 内相对路径图片自动导入并替换为本站 <code>/uploads/</code> 链接；
     外部 http(s) 图片勾选下方选项后拉取到本地（30s 超时，失败记录到报告，不中断导入）。</p>
-  <form method="post" action="/admin/migrate" enctype="multipart/form-data">
+  <form method="post" action="{{ base_path }}/admin/migrate" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="archive-file">Halo 导出 zip（≤ 500MB）</label>

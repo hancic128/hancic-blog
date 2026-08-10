@@ -1,29 +1,56 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-mode="auto">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf }}">
 <title>{% block title %}管理后台{% endblock %} · {{ site_name }}</title>
-<link rel="stylesheet" href="/static/admin.css">
+<link rel="stylesheet" href="{{ base_path }}/static/admin.css">
+<script>/* 明暗模式初始化（防闪烁）*/(function(){var m=localStorage.getItem('admin-mode');if(!m){m=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'}document.documentElement.setAttribute('data-mode',m)})()</script>
 </head>
 <body>
-<div class="admin-shell">
+<div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
-    <div class="admin-brand">{{ site_name }}<small>管理后台</small></div>
+    <div class="admin-brand">
+      <span class="brand-text"><span class="brand-dot"></span>{{ site_name }}<small>管理后台</small></span>
+      <button class="side-collapse" id="side-collapse" type="button" aria-label="折叠菜单" title="折叠/展开菜单">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      </button>
+    </div>
     <nav class="admin-nav">
       {% for item in admin_nav %}
-      <a href="{{ item.url }}" class="admin-nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
+      <a href="{{ base_path }}{{ item.url }}" class="admin-nav-item{% if item.active %} active{% endif %}" title="{{ item.label }}" data-group="{{ item.group }}">
+        <span class="nav-icon" data-icon="{{ item.url }}"></span>
+        <span class="nav-label">{{ item.label }}</span>
+      </a>
       {% endfor %}
     </nav>
-    <a class="admin-logout" href="/admin/logout">退出登录</a>
+    <a class="admin-logout" href="{{ base_path }}/admin/logout" title="退出登录">
+      <span class="nav-icon" data-icon="logout"></span>
+      <span class="nav-label">退出登录</span>
+    </a>
   </aside>
   <div class="admin-main">
-    <button class="admin-toggle" id="admin-toggle" type="button" aria-label="展开导航">☰</button>
+    <header class="admin-topbar">
+      <span class="topbar-title">{% for item in admin_nav %}{% if item.active %}{{ item.label }}{% endif %}{% endfor %}</span>
+      <div class="topbar-actions">
+        <button class="mode-toggle" id="mode-toggle" type="button" aria-label="切换亮暗模式" title="切换亮暗模式">
+          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="topbar-link" href="{{ base_path }}/" title="查看站点">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          查看站点
+        </a>
+      </div>
+    </header>
+    <button class="admin-toggle" id="admin-toggle" type="button" aria-label="展开导航" title="展开导航">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <main class="admin-content">{% block content %}{% endblock %}</main>
   </div>
 </div>
-<script src="/static/admin.js"></script>
+<script src="{{ base_path }}/static/admin.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

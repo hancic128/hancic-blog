@@ -4,17 +4,44 @@
 <h1>说说管理</h1>
 
 <div class="panel">
-  <form id="moment-form" method="post" action="/admin/moments">
+  <form id="moment-form" method="post" action="{{ base_path }}/admin/moments">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="moment-content">发布说说</label>
-      <textarea id="moment-content" name="content" rows="4" placeholder="这一刻的想法…"></textarea>
+      <textarea id="moment-content" name="content" rows="4" placeholder="这一刻的想法…" maxlength="2000"></textarea>
     </div>
     <div id="moment-picks" class="moment-picks"></div>
     <div class="form-actions">
       <input id="moment-file" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden>
       <button class="btn" id="moment-upload-btn" type="button">添加图片/视频</button>
       <button class="btn btn-primary" type="submit">发布</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin/moments">
+    <div class="cs" data-select="#f-month">
+      <button class="cs-btn" type="button" aria-label="按月份筛选" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-month" name="month" class="cs-hidden" aria-label="按月份筛选">
+      <option value="">全部月份</option>
+      {% for m in months %}
+      <option value="{{ m.month }}"{% if filters.month == m.month %} selected{% endif %}>{{ m.month }}</option>
+      {% endfor %}
+    </select>
+    </div>
+    <div class="cs" data-select="#f-order">
+      <button class="cs-btn" type="button" aria-label="排序" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-order" name="order" class="cs-hidden" aria-label="排序">
+      <option value="desc"{% if filters.order == "desc" %} selected{% endif %}>最新在前</option>
+      <option value="asc"{% if filters.order == "asc" %} selected{% endif %}>最早在前</option>
+    </select>
+    </div>
+    <div class="search-box">
+      <input name="q" value="{{ filters.q }}" placeholder="搜索说说内容" aria-label="搜索说说内容">
+      <button class="search-btn" type="submit" aria-label="搜索">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
     </div>
   </form>
 </div>
@@ -39,10 +66,17 @@
       {% endif %}
       <div class="moment-admin-meta">
         <time class="muted">{{ m.created_at }}</time>
-        <form class="inline-form" method="post" action="/admin/moments/{{ m.id }}/delete" data-confirm="确认删除这条说说？">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-sm btn-danger" type="submit">删除</button>
-        </form>
+        <span class="col-ops">
+          <button class="icon-btn moment-edit-btn" type="button" data-id="{{ m.id }}" title="编辑" aria-label="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <form class="inline-form" method="post" action="{{ base_path }}/admin/moments/{{ m.id }}/delete" data-confirm="确认删除这条说说？">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="icon-btn icon-btn-danger" type="submit" title="删除" aria-label="删除">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </form>
+        </span>
       </div>
     </article>
     {% endfor %}
@@ -55,11 +89,11 @@
 {% if total_pages > 1 %}
 <div class="pagination">
   {% if page > 1 %}
-  <a class="btn btn-sm" href="?page={{ page - 1 }}">上一页</a>
+  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;month={{ filters.month }}&amp;order={{ filters.order }}&amp;q={{ filters.q }}">上一页</a>
   {% endif %}
   <span class="muted">{{ page }} / {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a class="btn btn-sm" href="?page={{ page + 1 }}">下一页</a>
+  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;month={{ filters.month }}&amp;order={{ filters.order }}&amp;q={{ filters.q }}">下一页</a>
   {% endif %}
 </div>
 {% endif %}
@@ -88,8 +122,6 @@
     files.forEach(function (f) { data.append('files', f); });
     window.hancicFetch('/api/uploads', { method: 'POST', body: data })
       .then(function (res) {
-        // res 非 2xx 直接抛错（I2：上传失败不得静默当作成功），消息带服务端
-        // 返回/401 场景提示；与附件页一致
         if (res.ok) return res.json();
         return res.json().then(function (body) {
           var serverMsg = body && body.error && body.error.message;
@@ -126,8 +158,7 @@
         fileInput.value = '';
       })
       .catch(function (err) {
-        // 失败不再静默：弹出错误消息（含 CSRF/401 场景），可重试
-        window.alert(err && err.message ? err.message : '上传失败，请重试');
+        window.hancicToast(err && err.message ? err.message : '上传失败，请重试', 'error');
         fileInput.value = '';
       });
   });
@@ -143,6 +174,50 @@
   }
 
   form.addEventListener('submit', syncHidden);
+})();
+
+// 说说编辑：点击编辑按钮在行内展开 textarea + 保存/取消，提交 POST {id}/update
+(function () {
+  'use strict';
+  var MOMENT_BASE = "{{ base_path }}";
+  document.querySelectorAll('.moment-edit-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var card = btn.closest('.moment-admin');
+      if (card.querySelector('.moment-edit-form')) return; // 已展开
+      var contentEl = card.querySelector('.moment-admin-content');
+      var text = contentEl.textContent;
+      var form = document.createElement('form');
+      form.className = 'moment-edit-form';
+      form.method = 'post';
+      form.action = MOMENT_BASE + '/admin/moments/' + btn.dataset.id + '/update';
+      var csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = 'csrf';
+      csrf.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+      var ta = document.createElement('textarea');
+      ta.name = 'content';
+      ta.className = 'moment-edit-textarea';
+      ta.value = text;
+      ta.maxLength = 2000;
+      ta.rows = 3;
+      var save = document.createElement('button');
+      save.type = 'submit';
+      save.className = 'btn btn-primary btn-sm';
+      save.textContent = '保存';
+      var cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'btn btn-sm';
+      cancel.textContent = '取消';
+      cancel.addEventListener('click', function () { form.remove(); });
+      form.appendChild(csrf);
+      form.appendChild(ta);
+      form.appendChild(save);
+      form.appendChild(cancel);
+      // 插到内容区后面
+      contentEl.after(form);
+      ta.focus();
+    });
+  });
 })();
 </script>
 {% endblock %}

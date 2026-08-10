@@ -28,7 +28,7 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let kind = match query.get("kind").map(String::as_str).unwrap_or("") {
         "image" => Some(AttachmentKind::Image),
@@ -36,12 +36,13 @@ pub async fn list(
         "file" => Some(AttachmentKind::File),
         _ => None,
     };
+    let asc = query.get("order").map(String::as_str).unwrap_or("desc") == "asc";
     let page = query
         .get("page")
         .and_then(|p| p.parse::<i64>().ok())
         .filter(|&p| p > 0)
         .unwrap_or(1);
-    let (items, total) = match uploads::list_attachments(&state.db, kind, page, PAGE_SIZE).await {
+    let (items, total) = match uploads::list_attachments(&state.db, kind, asc, page, PAGE_SIZE).await {
         Ok(v) => v,
         Err(e) => {
             tracing::error!("后台附件列表查询失败: {e:?}");
@@ -49,20 +50,23 @@ pub async fn list(
         }
     };
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
-    ctx.insert("attachments", &attachment_list_value(&items));
+    ctx.insert("attachments", &attachment_list_value(&state.config.base_path, &items));
     ctx.insert("total", &total);
     ctx.insert("page", &page);
     ctx.insert("total_pages", &((total + PAGE_SIZE - 1) / PAGE_SIZE).max(1));
-    // filters.kind 仅为模板选中态，非法值归一为空（不原样回显 query）
+    // filters.kind/order 仅为模板选中态，非法值归一为空（不原样回显 query）
     ctx.insert(
         "filters",
-        &json!({ "kind": kind.map(|k| k.to_str()).unwrap_or("") }),
+        &json!({
+            "kind": kind.map(|k| k.to_str()).unwrap_or(""),
+            "order": if asc { "asc" } else { "desc" },
+        }),
     );
     super::render_admin(&state, "attachments.html", &ctx)
 }
 
 /// 卡片 JSON：kind 供模板分支，url 指向前台 /uploads 静态路径，size 人类可读。
-fn attachment_list_value(items: &[crate::models::Attachment]) -> Value {
+fn attachment_list_value(base: &str, items: &[crate::models::Attachment]) -> Value {
     json!(items
         .iter()
         .map(|a| json!({
@@ -71,7 +75,7 @@ fn attachment_list_value(items: &[crate::models::Attachment]) -> Value {
             "orig_name": a.orig_name,
             "mime": a.mime,
             "size": human_size(a.size),
-            "url": format!("/uploads/{}", a.path),
+            "url": format!("{base}/uploads/{}", a.path),
             "created_at": super::format_local(a.created_at),
         }))
         .collect::<Vec<_>>())
@@ -100,10 +104,10 @@ pub async fn delete(
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let uploads_dir = state.config.data_dir.join("uploads");
     match uploads::delete_attachment(&state.db, &uploads_dir, id).await {
-        Ok(()) => Ok(super::redirect("/admin/attachments")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path, "/admin/attachments")),
         Err(e) => {
             tracing::error!("删除附件失败: {e:?}");
-            Ok(super::redirect("/admin/attachments"))
+            Ok(super::redirect(&state.config.base_path, "/admin/attachments"))
         }
     }
 }
@@ -116,7 +120,7 @@ pub async fn upload_page(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
     ctx.insert("page_mode", "upload");

@@ -33,18 +33,18 @@
         {% for m in moments %}
         <article class="moment-item">
           <span class="moment-dot"></span>
-          <div class="moment-body {% if loop.index <= 2 %}expanded{% endif %}">
-            <button class="moment-toggle" type="button" aria-expanded="{% if loop.index <= 2 %}true{% else %}false{% endif %}">
+          <div class="moment-body">
+            <button class="moment-toggle" type="button" aria-expanded="false">
               <span class="moment-time">{{ m.created_at }}</span>
               <span class="moment-preview">{{ m.content | truncate(length=40) }}</span>
               <span class="moment-arrow">▾</span>
             </button>
-            <p class="moment-full">{{ m.content }}</p>
+            <p class="moment-full">{{ m.content | markdown_breaks | safe }}</p>
           </div>
         </article>
         {% endfor %}
       </div>
-      <p class="more-link"><a href="/moments">更多说说 →</a></p>
+      <p class="more-link"><a href="{{ base_path }}/moments">更多说说 →</a></p>
     </section>
     {% endif %}
 
@@ -53,7 +53,7 @@
       <h3 class="section-title">最新文章</h3>
       {% include "partials/post_list.html" %}
       {% if post_total > 5 %}
-      <p class="more-link"><a href="/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
+      <p class="more-link"><a href="{{ base_path }}/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
       {% endif %}
     </section>
   </main>

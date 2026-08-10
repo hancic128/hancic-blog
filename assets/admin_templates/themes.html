@@ -23,11 +23,11 @@
       {% if t.is_current %}
       <span class="muted">使用中</span>
       {% else %}
-      <form method="post" action="/admin/themes/{{ t.name }}/activate">
+      <form method="post" action="{{ base_path }}/admin/themes/{{ t.name }}/activate">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="btn btn-primary" type="submit">启用</button>
       </form>
-      <a class="btn" href="/admin/themes/{{ t.name }}/preview">预览</a>
+      <a class="btn" href="{{ base_path }}/admin/themes/{{ t.name }}/preview">预览</a>
       {% endif %}
     </div>
   </section>

@@ -6,7 +6,7 @@
 {% if expired %}
 <p class="error">该 Token 明文已展示过或已失效，不可再次查看。如需新 Token 请返回列表重新生成。</p>
 <div class="form-actions">
-  <a class="btn" href="/admin/tokens">返回 Token 列表</a>
+  <a class="btn" href="{{ base_path }}/admin/tokens">返回 Token 列表</a>
 </div>
 {% else %}
 <p class="error">⚠ 明文仅显示一次，请立即复制保存；刷新或关闭页面后将无法再次查看。</p>
@@ -15,7 +15,7 @@
   <div class="token-plain"><code id="token-plain">{{ plain }}</code></div>
   <div class="form-actions">
     <button class="btn btn-primary" id="copy-token" type="button" data-token="{{ plain }}">复制</button>
-    <a class="btn" href="/admin/tokens">返回列表</a>
+    <a class="btn" href="{{ base_path }}/admin/tokens">返回列表</a>
   </div>
 </section>
 {% endif %}

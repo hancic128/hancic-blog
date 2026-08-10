@@ -34,7 +34,7 @@ const THEME_MODES: [&str; 3] = ["auto", "light", "dark"];
 
 pub async fn page(State(state): State<AppState>, session: Session, uri: OriginalUri) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     render(&state, &session, uri.path(), None, "", "").await
 }
@@ -48,7 +48,7 @@ pub async fn save(
     Form(form): Form<HashMap<String, String>>,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     if session::verify_csrf(&session, form.get("csrf").map(String::as_str))
         .await
@@ -86,7 +86,7 @@ pub async fn save(
             .await;
         }
     }
-    super::redirect("/admin/settings")
+    super::redirect(&state.config.base_path, "/admin/settings")
 }
 
 // ---------- 修改密码 ----------
@@ -98,7 +98,7 @@ pub async fn password(
     Form(form): Form<HashMap<String, String>>,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     if session::verify_csrf(&session, form.get("csrf").map(String::as_str))
         .await
@@ -149,7 +149,7 @@ pub async fn password(
                 .execute(&state.db)
                 .await;
             let _ = session::logout(&session).await;
-            super::redirect("/admin/login")
+            super::redirect(&state.config.base_path, "/admin/login")
         }
         Err(e) => {
             tracing::error!("修改密码失败: {e:?}");

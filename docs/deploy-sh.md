@@ -443,3 +443,23 @@ docker stop hancic && docker start halo
 ### 待办
 - `/about` 关于页：迁移不含独立页面，需在后台新建（文章 → 类型=页面 → slug=about）
 - halo 数据保留在 `/root/Hancic/halo-blog/halo-migration/halo_data`（观察稳定后可归档）
+
+## 附录：subpath 部署（2026-08-09 新增）
+
+站点可部署在子路径（如 `https://example.com/blog/`），应用层 `base_path` 配置即可：
+
+1. `config.toml` 设置 `base_path = "/blog"`（页面链接/静态资源/后台重定向自动带前缀）。
+2. nginx 反代剥前缀转发（URL 与内部路径都去掉 `/blog`）：
+
+```nginx
+location /blog/ {
+    proxy_pass http://127.0.0.1:8090/;          # 尾斜杠：剥掉 /blog 前缀
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+3. 后台入口变为 `https://example.com/blog/admin/`，登录/跳转均自动带前缀。
+4. 不配置 `base_path`（空）时行为与之前完全一致（根路径部署）。

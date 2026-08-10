@@ -75,22 +75,64 @@ pub async fn get_moment(db: &Db, id: i64) -> Result<Option<Moment>, AppError> {
 /// 分页列出说说（倒序）与总数；`page` 从 1 起。
 pub async fn list_moments(
     db: &Db,
+    month: Option<&str>,
+    asc: bool,
+    q: Option<&str>,
     page: i64,
     page_size: i64,
 ) -> Result<(Vec<Moment>, i64), AppError> {
-    let total: i64 = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM moments")
-        .fetch_one(db)
-        .await?;
     let page = page.max(1);
+    // 动态组合 where：月份前缀 + 内容关键词，均按绑定参数处理
+    let mut where_parts: Vec<&str> = Vec::new();
+    let mut binds: Vec<String> = Vec::new();
+    if let Some(m) = month.filter(|m| !m.is_empty()) {
+        where_parts.push("substr(created_at, 1, 7) = ?");
+        binds.push(m.to_string());
+    }
+    if let Some(kw) = q.map(str::trim).filter(|s| !s.is_empty()) {
+        where_parts.push("content LIKE ?");
+        binds.push(format!("%{kw}%"));
+    }
+    let where_sql = if where_parts.is_empty() {
+        String::new()
+    } else {
+        format!(" WHERE {}", where_parts.join(" AND "))
+    };
+
+    let total: i64 = {
+        let count_sql = format!("SELECT COUNT(*) FROM moments{where_sql}");
+        let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql);
+        for b in &binds {
+            count_q = count_q.bind(b);
+        }
+        count_q.fetch_one(db).await?
+    };
+    let order = if asc { "ASC" } else { "DESC" };
     let sql = format!(
-        "SELECT {MOMENT_COLUMNS} FROM moments ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+        "SELECT {MOMENT_COLUMNS} FROM moments{where_sql} \
+         ORDER BY created_at {order}, id {order} LIMIT ? OFFSET ?"
     );
-    let rows = sqlx::query_as::<_, MomentRow>(&sql)
+    let mut q = sqlx::query_as::<_, MomentRow>(&sql);
+    for b in &binds {
+        q = q.bind(b);
+    }
+    let rows = q
         .bind(page_size)
         .bind((page - 1) * page_size)
         .fetch_all(db)
         .await?;
     Ok((rows.into_iter().map(Moment::from).collect(), total))
+}
+
+/// 说说月份列表：有说说的月份按 `YYYY-MM` 去重倒序（侧栏筛选用）。
+pub async fn month_list(db: &Db) -> Result<Vec<String>, AppError> {
+    let months: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT substr(created_at, 1, 7) AS m FROM moments
+         ORDER BY m DESC",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(months)
 }
 
 /// 说说附件（按 sort_order 升序），返回附件与排序值。
@@ -182,4 +224,14 @@ impl MomentAttachmentRow {
             created_at: self.created_at,
         }
     }
+}
+
+/// 更新说说内容；不存在返回 false。
+pub async fn update_content(db: &Db, id: i64, content: &str) -> Result<bool, AppError> {
+    let r = sqlx::query("UPDATE moments SET content = ? WHERE id = ?")
+        .bind(content)
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(r.rows_affected() > 0)
 }

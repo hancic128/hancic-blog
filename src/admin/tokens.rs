@@ -36,7 +36,7 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let tokens = tokens::list(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
@@ -60,20 +60,20 @@ pub async fn create(
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
-        return Ok(fail("Token 名称不能为空"));
+        return Ok(fail(&state.config.base_path, "Token 名称不能为空"));
     }
     match tokens::generate(&state.db, name.trim()).await {
         Ok((token, plain)) => {
             // 明文入内存暂存，created 页读取即删（仅显示一次）
             state.token_plain.put(token.id, plain);
-            Ok(super::redirect(&format!(
+            Ok(super::redirect(&state.config.base_path, &format!(
                 "/admin/tokens/{}/created",
                 token.id
             )))
         }
         Err(e) => {
             tracing::error!("生成 Token 失败: {e:?}");
-            Ok(fail("生成 Token 失败，请重试"))
+            Ok(fail(&state.config.base_path, "生成 Token 失败，请重试"))
         }
     }
 }
@@ -87,10 +87,10 @@ pub async fn created_page(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let Some(token) = tokens::get_by_id(&state.db, id).await.ok().flatten() else {
-        return super::redirect("/admin/tokens");
+        return super::redirect(&state.config.base_path,  "/admin/tokens");
     };
     // 读取即删：刷新/二次访问拿到的是已失效提示
     let (plain, expired) = match state.token_plain.take(id) {
@@ -115,10 +115,10 @@ pub async fn revoke(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match tokens::revoke(&state.db, id).await {
-        Ok(()) => Ok(super::redirect("/admin/tokens")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path,  "/admin/tokens")),
         Err(e) => {
             tracing::error!("吊销 Token 失败: {e:?}");
-            Ok(fail("吊销 Token 失败，请重试"))
+            Ok(fail(&state.config.base_path, "吊销 Token 失败，请重试"))
         }
     }
 }
@@ -126,8 +126,8 @@ pub async fn revoke(
 // ---------- 辅助 ----------
 
 /// 302 回列表并带 URL 编码的错误提示（消息含中文，直接拼 query 会丢非 ASCII）。
-fn fail(msg: &str) -> Response {
-    super::redirect(&format!("/admin/tokens?msg={}", urlencode(msg)))
+fn fail(base: &str, msg: &str) -> Response {
+    super::redirect(base, &format!("/admin/tokens?msg={}", urlencode(msg)))
 }
 
 /// 查询参数值百分号编码（RFC 3986：仅保留 unreserved 字符）。

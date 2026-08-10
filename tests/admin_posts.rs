@@ -9,6 +9,17 @@ use hancic::db;
 use hancic::models::PostStatus;
 use hancic::services::posts;
 
+
+/// 固定链接已改为系统生成的短 uuid，测试按标题反查文章 id。
+async fn find_by_title(pool: &db::Db, title: &str) -> Option<hancic::models::Post> {
+    let id: i64 = sqlx::query_scalar("SELECT id FROM posts WHERE title = ?")
+        .bind(title)
+        .fetch_optional(pool)
+        .await
+        .unwrap()?;
+    posts::get_post(pool, id).await.unwrap()
+}
+
 /// 创建草稿（POST /admin/posts）→ 发布（POST /update）→ 编辑页含正文与
 /// Vditor 资源（GET /edit）→ 删除（POST /delete）后按 slug 查无此文章。
 #[tokio::test]
@@ -43,10 +54,7 @@ async fn create_publish_edit_delete_flow() {
         .await
         .unwrap();
     assert_eq!(res.status(), 302);
-    let p = posts::get_post_by_slug(&pool, "管理端文章")
-        .await
-        .unwrap()
-        .unwrap();
+    let p = find_by_title(&pool, "管理端文章").await.unwrap();
     assert_eq!(p.status, PostStatus::Draft, "创建后应为草稿");
     assert_eq!(p.content_md, "# 正文\n内容", "正文应原样落库");
 
@@ -74,10 +82,7 @@ async fn create_publish_edit_delete_flow() {
         .await
         .unwrap();
     assert_eq!(res.status(), 302);
-    let p = posts::get_post_by_slug(&pool, "管理端文章")
-        .await
-        .unwrap()
-        .unwrap();
+    let p = find_by_title(&pool, "管理端文章").await.unwrap();
     assert_eq!(p.status, PostStatus::Published, "更新后应为已发布");
 
     // 编辑页：含标题、正文、Vditor 资源与 _post
@@ -103,11 +108,8 @@ async fn create_publish_edit_delete_flow() {
         .unwrap();
     assert_eq!(res.status(), 302);
     assert!(
-        posts::get_post_by_slug(&pool, "管理端文章")
-            .await
-            .unwrap()
-            .is_none(),
-        "删除后文章应不存在"
+        find_by_title(&pool, "管理端文章").await.is_none(),
+        "删除后按标题不应查到"
     );
 }
 
@@ -141,10 +143,7 @@ async fn autosave_updates_draft_content() {
         .await
         .unwrap();
     assert_eq!(res.status(), 302);
-    let p = posts::get_post_by_slug(&pool, "自动保存草稿")
-        .await
-        .unwrap()
-        .unwrap();
+    let p = find_by_title(&pool, "自动保存草稿").await.unwrap();
 
     // 自动保存：正文更新，状态保持草稿
     let res = client
@@ -158,19 +157,15 @@ async fn autosave_updates_draft_content() {
     let json: serde_json::Value = res.json().await.unwrap();
     assert_eq!(json["data"]["ok"], true, "应返回 ok: {json}");
 
-    let p = posts::get_post_by_slug(&pool, "自动保存草稿")
-        .await
-        .unwrap()
-        .unwrap();
+    let p = find_by_title(&pool, "自动保存草稿").await.unwrap();
     assert_eq!(p.content_md, "# 自动保存后的正文", "自动保存应更新正文");
     assert_eq!(p.status, PostStatus::Draft, "自动保存不应改变状态");
 }
 
-/// slug 冲突：update 把 slug 改成另一篇文章的 → 200 回显编辑页（非 302），
-/// 且表单用「提交值」回填（标题/正文/标签不丢）；DB 不落库保持原值。
+/// 固定链接由系统管理：创建自动生成 8 位短 uuid；编辑（不带 slug）不改变固定链接。
 #[tokio::test]
-async fn slug_conflict_keeps_submitted_values() {
-    let cfg = test_config("admin-posts-slug-conflict");
+async fn slug_is_managed_by_system() {
+    let cfg = test_config("admin-posts-slug-managed");
     let pool = db::init(&cfg.data_dir).await.unwrap();
     hancic::auth::set_password(&pool, common::TEST_PASSWORD)
         .await
@@ -189,13 +184,12 @@ async fn slug_conflict_keeps_submitted_values() {
             .unwrap(),
     );
 
-    // 文章 A：显式 slug 占住 shared-slug
+    // 创建（不提交 slug）→ 固定链接为 8 位短 uuid
     let res = client
         .post(format!("{base}/admin/posts"))
         .form(&[
             ("title", "甲文章"),
             ("content_md", "A 正文"),
-            ("slug", "shared-slug"),
             ("status", "draft"),
             ("category_id", ""),
             ("tags", ""),
@@ -205,30 +199,15 @@ async fn slug_conflict_keeps_submitted_values() {
         .await
         .unwrap();
     assert_eq!(res.status(), 302);
-    // 文章 B
-    let res = client
-        .post(format!("{base}/admin/posts"))
-        .form(&[
-            ("title", "乙文章"),
-            ("content_md", "B 正文"),
-            ("status", "draft"),
-            ("category_id", ""),
-            ("tags", ""),
-            ("csrf", csrf.as_str()),
-        ])
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(res.status(), 302);
-    let b = posts::get_post_by_slug(&pool, "乙文章").await.unwrap().unwrap();
+    let a = find_by_title(&pool, "甲文章").await.unwrap();
+    assert_eq!(a.slug.len(), 8, "固定链接应为 8 位短 uuid: {}", a.slug);
 
-    // B 的 slug 改成 A 的 → 冲突：200 回显 + 回填提交值 + DB 未变
+    // 编辑：不带 slug 提交 → 固定链接保持不变
     let res = client
-        .post(format!("{base}/admin/posts/{}/update", b.id))
+        .post(format!("{base}/admin/posts/{}/update", a.id))
         .form(&[
-            ("title", "乙文章·新标题"),
-            ("content_md", "# 新内容\n未保存"),
-            ("slug", "shared-slug"),
+            ("title", "甲文章·新标题"),
+            ("content_md", "# 新内容"),
             ("status", "draft"),
             ("category_id", ""),
             ("tags", "新标签"),
@@ -237,15 +216,8 @@ async fn slug_conflict_keeps_submitted_values() {
         .send()
         .await
         .unwrap();
-    assert_eq!(res.status(), 200, "冲突应回显编辑页而非重定向");
-    let html = res.text().await.unwrap();
-    assert!(html.contains("固定链接已被占用"), "应提示链接冲突");
-    assert!(html.contains("乙文章·新标题"), "应回填用户提交的标题");
-    assert!(html.contains("# 新内容"), "应回填用户提交的正文");
-    assert!(html.contains("新标签"), "应回填用户提交的标签");
-
-    // 冲突不落库：B 的标题/正文仍是原值
-    let b2 = posts::get_post(&pool, b.id).await.unwrap().unwrap();
-    assert_eq!(b2.title, "乙文章", "冲突时标题不应落库");
-    assert_eq!(b2.content_md, "B 正文", "冲突时正文不应落库");
+    assert_eq!(res.status(), 302, "编辑应正常重定向");
+    let a2 = find_by_title(&pool, "甲文章·新标题").await.unwrap();
+    assert_eq!(a2.slug, a.slug, "编辑不应改变固定链接");
+    assert_eq!(a2.content_md, "# 新内容", "正文应更新");
 }

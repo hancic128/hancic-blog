@@ -28,14 +28,22 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let page = query
         .get("page")
         .and_then(|p| p.parse::<i64>().ok())
         .filter(|&p| p > 0)
         .unwrap_or(1);
-    let (items, total) = match moments::list_moments(&state.db, page, PAGE_SIZE).await {
+    let month = query.get("month").filter(|m| !m.is_empty()).cloned();
+    let q = query
+        .get("q")
+        .map(String::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let asc = query.get("order").map(String::as_str).unwrap_or("desc") == "asc";
+    let (items, total) = match moments::list_moments(&state.db, month.as_deref(), asc, Some(&q), page, PAGE_SIZE).await {
         Ok(v) => v,
         Err(e) => {
             tracing::error!("后台说说列表查询失败: {e:?}");
@@ -47,6 +55,19 @@ pub async fn list(
     ctx.insert("total", &total);
     ctx.insert("page", &page);
     ctx.insert("total_pages", &((total + PAGE_SIZE - 1) / PAGE_SIZE).max(1));
+    let months = moments::month_list(&state.db).await.unwrap_or_default();
+    ctx.insert(
+        "months",
+        &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
+    );
+    ctx.insert(
+        "filters",
+        &json!({
+            "month": month.unwrap_or_default(),
+            "order": if asc { "asc" } else { "desc" },
+            "q": q,
+        }),
+    );
     super::render_admin(&state, "moments.html", &ctx)
 }
 
@@ -63,18 +84,18 @@ async fn moment_list_value(state: &AppState, items: &[Moment]) -> Value {
             "created_at": super::format_local(m.created_at),
             "attachments": atts
                 .iter()
-                .map(|(a, _)| attachment_value(a))
+                .map(|(a, _)| attachment_value(&state.config.base_path, a))
                 .collect::<Vec<_>>(),
         }));
     }
     json!(out)
 }
 
-fn attachment_value(a: &Attachment) -> Value {
+fn attachment_value(base: &str, a: &Attachment) -> Value {
     json!({
         "kind": a.kind.to_str(),
         "orig_name": a.orig_name,
-        "url": format!("/uploads/{}", a.path),
+        "url": format!("{base}/uploads/{}", a.path),
     })
 }
 
@@ -97,10 +118,34 @@ pub async fn create(
         .filter_map(|s| s.trim().parse::<i64>().ok())
         .collect::<Vec<_>>();
     match moments::create_moment(&state.db, &content, &attachment_ids).await {
-        Ok(_) => Ok(super::redirect("/admin/moments")),
+        Ok(_) => Ok(super::redirect(&state.config.base_path, "/admin/moments")),
         Err(e) => {
             tracing::error!("创建说说失败: {e:?}");
-            Ok(super::redirect("/admin/moments"))
+            Ok(super::redirect(&state.config.base_path, "/admin/moments"))
+        }
+    }
+}
+
+// ---------- 编辑 ----------
+
+pub async fn update(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+    Form(form): Form<HashMap<String, String>>,
+) -> Result<Response, AppError> {
+    session::require_admin(&session).await?;
+    session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
+    let content = form.get("content").cloned().unwrap_or_default();
+    match moments::update_content(&state.db, id, &content).await {
+        Ok(true) => Ok(super::redirect(&state.config.base_path, "/admin/moments")),
+        Ok(false) => {
+            tracing::warn!("编辑说说失败: 说说不存在 id={id}");
+            Ok(super::redirect(&state.config.base_path, "/admin/moments"))
+        }
+        Err(e) => {
+            tracing::error!("编辑说说失败: {e:?}");
+            Ok(super::redirect(&state.config.base_path, "/admin/moments"))
         }
     }
 }
@@ -116,10 +161,10 @@ pub async fn delete(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match moments::delete_moment(&state.db, id).await {
-        Ok(()) => Ok(super::redirect("/admin/moments")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path, "/admin/moments")),
         Err(e) => {
             tracing::error!("删除说说失败: {e:?}");
-            Ok(super::redirect("/admin/moments"))
+            Ok(super::redirect(&state.config.base_path, "/admin/moments"))
         }
     }
 }

@@ -179,3 +179,172 @@ async fn archives_page_lists_all_posts() {
     assert!(html.contains("归档文章甲") && html.contains("归档文章乙"));
     assert!(html.contains("全部文章"));
 }
+
+#[tokio::test]
+async fn category_page_shows_category_tags() {
+    let (app, pool) = test_app("front-category-tags").await;
+    let cat = taxonomy::create_category(&pool, "户外", "outdoor", 0).await.unwrap();
+    let other = taxonomy::create_category(&pool, "技术", "tech", 0).await.unwrap();
+    create_published_post(&pool, "武功山徒步", Some(cat.id), vec!["徒步".into(), "露营".into()]).await;
+    create_published_post(&pool, "Rust 笔记", Some(other.id), vec!["rust".into()]).await;
+
+    let (status, html) = get_html(&app, "/category/outdoor").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("分类：<span class=\"archive-cat\">户外</span>"), "分类名应 accent 区分");
+    assert!(html.contains("class=\"category-tags\""), "分类页应展示分类下标签云");
+    assert!(html.contains("href=\"/tag/徒步\""), "应显示该分类下文章的标签");
+    assert!(html.contains("href=\"/tag/露营\""));
+    assert!(!html.contains("href=\"/tag/rust\""), "其他分类的标签不应出现");
+}
+
+#[tokio::test]
+async fn tag_page_shows_badge_title() {
+    let (app, pool) = test_app("front-tag-badge").await;
+    create_published_post(&pool, "带标签文章", None, vec!["户外".into()]).await;
+
+    let (status, html) = get_html(&app, "/tag/户外").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("tag-current"), "标签名应保持徽章样式");
+    assert!(html.contains("href=\"/tag/户外\""), "徽章应可点击回本标签页");
+}
+
+#[tokio::test]
+async fn tag_page_has_month_sidebar_and_filter() {
+    let (app, pool) = test_app("front-tag-month").await;
+    let a = create_published_post(&pool, "标签三月文章", None, vec!["户外".into()]).await;
+    let b = create_published_post(&pool, "标签异月文章", None, vec!["户外".into()]).await;
+    sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+        .bind("2025-03-15T10:00:00Z")
+        .bind(a)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+        .bind("2024-11-20T10:00:00Z")
+        .bind(b)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // 无此标签的文章不应计入该标签页月份
+    let c = create_published_post(&pool, "无关标签文章", None, vec!["rust".into()]).await;
+    sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+        .bind("2023-01-05T10:00:00Z")
+        .bind(c)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/tag/户外").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("href=\"/tag/户外?month=2025-03\""), "侧栏应列出该标签下文章的月份");
+    assert!(html.contains("href=\"/tag/户外?month=2024-11\""));
+    assert!(!html.contains("2023-01"), "无此标签的月份不应出现");
+
+    let (status, html) = get_html(&app, "/tag/户外?month=2025-03").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("标签三月文章"));
+    assert!(!html.contains("标签异月文章"), "月份过滤后不应出现其他月份文章");
+}
+
+#[tokio::test]
+async fn moments_page_has_month_sidebar_and_filter() {
+    let (app, pool) = test_app("front-moments-month").await;
+    hancic::services::moments::create_moment(&pool, "三月说说", &[]).await.unwrap();
+    hancic::services::moments::create_moment(&pool, "五月说说", &[]).await.unwrap();
+    // 让两条说说落在不同月份（created_at 由应用生成，直接改写）
+    sqlx::query("UPDATE moments SET created_at = ? WHERE content = ?")
+        .bind("2025-03-10T10:00:00Z")
+        .bind("三月说说")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE moments SET created_at = ? WHERE content = ?")
+        .bind("2025-05-15T10:00:00Z")
+        .bind("五月说说")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/moments").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("side-months"), "说说页右侧应有按月份时间线");
+    assert!(html.contains("href=\"/moments?month=2025-05\""), "月份链接应指向说说页过滤");
+    assert!(html.contains("href=\"/moments?month=2025-03\""));
+
+    let (status, html) = get_html(&app, "/moments?month=2025-03").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("「2025-03」的说说"));
+    assert!(html.contains("三月说说"));
+    assert!(!html.contains("五月说说"), "月份过滤后不应出现其他月份说说");
+}
+
+#[tokio::test]
+async fn homepage_moments_default_collapsed() {
+    let (app, pool) = test_app("front-moments-fold").await;
+    for i in 0..3 {
+        hancic::services::moments::create_moment(&pool, &format!("折叠说说{i}"), &[]).await.unwrap();
+    }
+
+    let (status, html) = get_html(&app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!html.contains("moment-body expanded"), "说说应全部默认折叠");
+    assert!(html.contains("aria-expanded=\"false\""), "折叠按钮应标记未展开");
+}
+
+#[tokio::test]
+async fn archives_page_has_month_sidebar() {
+    let (app, pool) = test_app("front-archives-sidebar").await;
+    create_published_post(&pool, "筛选文章甲", None, vec![]).await;
+    create_published_post(&pool, "筛选文章乙", None, vec![]).await;
+
+    let (status, html) = get_html(&app, "/archives").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("按月份"), "归档页右侧应显示按月份筛选时间线");
+    assert!(html.contains("side-months"), "月份应使用时间线样式");
+    assert!(html.contains("href=\"/archives?month="), "月份链接应带 month 参数过滤");
+    assert!(!html.contains("month-more-btn"), "不足半年月份数不应出现展开按钮");
+}
+
+#[tokio::test]
+async fn archives_sidebar_show_more_when_many_months() {
+    let (app, pool) = test_app("front-archives-more").await;
+    // 7 篇分布在 7 个不同月份 → 月份数 > 6，应出现「显示更多月份」按钮
+    for i in 0..7 {
+        let id = create_published_post(&pool, &format!("跨月筛选{i}"), None, vec![]).await;
+        sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+            .bind(format!("2025-{:02}-15T10:00:00Z", i + 1))
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    let (status, html) = get_html(&app, "/archives").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("month-more-btn"), "超过半年月份数应显示「显示更多月份」按钮");
+}
+
+#[tokio::test]
+async fn archives_month_filter_lists_only_that_month() {
+    let (app, pool) = test_app("front-archives-filter").await;
+    let a = create_published_post(&pool, "当月文章", None, vec![]).await;
+    let b = create_published_post(&pool, "异月文章", None, vec![]).await;
+    sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+        .bind("2025-03-15T10:00:00Z")
+        .bind(a)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE posts SET published_at = ? WHERE id = ?")
+        .bind("2024-11-20T10:00:00Z")
+        .bind(b)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/archives?month=2025-03").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("「2025-03」的文章"), "应显示当前筛选月份标题");
+    assert!(html.contains("当月文章"));
+    assert!(!html.contains("异月文章"), "其他月份文章不应出现");
+}

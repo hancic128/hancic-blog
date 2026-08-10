@@ -8,7 +8,7 @@
   {% if settings_error %}
   <p class="error">{{ settings_error }}</p>
   {% endif %}
-  <form method="post" action="/admin/settings/save">
+  <form method="post" action="{{ base_path }}/admin/settings/save">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="site-name">站点名称</label>
@@ -19,22 +19,29 @@
       <input id="site-desc" name="site_desc" value="{{ form.site_desc }}">
     </div>
     <div class="field">
-      <label for="site-nav">导航菜单（JSON 数组）</label>
-      <textarea id="site-nav" name="site_nav" rows="6">{{ form.site_nav }}</textarea>
-      <p class="muted">每项需含 label 与 url，如 [{"label":"首页","url":"/"},{"label":"关于","url":"/about"}]</p>
+      <label for="site-nav">导航菜单</label>
+      <div class="kv-editor" id="nav-editor" data-target="site_nav" data-format="nav"></div>
+      <button type="button" class="kv-add" data-add="nav">+ 添加导航项</button>
+      <input type="hidden" id="site_nav" name="site_nav" value="{{ form.site_nav }}">
+      <p class="muted">每项为「名称 + 链接」，如 首页 → /archives</p>
     </div>
     <div class="field">
-      <label for="site-social">社交链接（JSON 对象）</label>
-      <textarea id="site-social" name="site_social" rows="4">{{ form.site_social }}</textarea>
-      <p class="muted">键值对均为字符串，如 {"github":"https://github.com/xxx"}</p>
+      <label for="site-social">社交链接</label>
+      <div class="kv-editor" id="social-editor" data-target="site_social" data-format="social"></div>
+      <button type="button" class="kv-add" data-add="social">+ 添加社交链接</button>
+      <input type="hidden" id="site_social" name="site_social" value="{{ form.site_social }}">
+      <p class="muted">每项为「平台名 + 链接」，如 github → https://github.com/xxx</p>
     </div>
     <div class="field">
       <label for="theme-mode">主题模式</label>
-      <select id="theme-mode" name="theme_mode">
+      <div class="cs" data-select="#theme-mode">
+      <button class="cs-btn" type="button" aria-label="主题模式" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="theme-mode" name="theme_mode" class="cs-hidden">
         <option value="auto"{% if form.theme_mode == "auto" %} selected{% endif %}>自动</option>
         <option value="light"{% if form.theme_mode == "light" %} selected{% endif %}>浅色</option>
         <option value="dark"{% if form.theme_mode == "dark" %} selected{% endif %}>深色</option>
       </select>
+    </div>
     </div>
     <div class="field">
       <label for="timezone">时区</label>
@@ -52,7 +59,7 @@
   {% if password_error %}
   <p class="error">{{ password_error }}</p>
   {% endif %}
-  <form method="post" action="/admin/settings/password">
+  <form method="post" action="{{ base_path }}/admin/settings/password">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="old-password">旧密码</label>

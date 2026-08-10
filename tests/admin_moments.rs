@@ -78,7 +78,7 @@ async fn publish_and_delete_flow() {
     assert_eq!(res.status(), 302, "发布应 302 回列表");
 
     // 服务层断言：一条说说 + 两条附件（保持上传顺序）
-    let (moments_list, total) = moments::list_moments(&pool, 1, 20).await.unwrap();
+    let (moments_list, total) = moments::list_moments(&pool, None, false, None, 1, 20).await.unwrap();
     assert_eq!(total, 1);
     let m = &moments_list[0];
     assert_eq!(m.content, content);
@@ -111,7 +111,7 @@ async fn publish_and_delete_flow() {
         .await
         .unwrap();
     assert_eq!(res.status(), 302);
-    let (_, total) = moments::list_moments(&pool, 1, 20).await.unwrap();
+    let (_, total) = moments::list_moments(&pool, None, false, None, 1, 20).await.unwrap();
     assert_eq!(total, 0, "删除后说说应不存在");
     let html = client
         .get(format!("{base}/admin/moments"))

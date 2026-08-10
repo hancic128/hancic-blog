@@ -24,7 +24,7 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
     let tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
@@ -50,17 +50,17 @@ pub async fn create_category(
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
-        return Ok(fail("分类名称不能为空"));
+        return Ok(fail(&state.config.base_path, "分类名称不能为空"));
     }
     let slug = parse_slug(form.get("slug"), &name).await;
     let sort_order = parse_sort_order(form.get("sort_order"));
     match taxonomy::create_category(&state.db, &name, &slug, sort_order).await {
-        Ok(_) => Ok(super::redirect("/admin/taxonomy")),
+        Ok(_) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         // slug 唯一约束冲突由服务层返回 Conflict，作为错误回显而非 409 落页
-        Err(AppError::Conflict(_)) => Ok(fail("分类 slug 已存在")),
+        Err(AppError::Conflict(_)) => Ok(fail(&state.config.base_path, "分类 slug 已存在")),
         Err(e) => {
             tracing::error!("创建分类失败: {e:?}");
-            Ok(fail("创建分类失败，请重试"))
+            Ok(fail(&state.config.base_path, "创建分类失败，请重试"))
         }
     }
 }
@@ -77,22 +77,22 @@ pub async fn update_category(
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
-        return Ok(fail("分类名称不能为空"));
+        return Ok(fail(&state.config.base_path, "分类名称不能为空"));
     }
     let slug = parse_slug(form.get("slug"), &name).await;
     // slug 冲突预检：update_category 直接写库不查重，撞 UNIQUE 约束会 500，
     // 提前比对其他分类，命中则错误回显（与新建路径同一提示）。
     if let Some(other) = taxonomy::get_category_by_slug(&state.db, &slug).await? {
         if other.id != id {
-            return Ok(fail("分类 slug 已存在"));
+            return Ok(fail(&state.config.base_path, "分类 slug 已存在"));
         }
     }
     let sort_order = parse_sort_order(form.get("sort_order"));
     match taxonomy::update_category(&state.db, id, &name, &slug, sort_order).await {
-        Ok(_) => Ok(super::redirect("/admin/taxonomy")),
+        Ok(_) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         Err(e) => {
             tracing::error!("更新分类失败: {e:?}");
-            Ok(fail("更新分类失败，请重试"))
+            Ok(fail(&state.config.base_path, "更新分类失败，请重试"))
         }
     }
 }
@@ -108,10 +108,10 @@ pub async fn delete_category(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match taxonomy::delete_category(&state.db, id).await {
-        Ok(()) => Ok(super::redirect("/admin/taxonomy")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         Err(e) => {
             tracing::error!("删除分类失败: {e:?}");
-            Ok(fail("删除分类失败，请重试"))
+            Ok(fail(&state.config.base_path, "删除分类失败，请重试"))
         }
     }
 }
@@ -125,14 +125,14 @@ pub async fn create_tag(
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
-        return Ok(fail("标签名称不能为空"));
+        return Ok(fail(&state.config.base_path, "标签名称不能为空"));
     }
     // ensure_tag 内部按 slug 去重：同名标签复用已有记录，不会冲突
     match taxonomy::ensure_tag(&state.db, &name).await {
-        Ok(_) => Ok(super::redirect("/admin/taxonomy")),
+        Ok(_) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         Err(e) => {
             tracing::error!("创建标签失败: {e:?}");
-            Ok(fail("创建标签失败，请重试"))
+            Ok(fail(&state.config.base_path, "创建标签失败，请重试"))
         }
     }
 }
@@ -146,10 +146,10 @@ pub async fn delete_tag(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match taxonomy::delete_tag(&state.db, id).await {
-        Ok(()) => Ok(super::redirect("/admin/taxonomy")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         Err(e) => {
             tracing::error!("删除标签失败: {e:?}");
-            Ok(fail("删除标签失败，请重试"))
+            Ok(fail(&state.config.base_path, "删除标签失败，请重试"))
         }
     }
 }
@@ -171,8 +171,8 @@ fn parse_sort_order(v: Option<&String>) -> i64 {
 }
 
 /// 302 回列表并带 URL 编码的错误提示（消息含中文，直接拼 query 会丢非 ASCII）。
-fn fail(msg: &str) -> Response {
-    super::redirect(&format!("/admin/taxonomy?msg={}", urlencode(msg)))
+fn fail(base: &str, msg: &str) -> Response {
+    super::redirect(base, &format!("/admin/taxonomy?msg={}", urlencode(msg)))
 }
 
 /// 查询参数值百分号编码（RFC 3986：仅保留 unreserved 字符）。

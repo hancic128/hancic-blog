@@ -5,34 +5,43 @@
 
 {% if error_tip %}<p class="error">{{ error_tip }}</p>{% endif %}
 
-<form id="post-form" method="post" action="{% if post.id %}/admin/posts/{{ post.id }}/update{% else %}/admin/posts{% endif %}">
+<form id="post-form" method="post" action="{% if post.id %}{{ base_path }}/admin/posts/{{ post.id }}/update{% else %}{{ base_path }}/admin/posts{% endif %}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="status" id="post-status" value="{{ post.status }}">
 
   <div class="field">
     <label for="post-title">标题</label>
-    <input id="post-title" name="title" value="{{ post.title }}" required>
+    <input id="post-title" name="title" value="{{ post.title }}" placeholder="输入文章标题…" maxlength="100" required>
   </div>
 
   <div class="field-row">
     <div class="field">
-      <label for="post-slug">固定链接</label>
-      <input id="post-slug" name="slug" value="{{ post.slug }}" placeholder="留空自动生成">
-    </div>
-    <div class="field">
       <label for="post-category">分类</label>
-      <select id="post-category" name="category_id">
+      <div class="cs" data-select="#post-category">
+      <button class="cs-btn" type="button" aria-label="分类" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="post-category" name="category_id" class="cs-hidden">
         <option value=""{% if post.category_id == 0 %} selected{% endif %}>无分类</option>
         {% for c in categories %}
         <option value="{{ c.id }}"{% if post.category_id == c.id %} selected{% endif %}>{{ c.name }}</option>
         {% endfor %}
       </select>
     </div>
+    </div>
   </div>
 
   <div class="field">
     <label for="post-tags">标签</label>
-    <input id="post-tags" name="tags" value="{{ post.tags }}" placeholder="逗号分隔">
+    <div class="tag-editor" id="tag-editor">
+      <div class="tag-chips" id="tag-chips"></div>
+      <input id="post-tags" class="tag-input" list="tag-suggest" placeholder="输入标签后回车，或从下拉选择已有标签" maxlength="50">
+      <datalist id="tag-suggest">
+        {% for t in all_tags %}
+        <option value="{{ t.name }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+    <input type="hidden" name="tags" id="tags-hidden" value="{{ post.tags }}">
+    <p class="muted">回车或逗号添加标签，点击已选标签可删除</p>
   </div>
 
   <div class="field">
@@ -40,23 +49,18 @@
     <div id="editor" data-content="{{ post.content_md }}"></div>
   </div>
 
-  <div class="field">
-    <label for="post-excerpt">摘要</label>
-    <textarea id="post-excerpt" name="excerpt" rows="3" placeholder="留空自动截取">{{ post.excerpt }}</textarea>
-  </div>
-
   <div class="form-actions">
     <button class="btn" type="submit" data-action="draft">存草稿</button>
     <button class="btn btn-primary" type="submit" data-action="published">发布</button>
-    <a class="btn" href="/admin/posts">返回列表</a>
+    <a class="btn" href="{{ base_path }}/admin/posts">返回列表</a>
     <span id="save-status" class="muted"></span>
   </div>
 </form>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/vditor.min.js"></script>
+<script src="{{ base_path }}/static/vendor/vditor.min.js"></script>
 <script>
-window._post = { id: {{ post.id }}, csrf: "{{ csrf }}" };
+window._post = { id: {{ post.id }}, slug: "{{ post.slug }}", csrf: "{{ csrf }}" };
 </script>
 {% endblock %}

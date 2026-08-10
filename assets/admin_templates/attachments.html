@@ -12,22 +12,22 @@
   <input id="att-file" type="file" multiple hidden>
   <p id="att-status" class="muted" role="status"></p>
   <div class="form-actions">
-    <a class="btn" href="/admin/attachments">返回列表</a>
+    <a class="btn" href="{{ base_path }}/admin/attachments">返回列表</a>
   </div>
 </div>
 {% else %}
 <h1>附件库</h1>
 
 <div class="panel">
-  <form class="filter-bar" method="get" action="/admin/attachments">
-    <select name="kind" aria-label="类型筛选">
-      <option value="">全部类型</option>
-      <option value="image"{% if filters.kind == "image" %} selected{% endif %}>图片</option>
-      <option value="video"{% if filters.kind == "video" %} selected{% endif %}>视频</option>
-      <option value="file"{% if filters.kind == "file" %} selected{% endif %}>文件</option>
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin/attachments">
+    <div class="cs" data-select="#f-order">
+      <button class="cs-btn" type="button" aria-label="时间排序" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-order" name="order" class="cs-hidden" aria-label="时间排序">
+      <option value="desc"{% if filters.order == "desc" %} selected{% endif %}>最新在前</option>
+      <option value="asc"{% if filters.order == "asc" %} selected{% endif %}>最早在前</option>
     </select>
-    <button class="btn" type="submit">筛选</button>
-    <a class="btn btn-primary" href="/admin/attachments/upload">上传</a>
+    </div>
+    <a class="btn btn-primary" href="{{ base_path }}/admin/attachments/upload">上传</a>
   </form>
 </div>
 
@@ -48,9 +48,9 @@
       <div class="att-meta">
         <p class="att-name" title="{{ att.orig_name }}">{{ att.orig_name }}</p>
         <p class="muted">{{ att.size }} · {{ att.created_at }}</p>
-        <form class="inline-form" method="post" action="/admin/attachments/{{ att.id }}/delete" data-confirm="确认删除该附件？">
+        <form class="inline-form" method="post" action="{{ base_path }}/admin/attachments/{{ att.id }}/delete" data-confirm="确认删除该附件？">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+          <button class="btn btn-sm btn-danger btn-ghost" type="submit">删除</button>
         </form>
       </div>
     </article>
@@ -65,11 +65,11 @@
 {% if total_pages > 1 %}
 <div class="pagination">
   {% if page > 1 %}
-  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;kind={{ filters.kind }}">上一页</a>
+  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;order={{ filters.order }}">上一页</a>
   {% endif %}
   <span class="muted">{{ page }} / {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;kind={{ filters.kind }}">下一页</a>
+  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;order={{ filters.order }}">下一页</a>
   {% endif %}
 </div>
 {% endif %}

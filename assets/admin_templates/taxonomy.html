@@ -10,7 +10,7 @@
 <div class="taxonomy-grid">
   <section class="panel">
     <h2>分类</h2>
-    <form method="post" action="/admin/taxonomy/categories">
+    <form method="post" action="{{ base_path }}/admin/taxonomy/categories">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="field">
         <label for="cat-name">名称</label>
@@ -35,14 +35,14 @@
         {% for c in categories %}
         <tr>
           <td>
-            <form class="taxonomy-edit" method="post" action="/admin/taxonomy/categories/{{ c.id }}/update">
+            <form class="taxonomy-edit" method="post" action="{{ base_path }}/admin/taxonomy/categories/{{ c.id }}/update">
               <input type="hidden" name="csrf" value="{{ csrf }}">
               <input class="taxonomy-name" name="name" value="{{ c.name }}" aria-label="分类名称">
               <input class="taxonomy-slug" name="slug" value="{{ c.slug }}" aria-label="固定链接">
               <input class="taxonomy-sort" name="sort_order" type="number" value="{{ c.sort_order }}" aria-label="排序">
               <button class="btn btn-sm" type="submit">更新</button>
             </form>
-            <form class="inline-form" method="post" action="/admin/taxonomy/categories/{{ c.id }}/delete" data-confirm="确认删除该分类？关联文章将变为未分类。">
+            <form class="inline-form" method="post" action="{{ base_path }}/admin/taxonomy/categories/{{ c.id }}/delete" data-confirm="确认删除该分类？关联文章将变为未分类。">
               <input type="hidden" name="csrf" value="{{ csrf }}">
               <button class="btn btn-sm btn-danger" type="submit">删除</button>
             </form>
@@ -58,7 +58,7 @@
 
   <section class="panel">
     <h2>标签</h2>
-    <form method="post" action="/admin/taxonomy/tags">
+    <form method="post" action="{{ base_path }}/admin/taxonomy/tags">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="field">
         <label for="tag-name">名称</label>
@@ -74,7 +74,7 @@
       {% for t in tags %}
       <li class="tag-item">
         <span class="tag-name">{{ t.name }} <small class="muted">{{ t.slug }}</small></span>
-        <form class="inline-form" method="post" action="/admin/taxonomy/tags/{{ t.id }}/delete" data-confirm="确认删除该标签？">
+        <form class="inline-form" method="post" action="{{ base_path }}/admin/taxonomy/tags/{{ t.id }}/delete" data-confirm="确认删除该标签？">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="btn btn-sm btn-danger" type="submit">删除</button>
         </form>

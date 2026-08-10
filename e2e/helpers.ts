@@ -12,6 +12,17 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 }
 
 /**
+ * 点后台自定义确认对话框的「确认」按钮。
+ * 发布/存草稿/删除等带 data-confirm 的操作改用自定义对话框
+ * （不再触发原生 confirm），测试需显式点确认。
+ */
+export async function acceptConfirmDialog(page: Page): Promise<void> {
+  const overlay = page.locator(".modal-overlay");
+  await overlay.waitFor({ state: "visible" });
+  await overlay.locator(".modal-actions .btn:last-child").click();
+}
+
+/**
  * 向 Vditor IR 编辑器派发「粘贴图片」事件：构造 ClipboardEvent，
  * clipboardData 由 DataTransfer 提供（含一个 PNG File），dispatch 到
  * IR 模式的编辑面 `.vditor-reset`（contenteditable 元素，Vditor 的 paste

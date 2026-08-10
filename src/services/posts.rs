@@ -48,8 +48,34 @@ pub struct PostListOptions {
     pub tag_slug: Option<String>,
     /// 月份筛选："YYYY-MM"（按 published_at 前缀）
     pub month: Option<String>,
+    /// 排序（字段白名单）；None = 默认时间倒序
+    pub sort: Option<PostSort>,
     pub page: i64,
     pub page_size: i64,
+}
+
+/// 列表排序：字段名（白名单）+ 方向。见 `order_by_clause` 映射，防注入。
+#[derive(Clone, Copy)]
+pub struct PostSort {
+    pub field: &'static str,
+    pub asc: bool,
+}
+
+/// 列表 ORDER BY 子句：排序字段白名单映射，非法字段回退默认时间倒序。
+pub(crate) fn order_by_clause(sort: Option<PostSort>) -> String {
+    let Some(s) = sort else {
+        return "ORDER BY published_at DESC, id DESC".to_string();
+    };
+    let field = match s.field {
+        "title" => "title",
+        "views" => "views",
+        "updated_at" => "updated_at",
+        "published_at" => "published_at",
+        "status" => "status",
+        _ => return "ORDER BY published_at DESC, id DESC".to_string(),
+    };
+    let dir = if s.asc { "ASC" } else { "DESC" };
+    format!("ORDER BY {field} {dir}, id DESC")
 }
 
 /// 数据库行结构：枚举字段以 String 存取，经 `to_str`/`from_str` 与模型互转。
@@ -236,7 +262,8 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     let total: i64 = count_q.fetch_one(db).await?.get(0);
 
     let item_sql = format!(
-        "SELECT {POST_COLUMNS} FROM posts{where_sql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?"
+        "SELECT {POST_COLUMNS} FROM posts{where_sql} {} LIMIT ? OFFSET ?",
+        order_by_clause(opts.sort)
     );
     let mut q = sqlx::query_as::<_, PostRow>(&item_sql);
     if let Some(status) = opts.status {
@@ -758,5 +785,42 @@ pub async fn month_list(db: &Db) -> Result<Vec<String>, AppError> {
     )
     .fetch_all(db)
     .await?;
+    Ok(months)
+}
+
+/// 指定分类/标签下已发布文章的月份列表（去重倒序），供归档/标签页侧栏筛选。
+/// 两者均为 None 时与 `month_list` 等价。
+pub async fn month_list_filtered(
+    db: &Db,
+    category_slug: Option<&str>,
+    tag_slug: Option<&str>,
+) -> Result<Vec<String>, AppError> {
+    let sql = if tag_slug.is_some() {
+        "SELECT DISTINCT substr(p.published_at, 1, 7) AS m
+         FROM posts p
+         JOIN post_tags pt ON pt.post_id = p.id
+         JOIN tags t ON t.id = pt.tag_id
+         WHERE p.status = 'published' AND p.post_type = 'post'
+           AND p.published_at IS NOT NULL AND t.slug = ?
+         ORDER BY m DESC"
+            .to_string()
+    } else if category_slug.is_some() {
+        "SELECT DISTINCT substr(p.published_at, 1, 7) AS m
+         FROM posts p
+         JOIN categories c ON c.id = p.category_id
+         WHERE p.status = 'published' AND p.post_type = 'post'
+           AND p.published_at IS NOT NULL AND c.slug = ?
+         ORDER BY m DESC"
+            .to_string()
+    } else {
+        return month_list(db).await;
+    };
+    let mut q = sqlx::query_scalar::<_, String>(&sql);
+    if let Some(tag) = tag_slug {
+        q = q.bind(tag);
+    } else if let Some(cat) = category_slug {
+        q = q.bind(cat);
+    }
+    let months: Vec<String> = q.fetch_all(db).await?;
     Ok(months)
 }

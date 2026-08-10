@@ -26,7 +26,7 @@ pub async fn list(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     // discover 实时扫描主题目录：复制新主题进 data_dir 后无需重启即可见
     let themes_dir = state.config.data_dir.join("themes");
@@ -78,26 +78,26 @@ pub async fn activate(
     Form(form): Form<HashMap<String, String>>,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     if session::verify_csrf(&session, form.get("csrf").map(String::as_str))
         .await
         .is_err()
     {
-        return redirect_msg("安全校验失败，请刷新页面后重试");
+        return redirect_msg(&state.config.base_path, "安全校验失败，请刷新页面后重试");
     }
     // 主题必须真实存在（目录 + theme.toml），防止写入不存在的名字
     let themes_dir = state.config.data_dir.join("themes");
     if !themes::is_valid_name(&name) || themes::load_meta(&themes_dir, &name).is_err() {
-        return redirect_msg("主题不存在");
+        return redirect_msg(&state.config.base_path, "主题不存在");
     }
     if let Err(e) = settings::set(&state.db, "active_theme", &name).await {
         tracing::error!("切换主题 {name} 失败: {e:?}");
-        return redirect_msg("切换失败，请重试");
+        return redirect_msg(&state.config.base_path, "切换失败，请重试");
     }
     // 前台模板渲染器在启动时按 DB 的 active_theme 构建：模板/样式需重启才切换，
     // 重启后以 DB 为准（C2），故提示重启生效
-    redirect_msg(&format!("已切换到 {name}，重启服务后完全生效"))
+    redirect_msg(&state.config.base_path, &format!("已切换到 {name}，重启服务后完全生效"))
 }
 
 // ---------- 预览 ----------
@@ -110,20 +110,20 @@ pub async fn preview(
     Path(name): Path<String>,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path,  "/admin/login");
     }
     let themes_dir = state.config.data_dir.join("themes");
     if !themes::is_valid_name(&name) || themes::load_meta(&themes_dir, &name).is_err() {
-        return redirect_msg("主题不存在");
+        return redirect_msg(&state.config.base_path, "主题不存在");
     }
-    super::redirect(&format!("/?theme_preview={name}"))
+    super::redirect(&state.config.base_path, &format!("/?theme_preview={name}"))
 }
 
 // ---------- 工具 ----------
 
 /// 带 `?msg=` 查询参数的重定向（操作结果提示，成功与失败均走此通道）。
-fn redirect_msg(msg: &str) -> Response {
-    super::redirect(&format!("/admin/themes?msg={}", urlencode(msg)))
+fn redirect_msg(base: &str, msg: &str) -> Response {
+    super::redirect(base, &format!("/admin/themes?msg={}", urlencode(msg)))
 }
 
 /// 查询参数值百分号编码（RFC 3986：仅保留 unreserved 字符；与 taxonomy 同款）。

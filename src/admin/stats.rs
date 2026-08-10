@@ -42,7 +42,7 @@ pub async fn index(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let (from, to) = match parse_range(&query) {
         Ok(v) => v,
@@ -62,7 +62,7 @@ pub async fn ranking(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let (from, to) = match parse_range(&query) {
         Ok(v) => v,
@@ -87,7 +87,7 @@ pub async fn regions(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return super::redirect("/admin/login");
+        return super::redirect(&state.config.base_path, "/admin/login");
     }
     let (from, to) = match parse_range(&query) {
         Ok(v) => v,
@@ -127,10 +127,10 @@ pub async fn clear(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     match stats::clear_logs(&state.db).await {
-        Ok(()) => Ok(super::redirect("/admin/stats")),
+        Ok(()) => Ok(super::redirect(&state.config.base_path, "/admin/stats")),
         Err(e) => {
             tracing::error!("清理阅读日志失败: {e:?}");
-            Ok(super::redirect("/admin/stats"))
+            Ok(super::redirect(&state.config.base_path, "/admin/stats"))
         }
     }
 }

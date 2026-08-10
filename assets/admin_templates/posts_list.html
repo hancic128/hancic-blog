@@ -4,21 +4,31 @@
 <h1>文章管理</h1>
 
 <div class="panel">
-  <form class="filter-bar" method="get" action="/admin/posts">
-    <select name="status" aria-label="状态筛选">
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin/posts">
+    <div class="cs" data-select="#f-status">
+      <button class="cs-btn" type="button" aria-label="状态筛选" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-status" name="status" aria-label="状态筛选" class="cs-hidden">
       <option value="">全部状态</option>
       <option value="draft"{% if filters.status == "draft" %} selected{% endif %}>草稿</option>
       <option value="published"{% if filters.status == "published" %} selected{% endif %}>已发布</option>
     </select>
-    <select name="category" aria-label="分类筛选">
+    </div>
+    <div class="cs" data-select="#f-category">
+      <button class="cs-btn" type="button" aria-label="分类筛选" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-category" name="category" aria-label="分类筛选" class="cs-hidden">
       <option value="">全部分类</option>
       {% for c in categories %}
       <option value="{{ c.slug }}"{% if filters.category == c.slug %} selected{% endif %}>{{ c.name }}</option>
       {% endfor %}
     </select>
-    <input name="q" value="{{ filters.q }}" placeholder="标题关键词">
-    <button class="btn" type="submit">筛选</button>
-    <a class="btn btn-primary" href="/admin/posts/new">新建</a>
+    </div>
+    <div class="search-box">
+      <input name="q" value="{{ filters.q }}" placeholder="搜索标题关键词" aria-label="搜索标题关键词">
+      <button class="search-btn" type="submit" aria-label="搜索">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
+    <a class="btn btn-primary" href="{{ base_path }}/admin/posts/new">新建</a>
   </form>
 </div>
 
@@ -26,21 +36,32 @@
   {% if posts %}
   <table class="data-table">
     <thead>
-      <tr><th>标题</th><th>分类</th><th>状态</th><th>阅读</th><th>更新时间</th><th class="col-ops">操作</th></tr>
+      <tr>
+        <th><a class="th-sort{% if filters.sort == 'title' %} active{% endif %}" href="?sort=title&amp;dir={% if filters.sort == 'title' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">标题{% if filters.sort == 'title' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th>分类</th>
+        <th><a class="th-sort{% if filters.sort == 'status' %} active{% endif %}" href="?sort=status&amp;dir={% if filters.sort == 'status' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">状态{% if filters.sort == 'status' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'views' %} active{% endif %}" href="?sort=views&amp;dir={% if filters.sort == 'views' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">阅读{% if filters.sort == 'views' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'updated_at' %} active{% endif %}" href="?sort=updated_at&amp;dir={% if filters.sort == 'updated_at' and filters.dir == 'desc' %}asc{% else %}desc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">更新时间{% if filters.sort == 'updated_at' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th class="col-ops">操作</th>
+      </tr>
     </thead>
     <tbody>
       {% for p in posts %}
       <tr>
-        <td><a href="/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
+        <td><a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
         <td class="muted">{{ p.category }}</td>
-        <td>{% if p.status == "published" %}已发布{% else %}草稿{% endif %}</td>
+        <td>{% if p.status == "published" %}<span class="badge badge-published">已发布</span>{% else %}<span class="badge badge-draft">草稿</span>{% endif %}</td>
         <td class="muted">{{ p.views }}</td>
         <td class="muted">{{ p.updated_at }}</td>
         <td class="col-ops">
-          <a class="btn btn-sm" href="/admin/posts/{{ p.id }}/edit">编辑</a>
-          <form class="inline-form" method="post" action="/admin/posts/{{ p.id }}/delete" data-confirm="确认删除该文章？">
+          <a class="icon-btn" href="{{ base_path }}/admin/posts/{{ p.id }}/edit" title="编辑" aria-label="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </a>
+          <form class="inline-form" method="post" action="{{ base_path }}/admin/posts/{{ p.id }}/delete" data-confirm="确认删除该文章？">
             <input type="hidden" name="csrf" value="{{ csrf }}">
-            <button class="btn btn-sm btn-danger" type="submit">删除</button>
+            <button class="icon-btn icon-btn-danger" type="submit" title="删除" aria-label="删除">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </form>
         </td>
       </tr>
@@ -56,11 +77,11 @@
 {% if total_pages > 1 %}
 <div class="pagination">
   {% if page > 1 %}
-  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">上一页</a>
+  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">上一页</a>
   {% endif %}
   <span class="muted">{{ page }} / {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">下一页</a>
+  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">下一页</a>
   {% endif %}
 </div>
 {% endif %}

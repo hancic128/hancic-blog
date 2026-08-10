@@ -53,7 +53,7 @@ pub fn routes() -> Router<AppState> {
 /// `preview` 为预览主题名（后台 `?theme_preview=`）：仅覆盖 `active_theme`
 /// 用于本次只读渲染，不写库；模板里静态资源路径
 /// `/theme/{{ site.active_theme }}/static/...` 随之指向预览主题。
-pub async fn site_context(db: &Db, preview: Option<String>) -> AppResult<Context> {
+pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppResult<Context> {
     let s = settings::get_many(
         db,
         &[
@@ -73,6 +73,7 @@ pub async fn site_context(db: &Db, preview: Option<String>) -> AppResult<Context
             .unwrap_or_else(|| "default".to_string())
     });
     let mut ctx = Context::new();
+    ctx.insert("base_path", base);
     let categories = taxonomy::list_categories(db).await?;
     ctx.insert(
         "site",
@@ -115,7 +116,7 @@ async fn index(
     let out = async {
         // 更新日历（近 53 周，含发布/更新/说说详情）与最近说说（5 条）
         let calendar = posts::activity_calendar(&state.db, 371).await?;
-        let (moments, _total) = moments::list_moments(&state.db, 1, 5).await?;
+        let (moments, _total) = moments::list_moments(&state.db, None, false, None, 1, 5).await?;
         // 最近文章（首页仅展示 5 篇，完整列表走 /archives）
         let (items, total) = posts::list_posts(
             &state.db,
@@ -125,15 +126,16 @@ async fn index(
                 category_slug: None,
                 tag_slug: None,
                 month: None,
+                sort: None,
                 page: 1,
                 page_size: 5,
             },
         )
         .await?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("calendar", &calendar_matrix(&calendar));
         ctx.insert("moments", &moment_list_value(&moments));
-        ctx.insert("posts", &post_list_value(&state.db, &items).await?);
+        ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
         Ok::<_, AppError>(ctx)
     }
@@ -153,7 +155,7 @@ async fn archives_page(
     let month = query.get("month").filter(|m| !m.is_empty()).cloned();
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let mut ctx = listing_ctx(&state.db, page, None, None, month.clone(), preview.clone()).await?;
+        let mut ctx = listing_ctx(&state.db, &state.config.base_path, page, None, None, month.clone(), preview.clone()).await?;
         let tags = taxonomy::list_tags(&state.db).await?;
         let months = posts::month_list(&state.db).await?;
         ctx.insert(
@@ -168,6 +170,8 @@ async fn archives_page(
             &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
         );
         ctx.insert("current_month", &month);
+        let month_base = format!("{}/archives", state.config.base_path);
+        ctx.insert("month_base", &month_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -192,7 +196,7 @@ async fn post_page(
         let (prev, next) = posts::adjacent_posts(&state.db, &post).await?;
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("post", &post_value(&post));
         ctx.insert(
             "category",
@@ -210,19 +214,15 @@ async fn post_page(
         );
         ctx.insert("prev", &adjacent_value(prev.as_ref()));
         ctx.insert("next", &adjacent_value(next.as_ref()));
-        // 右侧栏：全部标签 + 月份归档
-        let all_tags = taxonomy::list_tags(&state.db).await?;
-        let months = posts::month_list(&state.db).await?;
+        // 正文（带标题锚点）+ 1~3 级目录，供右侧栏导航
+        let (content_html, toc) = crate::markdown::render_with_toc(&post.content_md);
+        ctx.insert("content_html", &content_html);
         ctx.insert(
-            "all_tags",
-            &json!(all_tags
+            "toc",
+            &json!(toc
                 .iter()
-                .map(|t| json!({ "slug": t.slug, "name": t.name }))
+                .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
                 .collect::<Vec<_>>()),
-        );
-        ctx.insert(
-            "months",
-            &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
         );
         record_view_once(&state, &post, &headers).await;
         Ok::<_, AppError>(ctx)
@@ -284,7 +284,7 @@ async fn page_page(
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
         Ok::<_, AppError>(ctx)
     }
@@ -306,7 +306,7 @@ async fn about_page(
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
         Ok::<_, AppError>(ctx)
     }
@@ -317,19 +317,29 @@ async fn about_page(
     }
 }
 
-/// 说说页：朋友圈式按天分组展示（分页 20/页）。
+/// 说说页：朋友圈式按天分组展示（分页 20/页）；右侧按月份筛选（默认半年）。
 async fn moments_page(
     State(state): State<AppState>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
+    let month = query.get("month").filter(|m| !m.is_empty()).cloned();
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let (items, total) = moments::list_moments(&state.db, page, MOMENTS_PAGE_SIZE).await?;
-        let days = moments::group_by_day(&state.db, items).await?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
-        ctx.insert("days", &days_value(&state.db, &days).await?);
+        let (items, total) =
+            moments::list_moments(&state.db, month.as_deref(), false, None, page, MOMENTS_PAGE_SIZE).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
+        // 与首页最近说说同款时间线折叠：默认单行，点击展开全文与附件
+        ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("pagination", &moments_pagination_value(page, total));
+        let months = moments::month_list(&state.db).await?;
+        ctx.insert(
+            "months",
+            &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
+        );
+        ctx.insert("current_month", &month);
+        let month_base = format!("{}/moments", state.config.base_path);
+        ctx.insert("month_base", &month_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -350,10 +360,19 @@ async fn category_page(
             .await?
             .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;
         let mut ctx =
-            listing_ctx(&state.db, page_param(&query), Some(slug), None, None, preview.clone()).await?;
+            listing_ctx(&state.db, &state.config.base_path, page_param(&query), Some(slug), None, None, preview.clone()).await?;
         ctx.insert(
             "category",
             &json!({ "slug": category.slug, "name": category.name }),
+        );
+        // 该分类下已发布文章使用的标签（去重），供"分类：XX 下方标签云"
+        let category_tags = taxonomy::tags_of_category(&state.db, category.id).await?;
+        ctx.insert(
+            "category_tags",
+            &json!(category_tags
+                .iter()
+                .map(|t| json!({ "slug": t.slug, "name": t.name }))
+                .collect::<Vec<_>>()),
         );
         Ok::<_, AppError>(ctx)
     }
@@ -376,9 +395,27 @@ async fn tag_page(
             .into_iter()
             .find(|t| t.slug == slug)
             .ok_or_else(|| AppError::NotFound("标签不存在".into()))?;
-        let mut ctx =
-            listing_ctx(&state.db, page_param(&query), None, Some(slug), None, preview.clone()).await?;
+        let month = query.get("month").filter(|m| !m.is_empty()).cloned();
+        let mut ctx = listing_ctx(
+            &state.db,
+            &state.config.base_path,
+            page_param(&query),
+            None,
+            Some(slug.clone()),
+            month.clone(),
+            preview.clone(),
+        )
+        .await?;
         ctx.insert("tag", &json!({ "slug": tag.slug, "name": tag.name }));
+        // 该标签下文章的月份，供右侧栏按月份筛选
+        let months = posts::month_list_filtered(&state.db, None, Some(&slug)).await?;
+        ctx.insert(
+            "months",
+            &json!(months.iter().map(|m| json!({ "month": m })).collect::<Vec<_>>()),
+        );
+        ctx.insert("current_month", &month);
+        let month_base = format!("{}/tag/{slug}", state.config.base_path);
+        ctx.insert("month_base", &month_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -398,10 +435,10 @@ async fn search_page(
     let preview = resolve_preview(&state, &query);
     let out = async {
         let (hits, total) = posts::search_posts(&state.db, &q, page, PAGE_SIZE).await?;
-        let mut ctx = site_context(&state.db, preview.clone()).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("search_query", &q);
-        ctx.insert("posts", &search_hit_list_value(&hits));
-        ctx.insert("pagination", &search_pagination_value(page, total, &q));
+        ctx.insert("posts", &search_hit_list_value(&state.config.base_path, &hits));
+        ctx.insert("pagination", &search_pagination_value(&state.config.base_path, page, total, &q));
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -482,6 +519,7 @@ fn page_param(query: &HashMap<String, String>) -> i64 {
 /// 文章流列表上下文（首页/分类/标签共用）：注入 posts + pagination。
 async fn listing_ctx(
     db: &Db,
+    base: &str,
     page: i64,
     category_slug: Option<String>,
     tag_slug: Option<String>,
@@ -496,19 +534,20 @@ async fn listing_ctx(
             category_slug,
             tag_slug,
             month,
+            sort: None,
             page,
             page_size: PAGE_SIZE,
         },
     )
     .await?;
-    let mut ctx = site_context(db, preview).await?;
-    ctx.insert("posts", &post_list_value(db, &items).await?);
+    let mut ctx = site_context(db, base, preview).await?;
+    ctx.insert("posts", &post_list_value(db, base, &items).await?);
     ctx.insert("pagination", &pagination_value(page, total));
     Ok(ctx)
 }
 
 /// 列表页文章 JSON：标题/日期/excerpt/阅读量/链接。
-async fn post_list_value(db: &Db, items: &[Post]) -> AppResult<Value> {
+async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value> {
     let mut list = Vec::with_capacity(items.len());
     for p in items {
         let tags = posts::list_tags_of_post(db, p.id).await?;
@@ -518,7 +557,7 @@ async fn post_list_value(db: &Db, items: &[Post]) -> AppResult<Value> {
             "excerpt": p.excerpt,
             "published_at": p.published_at.map(|d| d.to_rfc3339()),
             "views": p.views,
-            "url": post_url(p),
+            "url": post_url(base, p),
             "tags": tags.iter().map(|t| json!({ "slug": t.slug, "name": t.name })).collect::<Vec<_>>(),
         }));
     }
@@ -526,7 +565,7 @@ async fn post_list_value(db: &Db, items: &[Post]) -> AppResult<Value> {
 }
 
 /// 搜索页命中 JSON：标题/链接/高亮片段（`| safe` 渲染 `<mark>`）/日期/阅读量。
-fn search_hit_list_value(hits: &[posts::SearchHit]) -> Value {
+fn search_hit_list_value(base: &str, hits: &[posts::SearchHit]) -> Value {
     json!(hits
         .iter()
         .map(|h| json!({
@@ -534,7 +573,7 @@ fn search_hit_list_value(hits: &[posts::SearchHit]) -> Value {
             "snippet": h.snippet,
             "published_at": h.post.published_at.map(|d| d.to_rfc3339()),
             "views": h.post.views,
-            "url": post_url(&h.post),
+            "url": post_url(base, &h.post),
         }))
         .collect::<Vec<_>>())
 }
@@ -551,13 +590,14 @@ fn post_value(p: &Post) -> Value {
     })
 }
 
-/// 文章链接：独立页走 `/page/`，普通文章走 `/post/`。
-fn post_url(p: &Post) -> String {
-    if p.post_type == PostType::Page {
+/// 文章链接：独立页走 `/page/`，普通文章走 `/post/`；`base` 为部署子路径前缀。
+fn post_url(base: &str, p: &Post) -> String {
+    let path = if p.post_type == PostType::Page {
         format!("/page/{}", p.slug)
     } else {
         format!("/post/{}", p.slug)
-    }
+    };
+    format!("{base}{path}")
 }
 
 /// 更新日历单日条目：(日期, 动态数, [(类型, 标题)])。
@@ -649,24 +689,20 @@ fn pagination_with(page: i64, total: i64, page_size: i64) -> Value {
     })
 }
 
-/// 说说页按天分组上下文：`days: Vec<{date, moments: Vec<{moment, attachments}>}>`，
-/// 每组内时刻倒序，附件按 sort_order 升序。
-async fn days_value(db: &Db, days: &[(String, Vec<crate::models::Moment>)]) -> AppResult<Value> {
-    let mut out = Vec::with_capacity(days.len());
-    for (date, ms) in days {
-        let mut moments_json = Vec::with_capacity(ms.len());
-        for m in ms {
-            let atts = moments::list_moment_attachments(db, m.id).await?;
-            moments_json.push(json!({
-                "moment": moment_value(m),
-                "attachments": json!(
-                    atts.iter()
-                        .map(|(att, _)| attachment_value(att))
-                        .collect::<Vec<_>>()
-                ),
-            }));
-        }
-        out.push(json!({ "date": date, "moments": moments_json }));
+/// 说说列表上下文（首页最近说说 / 说说页共用）：`moments: Vec<{moment, attachments}>`，
+/// 每条含附件（按 sort_order 升序）；模板渲染为时间线折叠样式。
+async fn moment_items_value(db: &Db, base: &str, items: &[Moment]) -> AppResult<Value> {
+    let mut out = Vec::with_capacity(items.len());
+    for m in items {
+        let atts = moments::list_moment_attachments(db, m.id).await?;
+        out.push(json!({
+            "moment": moment_value(m),
+            "attachments": json!(
+                atts.iter()
+                    .map(|(att, _)| attachment_value(base, att))
+                    .collect::<Vec<_>>()
+            ),
+        }));
     }
     Ok(json!(out))
 }
@@ -681,28 +717,28 @@ fn moment_value(m: &crate::models::Moment) -> Value {
 }
 
 /// 附件 JSON：kind 供模板分支（图片/视频/文件卡片），url 指向 /uploads 静态路径。
-fn attachment_value(att: &crate::models::Attachment) -> Value {
+fn attachment_value(base: &str, att: &crate::models::Attachment) -> Value {
     json!({
         "id": att.id,
         "kind": att.kind.to_str(),
         "orig_name": att.orig_name,
         "mime": att.mime,
         "size": att.size,
-        "url": format!("/uploads/{}", att.path),
+        "url": format!("{base}/uploads/{}", att.path),
     })
 }
 
 /// 搜索页分页：与 `pagination_value` 同构，但 prev_url/next_url 预编码保留 `q`。
 /// （tera 2.1.0 已移除 urlencode 过滤器，故在 Rust 侧完成编码。）
-fn search_pagination_value(page: i64, total: i64, q: &str) -> Value {
+fn search_pagination_value(base: &str, page: i64, total: i64, q: &str) -> Value {
     let total_pages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
     let q_enc = urlencode_q(q);
     json!({
         "current": page,
         "total": total,
         "total_pages": total_pages,
-        "prev_url": (page > 1).then(|| format!("/search?q={q_enc}&page={}", page - 1)),
-        "next_url": (page < total_pages).then(|| format!("/search?q={q_enc}&page={}", page + 1)),
+        "prev_url": (page > 1).then(|| format!("{base}/search?q={q_enc}&page={}", page - 1)),
+        "next_url": (page < total_pages).then(|| format!("{base}/search?q={q_enc}&page={}", page + 1)),
     })
 }
 
@@ -760,7 +796,7 @@ async fn render(state: &AppState, template: &str, ctx: &Context, preview: Option
 async fn render_error(state: &AppState, err: AppError) -> Response {
     let status = err.status();
     let message = err.message().to_string();
-    let mut ctx = match site_context(&state.db, None).await {
+    let mut ctx = match site_context(&state.db, &state.config.base_path, None).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("构建错误页上下文失败: {e:?}");

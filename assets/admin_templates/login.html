@@ -4,10 +4,10 @@
 <div class="auth-box">
   <h1>登录</h1>
   {% if not has_password %}
-  <p class="tip">尚未设置管理员密码，<a href="/admin/setup">前往初始化</a>。</p>
+  <p class="tip">尚未设置管理员密码，<a href="{{ base_path }}/admin/setup">前往初始化</a>。</p>
   {% endif %}
   {% if error_tip %}<p class="error">{{ error_tip }}</p>{% endif %}
-  <form method="post" action="/admin/login" class="stack">
+  <form method="post" action="{{ base_path }}/admin/login" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label class="field">密码
       <input type="password" name="password" required autofocus>

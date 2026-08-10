@@ -55,6 +55,7 @@ pub fn router() -> Router<AppState> {
         .route("/posts/{id}/autosave", post(posts::autosave))
         .route("/moments", get(moments::list).post(moments::create))
         .route("/moments/{id}/delete", post(moments::delete))
+        .route("/moments/{id}/update", post(moments::update))
         .route("/attachments", get(attachments::list))
         .route("/attachments/{id}/delete", post(attachments::delete))
         .route("/attachments/upload", get(attachments::upload_page))
@@ -104,6 +105,7 @@ pub fn build_tera() -> Tera {
     tera.add_raw_templates(vec![
         ("layout.html", include_str!("../../assets/admin_templates/layout.html")),
         ("login.html", include_str!("../../assets/admin_templates/login.html")),
+        ("login_standalone.html", include_str!("../../assets/admin_templates/login_standalone.html")),
         ("setup.html", include_str!("../../assets/admin_templates/setup.html")),
         ("dashboard.html", include_str!("../../assets/admin_templates/dashboard.html")),
         ("posts_list.html", include_str!("../../assets/admin_templates/posts_list.html")),
@@ -123,9 +125,15 @@ pub fn build_tera() -> Tera {
     tera
 }
 
-/// 302 重定向（FOUND，与测试约定一致）。
-pub(crate) fn redirect(location: &str) -> Response {
-    (StatusCode::FOUND, [(header::LOCATION, location)]).into_response()
+/// 302 重定向（FOUND，与测试约定一致）。`base_path` 非空时给 Location 加子路径前缀
+/// （部署在 subpath 时登录/后台跳转才能落在子路径下）。
+pub(crate) fn redirect(base_path: &str, location: &str) -> Response {
+    let loc = if base_path.is_empty() {
+        location.to_string()
+    } else {
+        format!("{base_path}{location}")
+    };
+    (StatusCode::FOUND, [(header::LOCATION, loc)]).into_response()
 }
 
 /// 后台页基础上下文：site_name / csrf / admin_nav（layout.html 消费）。
@@ -139,6 +147,7 @@ pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) ->
         .unwrap_or_else(|| state.config.site_name.clone());
     let mut ctx = Context::new();
     ctx.insert("site_name", &site_name);
+    ctx.insert("base_path", &state.config.base_path);
     ctx.insert("csrf", &csrf);
     ctx.insert("admin_nav", &nav_value(&admin_nav(path)));
     (ctx, csrf)
@@ -164,30 +173,34 @@ pub(crate) fn render_admin(state: &AppState, template: &str, ctx: &Context) -> R
 struct NavItem {
     url: &'static str,
     label: &'static str,
+    /// 侧栏分组：content（内容管理）/ system（系统）/ link（查看站点）
+    group: &'static str,
     active: bool,
 }
 
 /// 侧边栏 11 模块 + 「查看站点」；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
-    let items: [(&str, &str); 12] = [
-        ("/admin", "仪表盘"),
-        ("/admin/posts", "文章"),
-        ("/admin/moments", "说说"),
-        ("/admin/attachments", "附件库"),
-        ("/admin/taxonomy", "分类标签"),
-        ("/admin/settings", "站点设置"),
-        ("/admin/themes", "主题"),
-        ("/admin/stats", "统计"),
-        ("/admin/tokens", "API Token"),
-        ("/admin/backup", "备份"),
-        ("/admin/migrate", "迁移导入"),
-        ("/", "查看站点"),
+    // (url, label, group)：内容管理 / 系统 / 外部链接
+    let items: [(&str, &str, &str); 12] = [
+        ("/admin", "仪表盘", "dashboard"),
+        ("/admin/posts", "文章", "content"),
+        ("/admin/moments", "说说", "content"),
+        ("/admin/attachments", "附件库", "content"),
+        ("/admin/taxonomy", "分类标签", "content"),
+        ("/admin/settings", "站点设置", "system"),
+        ("/admin/themes", "主题", "system"),
+        ("/admin/stats", "统计", "system"),
+        ("/admin/tokens", "API Token", "system"),
+        ("/admin/backup", "备份", "system"),
+        ("/admin/migrate", "迁移导入", "system"),
+        ("/", "查看站点", "link"),
     ];
     items
         .iter()
-        .map(|(url, label)| NavItem {
+        .map(|(url, label, group)| NavItem {
             url,
             label,
+            group,
             active: is_active(path, url),
         })
         .collect()
@@ -208,7 +221,7 @@ fn is_active(path: &str, url: &str) -> bool {
 fn nav_value(items: &[NavItem]) -> Value {
     json!(items
         .iter()
-        .map(|i| json!({ "url": i.url, "label": i.label, "active": i.active }))
+        .map(|i| json!({ "url": i.url, "label": i.label, "group": i.group, "active": i.active }))
         .collect::<Vec<_>>())
 }
 
@@ -246,7 +259,8 @@ async fn login_page(
     };
     ctx.insert("has_password", &has_password);
     ctx.insert("error_tip", &error_tip.unwrap_or_default());
-    render_admin(&state, "login.html", &ctx)
+    // 独立登录页：不带后台外壳（侧栏/顶栏），全屏居中品牌卡片
+    render_admin(&state, "login_standalone.html", &ctx)
 }
 
 async fn post_login(
@@ -259,36 +273,36 @@ async fn post_login(
 
     // 1. 限流检查（密码校验前）
     if !state.login_limiter.check(&ip, false) {
-        return redirect("/admin/login?error=rate");
+        return redirect(&state.config.base_path, "/admin/login?error=rate");
     }
     // 2. CSRF 校验
     if session::verify_csrf(&session, form.csrf.as_deref())
         .await
         .is_err()
     {
-        return redirect("/admin/login?error=csrf");
+        return redirect(&state.config.base_path, "/admin/login?error=csrf");
     }
     // 3. 校验密码并写入会话
     match session::login(&state.db, &session, &form.password).await {
         Ok(()) => {
             state.login_limiter.check(&ip, true); // 成功：清除失败记录
-            redirect("/admin")
+            redirect(&state.config.base_path, "/admin")
         }
         Err(_) => {
             state.login_limiter.record_failure(&ip);
-            redirect("/admin/login?error=1")
+            redirect(&state.config.base_path, "/admin/login?error=1")
         }
     }
 }
 
-async fn logout(session: Session) -> Response {
+async fn logout(State(state): State<AppState>, session: Session) -> Response {
     let _ = session::logout(&session).await;
-    redirect("/admin/login")
+    redirect(&state.config.base_path, "/admin/login")
 }
 
 async fn setup_page(State(state): State<AppState>, session: Session, uri: OriginalUri) -> Response {
     if auth::has_password(&state.db).await.unwrap_or(true) {
-        return redirect("/admin/login");
+        return redirect(&state.config.base_path, "/admin/login");
     }
     let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
     ctx.insert("password_min_len", &auth::PASSWORD_MIN_LEN);
@@ -301,13 +315,13 @@ async fn post_setup(
     Form(form): Form<SetupForm>,
 ) -> Response {
     if auth::has_password(&state.db).await.unwrap_or(true) {
-        return redirect("/admin/login");
+        return redirect(&state.config.base_path, "/admin/login");
     }
     if session::verify_csrf(&session, form.csrf.as_deref())
         .await
         .is_err()
     {
-        return redirect("/admin/setup?error=csrf");
+        return redirect(&state.config.base_path, "/admin/setup?error=csrf");
     }
     match auth::set_password(&state.db, &form.password).await {
         Ok(()) => {
@@ -317,11 +331,11 @@ async fn post_setup(
                 .await
                 .is_err()
             {
-                return redirect("/admin/setup?error=1");
+                return redirect(&state.config.base_path, "/admin/setup?error=1");
             }
-            redirect("/admin")
+            redirect(&state.config.base_path, "/admin")
         }
-        Err(_) => redirect("/admin/setup?error=1"),
+        Err(_) => redirect(&state.config.base_path, "/admin/setup?error=1"),
     }
 }
 
@@ -333,7 +347,7 @@ async fn admin_index(
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
-        return redirect("/admin/login");
+        return redirect(&state.config.base_path, "/admin/login");
     }
     let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
     if let Err(e) = fill_dashboard(&state, &mut ctx).await {
@@ -371,6 +385,7 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
             category_slug: None,
             tag_slug: None,
             month: None,
+            sort: None,
             page: 1,
             page_size: DASHBOARD_DRAFT_LIMIT,
         },
@@ -459,6 +474,7 @@ mod tests {
         let tera = build_tera();
         let mut ctx = Context::new();
         ctx.insert("site_name", "寒蝉 Hancic");
+        ctx.insert("base_path", "");
         ctx.insert("csrf", "token");
         ctx.insert("admin_nav", &nav_value(&admin_nav("/admin")));
         let html = tera.render("layout.html", &ctx).unwrap();
