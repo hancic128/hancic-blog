@@ -61,8 +61,15 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "site_desc",
             "site_nav",
             "site_social",
+            "social_logos",
+            "site_logo",
             "active_theme",
             "theme_mode",
+            "footer_text",
+            "friend_links",
+            "contact_enabled",
+            "contact_email",
+            "contact_qr",
         ],
     )
     .await?;
@@ -75,15 +82,41 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     let mut ctx = Context::new();
     ctx.insert("base_path", base);
     let categories = taxonomy::list_categories(db).await?;
+    // 社交链接数组化：`[{key, url, logo}]`，logo 来自 social_logos（{平台: 图片URL}），
+    // 模板直接遍历渲染（含联系方式卡片圆形图标）。
+    let social_raw = parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}"));
+    let social_logos = parse_json_array(s.get("social_logos").map(String::as_str).unwrap_or("{}"));
+    let social: Vec<Value> = social_raw
+        .as_object()
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| {
+                    json!({
+                        "key": k,
+                        "url": v.as_str().unwrap_or_default(),
+                        "logo": social_logos.get(k).and_then(Value::as_str).unwrap_or_default(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     ctx.insert(
         "site",
         &json!({
             "name": s.get("site_name").map(String::as_str).unwrap_or("寒蝉 Hancic"),
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
             "nav": parse_json_array(s.get("site_nav").map(String::as_str).unwrap_or("[]")),
-            "social": parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}")),
+            "social": social,
+            "logo": s.get("site_logo").map(String::as_str).unwrap_or(""),
             "active_theme": active_theme,
             "mode": s.get("theme_mode").map(String::as_str).unwrap_or("auto"),
+            "footer_text": s.get("footer_text").map(String::as_str).unwrap_or(""),
+            "friend_links": parse_json_array(s.get("friend_links").map(String::as_str).unwrap_or("[]")),
+            "contact": json!({
+                "enabled": s.get("contact_enabled").map(String::as_str).unwrap_or("0") == "1",
+                "email": s.get("contact_email").map(String::as_str).unwrap_or(""),
+                "qr": parse_json_array(s.get("contact_qr").map(String::as_str).unwrap_or("{}")),
+            }),
             "categories": categories.iter().map(|c| json!({ "slug": c.slug, "name": c.name })).collect::<Vec<_>>(),
         }),
     );
@@ -134,7 +167,8 @@ async fn index(
         .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("calendar", &calendar_matrix(&calendar));
-        ctx.insert("moments", &moment_list_value(&moments));
+        // 首页最近说说与说说页同构（moment + attachments），模板可渲染图片/视频附件
+        ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &moments).await?);
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
         Ok::<_, AppError>(ctx)
@@ -648,17 +682,6 @@ fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
         weeks.push(week);
     }
     json!(weeks)
-}
-
-/// 说说列表 JSON（首页"最近说说"用）。
-fn moment_list_value(moments: &[Moment]) -> Value {
-    json!(moments
-        .iter()
-        .map(|m| json!({
-            "content": m.content,
-            "created_at": m.created_at.format("%Y-%m-%d %H:%M").to_string(),
-        }))
-        .collect::<Vec<_>>())
 }
 
 /// 上一篇/下一篇 JSON；无则为 null。

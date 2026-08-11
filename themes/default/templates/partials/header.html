@@ -10,7 +10,10 @@
 </head>
 <body>
 <header class="site-header">
-  <a class="site-brand" href="{{ base_path }}/">{{ site.name }}</a>
+  <a class="site-brand" href="{{ base_path }}/">
+    {% if site.logo %}<img class="site-logo" src="{{ site.logo }}" alt="{{ site.name }} 标志">{% endif %}
+    {{ site.name }}
+  </a>
   <nav class="site-nav" id="site-nav">
     {% for item in site.nav %}
       {% if item.label == "文章" %}

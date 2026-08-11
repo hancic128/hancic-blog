@@ -378,3 +378,28 @@
     btn.textContent = expanding ? "收起 ▴" : "显示更多月份 ▾";
   });
 })();
+
+// 悬浮联系方式卡片：无内容时隐藏按钮；点击展开/收起，Esc 或点击外部关闭
+(function initContactFab() {
+  const fab = document.getElementById("contact-fab");
+  const panel = document.getElementById("contact-panel");
+  if (!fab || !panel) return;
+  const hasContent = panel.querySelector(".contact-item") || panel.querySelector(".contact-qr");
+  if (!hasContent) return; // 未配置任何联系方式：保持 hidden 不展示
+  fab.hidden = false;
+  const close = () => {
+    panel.hidden = true;
+    fab.setAttribute("aria-expanded", "false");
+  };
+  fab.addEventListener("click", () => {
+    const willShow = panel.hidden;
+    panel.hidden = !willShow;
+    fab.setAttribute("aria-expanded", willShow ? "true" : "false");
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#contact-panel, #contact-fab") && !panel.hidden) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !panel.hidden) close();
+  });
+})();

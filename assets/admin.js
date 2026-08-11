@@ -1025,6 +1025,17 @@
   });
 })();
 
+// ---- 文章编辑器：类型切换时显示/隐藏固定链接输入（仅页面需要自定义链接）----
+(function () {
+  'use strict';
+  var postType = document.getElementById('post-type');
+  var slugField = document.getElementById('slug-field');
+  if (!postType || !slugField) return;
+  postType.addEventListener('change', function () {
+    slugField.hidden = postType.value !== 'page';
+  });
+})();
+
 // ---- 筛选栏：自定义下拉选择后自动应用过滤（无需再点「筛选」按钮）----
 // 自定义下拉在 li 点击时对原生 select 派发 change（bubbles），这里统一监听提交表单。
 (function () {
@@ -1071,6 +1082,111 @@
         arrow.textContent = asc ? '↑' : '↓';
         th.appendChild(arrow);
       });
+    });
+  });
+})();
+
+// ---- 自定义日期选择器（非原生控件）：点击输入框/日历按钮弹出月份日历 ----
+(function () {
+  'use strict';
+  var pickers = document.querySelectorAll('.date-picker');
+  if (!pickers.length) return;
+  var cal = document.createElement('div');
+  cal.className = 'date-cal';
+  cal.hidden = true;
+  document.body.appendChild(cal);
+  var active = null; // { picker, input, year, month, selected }
+  var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function todayStr() {
+    var n = new Date();
+    return n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate());
+  }
+  function render() {
+    if (!active) return;
+    var y = active.year, m = active.month;
+    var first = new Date(y, m, 1);
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var offset = first.getDay();
+    var today = todayStr();
+    var html = '<div class="date-cal-head">' +
+      '<button type="button" class="date-cal-nav" data-nav="-1" aria-label="上月">‹</button>' +
+      '<span class="date-cal-title">' + y + ' 年 ' + (m + 1) + ' 月</span>' +
+      '<button type="button" class="date-cal-nav" data-nav="1" aria-label="下月">›</button>' +
+      '</div><div class="date-cal-grid">';
+    for (var w = 0; w < 7; w++) html += '<span class="date-cal-wd">' + WEEKDAYS[w] + '</span>';
+    for (var i = 0; i < offset; i++) html += '<span class="date-cal-empty"></span>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var val = y + '-' + pad(m + 1) + '-' + pad(d);
+      html += '<button type="button" class="date-cal-day' +
+        (val === today ? ' today' : '') +
+        (val === active.selected ? ' selected' : '') +
+        '" data-date="' + val + '">' + d + '</button>';
+    }
+    html += '</div>';
+    cal.innerHTML = html;
+  }
+  function openPicker(picker) {
+    var input = picker.querySelector('.date-input');
+    var mm = (input.value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var now = new Date();
+    active = {
+      picker: picker,
+      input: input,
+      year: mm ? +mm[1] : now.getFullYear(),
+      month: mm ? +mm[2] - 1 : now.getMonth(),
+      selected: mm ? input.value.trim() : ''
+    };
+    render();
+    var rect = picker.getBoundingClientRect();
+    cal.style.left = Math.min(Math.max(8, rect.left), window.innerWidth - 292) + 'px';
+    cal.style.top = (rect.bottom + 6) + 'px';
+    cal.hidden = false;
+  }
+  function closeCal() {
+    cal.hidden = true;
+    active = null;
+  }
+  // 弹层事件（单例委托）
+  cal.addEventListener('click', function (e) {
+    var nav = e.target.closest('.date-cal-nav');
+    if (nav) {
+      active.month += parseInt(nav.dataset.nav, 10);
+      if (active.month < 0) { active.month = 11; active.year--; }
+      if (active.month > 11) { active.month = 0; active.year++; }
+      render();
+      return;
+    }
+    var day = e.target.closest('.date-cal-day');
+    if (day && active) {
+      active.input.value = day.dataset.date;
+      closeCal();
+    }
+  });
+  pickers.forEach(function (picker) {
+    var input = picker.querySelector('.date-input');
+    var btn = picker.querySelector('.date-cal-btn');
+    function open() { openPicker(picker); }
+    if (btn) btn.addEventListener('click', open);
+    if (input) input.addEventListener('click', open);
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.date-picker') && !cal.hidden) closeCal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !cal.hidden) closeCal();
+  });
+})();
+
+// ---- 文件选择（备份包/主题 zip）：显示已选文件名 ----
+(function () {
+  'use strict';
+  document.querySelectorAll('input[type="file"].file-input-sr').forEach(function (input) {
+    var nameEl = document.getElementById(input.id + '-name');
+    if (!nameEl) return;
+    input.addEventListener('change', function () {
+      nameEl.textContent = input.files && input.files[0] ? input.files[0].name : '未选择';
     });
   });
 })();

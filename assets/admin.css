@@ -45,6 +45,7 @@
   --error-color: #FCA5A5;
   --badge-published-color: #4ADE80;
   --badge-draft-color: #94A3B8;
+  --badge-page-color: #60A5FA;
   --stat-tint: rgba(34, 197, 94, 0.10);
   color-scheme: dark;
 }
@@ -91,6 +92,7 @@
   --error-color: #DC2626;
   --badge-published-color: #16A34A;
   --badge-draft-color: #64748B;
+  --badge-page-color: #2563EB;
   --stat-tint: rgba(22, 163, 74, 0.07);
   color-scheme: light;
 }
@@ -634,6 +636,90 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .search-box .search-btn:hover { color: var(--accent); background: var(--accent-soft); }
 .search-box .search-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { .search-box .search-btn { transition: none; } }
+
+/* ---- 自定义日期选择器（非原生控件）：输入框 + 日历图标按钮 + 弹层日历 ---- */
+.date-picker { position: relative; display: inline-flex; align-items: center; }
+.date-picker .date-input { min-width: 150px; padding-right: 34px; }
+.date-cal-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  border-radius: 6px;
+}
+.date-cal-btn:hover { color: var(--accent); }
+.date-cal-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.date-sep { color: var(--muted); margin: 0 2px; font-size: 14px; }
+
+/* ---- 文件选择（备份包/主题 zip）：隐藏原生 input，label 按钮触发，显示文件名 ---- */
+.file-input-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.file-pick-row { display: flex; align-items: center; gap: 10px; }
+.file-pick-row .btn { margin: 0; }
+.date-cal {
+  position: fixed;
+  z-index: 90;
+  width: 268px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.20);
+  padding: 10px;
+}
+.date-cal[hidden] { display: none; }
+.date-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.date-cal-nav {
+  border: none;
+  background: none;
+  color: var(--muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.date-cal-nav:hover { color: var(--accent); background: var(--accent-soft); }
+.date-cal-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.date-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.date-cal-wd {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+.date-cal-day {
+  border: none;
+  background: none;
+  padding: 6px 0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.date-cal-day:hover { background: var(--accent-soft); color: var(--accent); }
+.date-cal-day.today { box-shadow: inset 0 0 0 1px var(--accent); }
+.date-cal-day.selected { background: var(--accent); color: #fff; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .date-cal-day { transition: none; } }
 .inline-form { display: inline; }
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 
@@ -682,6 +768,31 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   background: var(--bg);
 }
 .moment-pick img { display: block; width: 100%; height: auto; border-radius: 7px; }
+/* 缩略图删除按钮（编辑态附件管理） */
+.moment-pick .moment-pick-del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.moment-pick .moment-pick-del:hover { background: var(--danger, #EF4444); }
+/* 编辑区按钮行 */
+.moment-edit-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.moment-edit-form { margin: 10px 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); }
+.moment-edit-textarea { width: 100%; box-sizing: border-box; }
+.moment-edit-form .moment-picks { margin: 8px 0 0; }
 .moment-admin { border-bottom: 1px solid var(--border); padding: 16px 0; }
 .moment-admin:first-child { padding-top: 0; }
 .moment-admin:last-child { border-bottom: none; padding-bottom: 0; }
@@ -773,30 +884,101 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   border-top: 1px solid var(--border);
 }
 .taxonomy-section:last-child { padding-bottom: 0; }
-.taxonomy-row { display: flex; align-items: center; gap: 8px; }
-.taxonomy-row .taxonomy-edit { flex: 1; min-width: 0; }
-.taxonomy-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* 分类/标签：纯文本流式排列（无背景无边框），hover/focus 显现操作按钮 */
+.taxonomy-grid { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.taxonomy-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+.taxonomy-name-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+  cursor: default;
+  transition: color 0.15s ease;
+}
+/* 名称旁文章数（muted 小数字，hover 卡片时随名称变 accent） */
+.tax-count {
+  margin-left: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.taxonomy-card:hover .tax-count { color: var(--accent); }
+.taxonomy-card:hover .taxonomy-name-text { color: var(--accent); }
+.taxonomy-edit { display: flex; align-items: center; gap: 2px; }
+/* display:flex 会覆盖 hidden 属性的 display:none，必须显式补回（老坑） */
+.taxonomy-edit[hidden] { display: none; }
+.taxonomy-actions[hidden] { display: none; }
+.taxonomy-name-text[hidden] { display: none; }
 .taxonomy-edit input {
-  padding: 6px 10px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
 }
-.taxonomy-edit .taxonomy-name { flex: 1 1 120px; min-width: 120px; }
-.tag-list { list-style: none; margin: 0; padding: 0; }
-.tag-item {
-  display: flex;
+.taxonomy-edit .taxonomy-name { width: 8ch; min-width: 0; }
+/* 操作按钮组：默认淡出，card hover / 内部聚焦时显现；触屏设备常显 */
+.taxonomy-actions { display: flex; align-items: center; gap: 2px; }
+.taxonomy-card .taxonomy-actions { opacity: 0; transition: opacity 0.15s ease; }
+.taxonomy-card:hover .taxonomy-actions,
+.taxonomy-card:focus-within .taxonomy-actions { opacity: 1; }
+@media (hover: none) { .taxonomy-card .taxonomy-actions { opacity: 1; } }
+/* 新建分类/标签：+ 图标按钮（无边框无背景，行为色同 icon-btn） */
+.taxonomy-add {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-.tag-item:last-child { border-bottom: none; }
-.tag-item .tag-name { font-weight: 500; }
+.taxonomy-add:hover { color: var(--accent); background: var(--accent-soft); }
+.tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 0;
+}
+.tag-item .tag-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+  cursor: default;
+  transition: color 0.15s ease;
+}
+.tag-item:hover .tax-count { color: var(--accent); }
+.tag-item:hover .tag-name { color: var(--accent); }
+.tag-item .inline-form { display: inline-flex; }
+/* 删除按钮：hover/focus 显现，触屏常显 */
+.tag-item .tag-del { opacity: 0; transition: opacity 0.15s ease; }
+.tag-item:hover .tag-del,
+.tag-item:focus-within .tag-del { opacity: 1; }
+@media (hover: none) { .tag-item .tag-del { opacity: 1; } }
+.tag-item-add { padding: 0; }
+.tag-item-add .taxonomy-add { width: 26px; height: 26px; }
+.tag-empty { color: var(--muted); font-size: 14px; padding: 2px 0; cursor: default; }
 @media (max-width: 768px) { .taxonomy-panel { padding: 16px; } }
 
 /* ---- 整体优化：全局焦点、按钮过渡、表格质感 ---- */
@@ -872,6 +1054,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .badge-published { background: var(--accent-soft); color: var(--badge-published-color); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
 .badge-draft { background: rgba(148, 163, 184, 0.10); color: var(--badge-draft-color); border: 1px solid color-mix(in srgb, var(--muted) 30%, transparent); }
+.badge-page { background: color-mix(in srgb, var(--badge-page-color) 12%, transparent); color: var(--badge-page-color); border: 1px solid color-mix(in srgb, var(--badge-page-color) 30%, transparent); }
 
 .th-sort { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .th-sort:hover { color: var(--accent); text-decoration: none; }
@@ -1130,6 +1313,35 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
+/* 类型 + 固定链接行：与 cat-tag-row 同款布局 */
+.type-slug-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.type-slug-row label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.type-field { min-width: 110px; }
+.type-field .cs-btn { min-width: 110px; }
+.slug-field { min-width: 220px; }
+.slug-field input {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-width: 220px;
+}
+.slug-field input:read-only { color: var(--muted); background: var(--bg-soft); cursor: not-allowed; }
+.slug-field .muted { margin-top: 5px; font-size: 12.5px; }
 .cat-picker { position: relative; min-width: 150px; max-width: 200px; }
 .cat-picker .cat-input {
   width: 100%;

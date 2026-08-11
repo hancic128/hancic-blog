@@ -75,6 +75,123 @@ pub fn is_valid_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// 安装主题：解压 zip 到临时目录 → 校验 theme.toml/目录名/模板可构建 →
+/// 原子替换到 `themes_dir/{name}`（同名覆盖旧版本）。返回安装后的主题元信息。
+///
+/// zip 内 theme.toml 可位于根目录或单层主题目录（如 `mytheme/theme.toml`），
+/// 解压时剥掉该顶层前缀；含非法路径（`..`/`\`/绝对路径）的条目直接拒绝。
+pub fn install(themes_dir: &Path, zip_bytes: &[u8]) -> Result<ThemeMeta, String> {
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(zip_bytes)).map_err(|e| e.to_string())?;
+
+    // 1. 定位 theme.toml 并推断顶层前缀（String 持有，避免借用 archive 内 ZipFile）
+    let mut root_prefix: Option<String> = None;
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name();
+        if !entry_name_is_safe(name) {
+            return Err("主题包内含非法路径（如 .. 或 \\）".into());
+        }
+        if name.ends_with("theme.toml") {
+            let prefix = name.trim_end_matches("theme.toml").trim_end_matches('/');
+            root_prefix = Some(prefix.to_string());
+        }
+    }
+    let Some(prefix) = root_prefix.as_deref() else {
+        return Err("主题包中未找到 theme.toml".into());
+    };
+
+    // 2. 解压到临时目录（时间戳命名避免并发冲突；用完即删）
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let tmp = themes_dir.join(format!(".install-{ts}"));
+    if tmp.exists() {
+        std::fs::remove_dir_all(&tmp).map_err(|e| e.to_string())?;
+    }
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let cleanup = |tmp: &Path| {
+        if tmp.exists() {
+            let _ = std::fs::remove_dir_all(tmp);
+        }
+    };
+    let result = (|| -> Result<ThemeMeta, String> {
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+            let name = entry.name().to_string();
+            if !entry_name_is_safe(&name) {
+                return Err("主题包内含非法路径（如 .. 或 \\）".into());
+            }
+            // 剥顶层前缀：`{prefix}/rest` → `tmp/rest`
+            let rest = match prefix.is_empty() {
+                true => name.as_str(),
+                false => name.strip_prefix(&format!("{prefix}/")).unwrap_or(&name),
+            };
+            if rest.is_empty() {
+                continue; // 顶层目录条目本身
+            }
+            let dest = tmp.join(rest);
+            if entry.is_dir() {
+                std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
+                continue;
+            }
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            let mut out = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        }
+        // 3. 确定主题名并校验
+        let name = if prefix.is_empty() {
+            parse_meta_name(&tmp)?.ok_or_else(|| "theme.toml 缺少 name 字段".to_string())?
+        } else {
+            prefix.to_string()
+        };
+        if !is_valid_name(&name) {
+            return Err("主题名不合法（仅限字母/数字/-/_）".into());
+        }
+        // 4. 原子替换：删除旧版本 → 移动临时目录 → 校验模板可构建（失败回滚删除）
+        let dest = themes_dir.join(&name);
+        if dest.exists() {
+            std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+        }
+        std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+        if let Err(e) = build_tera(themes_dir, &name) {
+            let _ = std::fs::remove_dir_all(&dest);
+            return Err(format!("主题模板无效: {e}"));
+        }
+        Ok(load_meta(themes_dir, &name)?)
+    })();
+    if result.is_err() {
+        cleanup(&tmp);
+    }
+    result
+}
+
+/// 读取临时解压目录内 theme.toml 的 `name` 字段（解压后目录名非主题名时用）。
+fn parse_meta_name(dir: &Path) -> Result<Option<String>, String> {
+    let content =
+        std::fs::read_to_string(dir.join("theme.toml")).map_err(|e| e.to_string())?;
+    #[derive(serde::Deserialize)]
+    struct MetaName {
+        name: Option<String>,
+    }
+    let meta: MetaName = toml::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(meta.name)
+}
+
+/// zip 条目名安全校验：拒绝反斜杠/NUL，且所有路径组件必须是普通组件
+/// （绝对路径、`..`、当前目录均拒绝，防 zip-slip 穿越）。
+fn entry_name_is_safe(name: &str) -> bool {
+    if name.contains('\\') || name.contains('\0') {
+        return false;
+    }
+    Path::new(name)
+        .components()
+        .all(|c| matches!(c, std::path::Component::Normal(_)))
+}
+
 /// markdown 过滤器：渲染 Markdown 为 HTML，并标记为安全（不参与自动转义）。
 fn markdown_filter(value: String, _kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
     Ok(Value::safe_string(&crate::markdown::render(&value)))

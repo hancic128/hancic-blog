@@ -54,7 +54,7 @@ test("375px 发布带图说说并前台可见", async ({ page }) => {
   await body.locator(".moment-toggle").click();
   const card = page.locator(".moment-item", { hasText: MOMENT_TEXT });
   await expect(card).toBeVisible();
-  await expect(card.locator("img[src^='/uploads/']").first()).toBeVisible({
+  await expect(card.locator(".moment-grid img").first()).toBeVisible({
     timeout: 15_000,
   });
 });

@@ -46,7 +46,10 @@
     <tbody>
       {% for p in posts %}
       <tr>
-        <td><a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
+        <td>
+          <a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a>
+          {% if p.post_type == "page" %}<span class="badge badge-page">页面</span>{% endif %}
+        </td>
         <td class="muted">{{ p.category }}</td>
         <td>{% if p.status == "published" %}<span class="badge badge-published">已发布</span>{% else %}<span class="badge badge-draft">草稿</span>{% endif %}</td>
         <td class="muted">{{ p.views }}</td>

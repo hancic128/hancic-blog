@@ -4,6 +4,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::{Category, Tag};
 use crate::services::posts::slugify;
+use std::collections::HashMap;
 
 pub async fn list_categories(db: &Db) -> Result<Vec<Category>, AppError> {
     let rows = sqlx::query_as::<_, Category>(
@@ -100,6 +101,33 @@ pub async fn list_tags(db: &Db) -> Result<Vec<Tag>, AppError> {
         .fetch_all(db)
         .await?;
     Ok(rows)
+}
+
+/// 各分类的已发布普通文章数（未发布/页面不计；未分类文章不归属任何分类）。
+pub async fn count_categories_posts(db: &Db) -> Result<HashMap<i64, i64>, AppError> {
+    let rows: Vec<(i64, i64)> = sqlx::query_as(
+        "SELECT c.id, COUNT(p.id) FROM categories c \
+         LEFT JOIN posts p ON p.category_id = c.id \
+            AND p.status = 'published' AND p.post_type = 'post' \
+         GROUP BY c.id",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(rows.into_iter().collect())
+}
+
+/// 各标签的已发布普通文章数（未发布/页面不计）。
+pub async fn count_tags_posts(db: &Db) -> Result<HashMap<i64, i64>, AppError> {
+    let rows: Vec<(i64, i64)> = sqlx::query_as(
+        "SELECT t.id, COUNT(p.id) FROM tags t \
+         LEFT JOIN post_tags pt ON pt.tag_id = t.id \
+         LEFT JOIN posts p ON p.id = pt.post_id \
+            AND p.status = 'published' AND p.post_type = 'post' \
+         GROUP BY t.id",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(rows.into_iter().collect())
 }
 
 /// 按名称（slug 统一小写）查找标签，不存在则创建。

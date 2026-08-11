@@ -80,7 +80,7 @@ pub async fn list(
             &state.db,
             posts::PostListOptions {
                 status,
-                post_type: Some(PostType::Post),
+                post_type: None, // 后台列表显示全部类型（文章 + 页面，模板区分）
                 category_slug: category_slug.clone(),
                 tag_slug: None,
                 month: None,
@@ -141,6 +141,7 @@ fn post_list_value(items: &[Post], cat_names: &HashMap<i64, String>) -> Value {
             "title": p.title,
             "slug": p.slug,
             "status": p.status.to_str(),
+            "post_type": p.post_type.to_str(),
             "views": p.views,
             "category": p
                 .category_id
@@ -161,8 +162,8 @@ async fn list_by_keyword(
     sort: Option<posts::PostSort>,
     page: i64,
 ) -> Result<(Vec<Post>, i64), AppError> {
-    let mut where_sql = String::from(" WHERE post_type = ? AND title LIKE ?");
-    let mut binds: Vec<String> = vec![PostType::Post.to_str().to_string(), format!("%{q}%")];
+    let mut where_sql = String::from(" WHERE title LIKE ?");
+    let mut binds: Vec<String> = vec![format!("%{q}%")];
     if let Some(st) = status {
         where_sql.push_str(" AND status = ?");
         binds.push(st.to_str().to_string());
@@ -261,6 +262,7 @@ fn empty_post_value() -> Value {
         "content_md": "",
         "slug": "",
         "status": PostStatus::Draft.to_str(),
+        "post_type": PostType::Post.to_str(),
         "excerpt": "",
         "tags": "",
         "category_id": 0,
@@ -335,6 +337,7 @@ fn post_edit_value(
         "content_md": p.content_md,
         "slug": p.slug,
         "status": p.status.to_str(),
+        "post_type": p.post_type.to_str(),
         "excerpt": p.excerpt,
         "tags": tags
             .iter()
@@ -355,6 +358,9 @@ fn post_edit_value(
         }
         if let Some(t) = f.get("status") {
             v["status"] = json!(t);
+        }
+        if let Some(t) = f.get("post_type") {
+            v["post_type"] = json!(t);
         }
         if let Some(t) = f.get("excerpt") {
             v["excerpt"] = json!(t);
@@ -388,10 +394,17 @@ pub async fn create(
         title,
         content_md: form.get("content_md").cloned().unwrap_or_default(),
         excerpt: optional_field(form.get("excerpt")),
-        // 固定链接不再由用户填写：默认生成 8 位短 uuid（unique_slug 兜底冲突）
-        slug: Some(short_slug()),
+        // 文章：自动生成 8 位短 uuid（unique_slug 兜底冲突）；
+        // 页面：允许自定义固定链接（如 about），留空则同样自动生成
+        slug: Some(if parse_post_type(form.get("post_type").map(String::as_str).unwrap_or(""))
+            == PostType::Page
+        {
+            optional_field(form.get("slug")).unwrap_or_else(short_slug)
+        } else {
+            short_slug()
+        }),
         status: parse_status(form.get("status").map(String::as_str).unwrap_or("")),
-        post_type: PostType::Post,
+        post_type: parse_post_type(form.get("post_type").map(String::as_str).unwrap_or("")),
         category_id: parse_id(form.get("category_id")),
         tags: parse_tags(form.get("tags")),
     };
@@ -422,9 +435,11 @@ pub async fn update(
         content_md: Some(form.get("content_md").cloned().unwrap_or_default()),
         // 编辑页已移除摘要输入：未提交（None）→ 保留原值；提交则设值/清空
         excerpt: form.get("excerpt").map(|v| optional_field(Some(v))),
-        slug: None, // 固定链接由系统管理（uuid），编辑不再改动
+        slug: None, // 固定链接由系统管理（uuid/创建时指定），编辑不再改动
         status: Some(parse_status(form.get("status").map(String::as_str).unwrap_or(""))),
-        post_type: None,
+        post_type: Some(parse_post_type(
+            form.get("post_type").map(String::as_str).unwrap_or(""),
+        )),
         // 空串 → Some(None) 显式清空分类；合法 id → Some(Some(id))；非法值忽略
         category_id: match form.get("category_id").map(String::as_str).unwrap_or("").trim() {
             "" => Some(None),
@@ -504,6 +519,15 @@ fn parse_status(s: &str) -> PostStatus {
         PostStatus::Published
     } else {
         PostStatus::Draft
+    }
+}
+
+/// 解析文章类型：`page` → 页面，其余 → 文章。
+fn parse_post_type(s: &str) -> PostType {
+    if s == "page" {
+        PostType::Page
+    } else {
+        PostType::Post
     }
 }
 

@@ -11,11 +11,14 @@
 use crate::services::settings;
 use crate::themes;
 use crate::{session, AppState};
-use axum::extract::{Form, OriginalUri, Path, Query, State};
+use axum::extract::{Form, Multipart, OriginalUri, Path, Query, State};
 use axum::response::Response;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use tower_sessions::Session;
+
+/// 主题 zip 上传大小上限（100MB，主题包通常远小于此）。
+const MAX_THEME_ZIP_BYTES: usize = 100 * 1024 * 1024;
 
 // ---------- 列表 ----------
 
@@ -117,6 +120,99 @@ pub async fn preview(
         return redirect_msg(&state.config.base_path, "主题不存在");
     }
     super::redirect(&state.config.base_path, &format!("/?theme_preview={name}"))
+}
+
+// ---------- 导入 / 卸载 ----------
+
+/// 导入主题：multipart（`csrf` + `theme` 文件字段），安装成功提示（需重启生效）。
+pub async fn import(
+    State(state): State<AppState>,
+    session: Session,
+    mut multipart: Multipart,
+) -> Response {
+    if session::require_admin(&session).await.is_err() {
+        return super::redirect(&state.config.base_path,  "/admin/login");
+    }
+    let mut csrf = None;
+    let mut zip_bytes: Option<Vec<u8>> = None;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or("").to_string();
+        if name == "csrf" {
+            csrf = field.text().await.ok();
+        } else if name == "theme" {
+            zip_bytes = field.bytes().await.ok().map(|b| b.to_vec());
+        }
+    }
+    let Some(csrf) = csrf else {
+        return redirect_msg(&state.config.base_path, "安全校验失败，请刷新页面后重试");
+    };
+    if session::verify_csrf(&session, Some(&csrf)).await.is_err() {
+        return redirect_msg(&state.config.base_path, "安全校验失败，请刷新页面后重试");
+    }
+    let Some(bytes) = zip_bytes else {
+        return redirect_msg(&state.config.base_path, "请选择主题 zip 文件");
+    };
+    if bytes.is_empty() {
+        return redirect_msg(&state.config.base_path, "主题包为空");
+    }
+    if bytes.len() > MAX_THEME_ZIP_BYTES {
+        return redirect_msg(&state.config.base_path, "主题包超过 100MB 上限");
+    }
+    let themes_dir = state.config.data_dir.join("themes");
+    match themes::install(&themes_dir, &bytes) {
+        Ok(meta) => {
+            tracing::info!("主题导入成功: {} v{}", meta.name, meta.version);
+            redirect_msg(
+                &state.config.base_path,
+                &format!("主题「{}」导入成功，重启服务后完全生效", meta.name),
+            )
+        }
+        Err(e) => redirect_msg(&state.config.base_path, &format!("导入失败: {e}")),
+    }
+}
+
+/// 卸载主题：仅允许删除非当前激活主题（默认主题 data 副本允许删除，
+/// 但当前使用中会拒绝）。
+pub async fn uninstall(
+    State(state): State<AppState>,
+    session: Session,
+    Path(name): Path<String>,
+    Form(form): Form<HashMap<String, String>>,
+) -> Response {
+    if session::require_admin(&session).await.is_err() {
+        return super::redirect(&state.config.base_path,  "/admin/login");
+    }
+    if session::verify_csrf(&session, form.get("csrf").map(String::as_str))
+        .await
+        .is_err()
+    {
+        return redirect_msg(&state.config.base_path, "安全校验失败，请刷新页面后重试");
+    }
+    let themes_dir = state.config.data_dir.join("themes");
+    if !themes::is_valid_name(&name) || themes::load_meta(&themes_dir, &name).is_err() {
+        return redirect_msg(&state.config.base_path, "主题不存在");
+    }
+    // 当前激活主题不可卸载（前台依赖其模板/静态资源）
+    let current = settings::get(&state.db, "active_theme")
+        .await
+        .ok()
+        .flatten()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| state.config.active_theme.clone());
+    if current == name {
+        return redirect_msg(&state.config.base_path, "不能卸载当前使用的主题");
+    }
+    let dir = themes_dir.join(&name);
+    match std::fs::remove_dir_all(&dir) {
+        Ok(()) => {
+            tracing::info!("主题卸载: {name}");
+            redirect_msg(&state.config.base_path, &format!("主题「{name}」已卸载"))
+        }
+        Err(e) => {
+            tracing::error!("卸载主题 {name} 失败: {e:?}");
+            redirect_msg(&state.config.base_path, "卸载失败，请重试")
+        }
+    }
 }
 
 // ---------- 工具 ----------

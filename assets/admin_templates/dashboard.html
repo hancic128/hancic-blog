@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>仪表盘</h1>
-    <p class="page-sub">站点内容概览与近 30 日阅读趋势</p>
+    <p class="page-sub">站点内容概览与阅读统计</p>
   </div>
   <a class="btn" href="{{ base_path }}/admin/posts/new">
     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -13,6 +13,29 @@
 </div>
 
 <div class="panel">
+  <section class="panel-section">
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin">
+    <div class="date-picker">
+      <input type="text" name="from" class="date-input" value="{{ from }}" placeholder="YYYY-MM-DD" aria-label="开始日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择开始日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <span class="date-sep">至</span>
+    <div class="date-picker">
+      <input type="text" name="to" class="date-input" value="{{ to }}" placeholder="YYYY-MM-DD" aria-label="结束日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择结束日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <button class="btn" type="submit">查询</button>
+    <span class="filter-sep" aria-hidden="true"></span>
+    <a class="btn btn-sm{% if days == 30 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=30">最近30天</a>
+    <a class="btn btn-sm{% if days == 60 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=60">最近60天</a>
+    <a class="btn btn-sm{% if days == 90 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=90">最近90天</a>
+  </form>
+  </section>
+
   <section class="panel-section">
 <div class="stat-grid">
   <div class="stat-card">
@@ -55,7 +78,7 @@
       </span>
       <div>
         <div class="stat-num">{{ stats.total_views }}</div>
-        <div class="stat-label">总阅读</div>
+        <div class="stat-label">区间阅读</div>
       </div>
     </div>
   </div>
@@ -63,9 +86,64 @@
   </section>
 
   <section class="panel-section">
-  <h2>近 30 日阅读趋势</h2>
-  <div class="chart-wrap"><canvas id="trend" aria-label="近 30 日阅读趋势折线图"></canvas></div>
-</div>
+  <h2>阅读趋势 <small class="muted">{{ from }} ~ {{ to }}（UTC 日期分组）</small></h2>
+  <div class="chart-wrap"><canvas id="trend" aria-label="阅读趋势折线图"></canvas></div>
+  </section>
+
+  <section class="panel-section">
+  <h2>文章排行 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
+  {% if posts %}
+  <table class="data-table">
+    <thead>
+      <tr><th>#</th><th>标题</th><th>期间阅读</th><th>总阅读</th></tr>
+    </thead>
+    <tbody>
+      {% for p in posts %}
+      <tr>
+        <td class="muted">{{ loop.index + (post_page - 1) * post_page_size }}</td>
+        <td><a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
+        <td>{{ p.period_views }}</td>
+        <td class="muted">{{ p.views }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">共 {{ post_total }} 篇文章期间有阅读</p>
+  {% else %}
+  <p class="empty">期间暂无阅读记录</p>
+  {% endif %}
+  {% if post_total_pages > 1 %}
+  <div class="pagination">
+    {% if post_page > 1 %}
+    <a class="btn btn-sm" href="?page={{ post_page - 1 }}&amp;from={{ from }}&amp;to={{ to }}">上一页</a>
+    {% endif %}
+    <span class="muted">{{ post_page }} / {{ post_total_pages }}</span>
+    {% if post_page < post_total_pages %}
+    <a class="btn btn-sm" href="?page={{ post_page + 1 }}&amp;from={{ from }}&amp;to={{ to }}">下一页</a>
+    {% endif %}
+  </div>
+  {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>地区分布 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
+  {% if regions %}
+  <table class="data-table">
+    <thead><tr><th>国家</th><th>省份</th><th>城市</th><th>阅读</th></tr></thead>
+    <tbody>
+      {% for r in regions %}
+      <tr>
+        <td>{{ r.country if r.country else "—" }}</td>
+        <td>{{ r.province if r.province else "—" }}</td>
+        <td>{{ r.city if r.city else "—" }}</td>
+        <td class="muted">{{ r.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">期间无地区数据</p>
+  {% endif %}
   </section>
 
   <section class="panel-section">
@@ -82,6 +160,15 @@
   {% else %}
   <p class="empty">暂无草稿</p>
   {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>危险操作</h2>
+  <p class="muted">清空全部阅读明细日志（page_views 表）后不可恢复，文章累计阅读数（posts.views）保留。</p>
+  <form class="inline-form" method="post" action="{{ base_path }}/admin/stats/clear" data-confirm="确定清空全部阅读日志？">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn btn-danger" type="submit">清空阅读日志</button>
+  </form>
   </section>
 </div>
 {% endblock %}

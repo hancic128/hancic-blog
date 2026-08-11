@@ -44,9 +44,9 @@ test("发布带图说说：后台上传图 → 前台可见文字与图片", asy
   await body.locator(".moment-toggle").click();
   const moment = page.locator(".moment-content").filter({ hasText: text });
   await expect(moment).toBeVisible();
-  // 同一说说卡片内的图片
+  // 同一说说卡片内的图片（展开态完整宫格；折叠态缩略图不参与断言）
   const card = page.locator(".moment-item").filter({ has: page.locator(`text=${text}`) });
-  await expect(card.locator("img[src^='/uploads/']").first()).toBeVisible({
+  await expect(card.locator(".moment-grid img").first()).toBeVisible({
     timeout: 15_000,
   });
 });

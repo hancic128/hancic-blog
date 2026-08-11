@@ -15,7 +15,7 @@ use axum::extract::{ConnectInfo, Form, OriginalUri, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
-use chrono::{DateTime, Days, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -36,8 +36,6 @@ pub mod tokens;
 
 /// 仪表盘最近草稿条数。
 const DASHBOARD_DRAFT_LIMIT: i64 = 5;
-/// 近 30 日趋势窗口（含今天）。
-const TREND_DAYS: i64 = 30;
 /// 后台时间显示时区偏移（Asia/Shanghai，UTC+8；T17 允许配置时区后再调整）。
 const TZ_OFFSET_SECS: i32 = 8 * 3600;
 
@@ -69,11 +67,11 @@ pub fn router() -> Router<AppState> {
         .route("/settings/save", post(settings::save))
         .route("/settings/password", post(settings::password))
         .route("/themes", get(themes::list))
+        .route("/themes/import", post(themes::import))
         .route("/themes/{name}/activate", post(themes::activate))
+        .route("/themes/{name}/uninstall", post(themes::uninstall))
         .route("/themes/{name}/preview", get(themes::preview))
-        .route("/stats", get(stats::index))
-        .route("/stats/posts", get(stats::ranking))
-        .route("/stats/regions", get(stats::regions))
+        .route("/stats", get(admin_index))   // 历史路由兼容：统计已合并进仪表盘
         .route("/stats/clear", post(stats::clear))
         .route("/tokens", get(tokens::list).post(tokens::create))
         .route("/tokens/{id}/created", get(tokens::created_page))
@@ -115,7 +113,6 @@ pub fn build_tera() -> Tera {
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
-        ("stats.html", include_str!("../../assets/admin_templates/stats.html")),
         ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
         ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
         ("backup.html", include_str!("../../assets/admin_templates/backup.html")),
@@ -178,21 +175,19 @@ struct NavItem {
     active: bool,
 }
 
-/// 侧边栏 11 个模块；active 按当前请求路径匹配。
+/// 侧边栏 9 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
     // (url, label, group)：内容管理 / 系统
-    let items: [(&str, &str, &str); 11] = [
+    let items: [(&str, &str, &str); 9] = [
         ("/admin", "仪表盘", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
         ("/admin/attachments", "附件库", "content"),
         ("/admin/taxonomy", "分类标签", "content"),
         ("/admin/settings", "站点设置", "system"),
-        ("/admin/themes", "主题", "system"),
-        ("/admin/stats", "统计", "system"),
+        ("/admin/themes", "主题管理", "system"),
         ("/admin/tokens", "API Token", "system"),
-        ("/admin/backup", "备份", "system"),
-        ("/admin/migrate", "迁移导入", "system"),
+        ("/admin/backup", "备份恢复", "system"),
     ];
     items
         .iter()
@@ -340,30 +335,40 @@ async fn post_setup(
 async fn admin_index(
     State(state): State<AppState>,
     session: Session,
+    Query(query): Query<HashMap<String, String>>,
     uri: OriginalUri,
 ) -> Response {
     if session::require_admin(&session).await.is_err() {
         return redirect(&state.config.base_path, "/admin/login");
     }
+    // 统计区间解析失败（非法日期等）回落到默认近 30 天，不阻塞仪表盘
+    let (from, to) = stats::parse_range(&query).unwrap_or((None, None));
     let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
-    if let Err(e) = fill_dashboard(&state, &mut ctx).await {
+    if let Err(e) = fill_dashboard(&state, &mut ctx, &from, &to, &query).await {
         tracing::error!("仪表盘数据查询失败: {e:?}");
     }
     render_admin(&state, "dashboard.html", &ctx)
 }
 
-/// 仪表盘上下文：四类总数 + 近 30 日趋势 + 最近草稿。
-async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppError> {
-    let summary = stats_service::summary(&state.db, None, None).await?;
-    let days = trend_dates();
-    let trend = stats_service::summary(
-        &state.db,
-        Some(days.first().map(String::as_str).unwrap_or_default()),
-        Some(days.last().map(String::as_str).unwrap_or_default()),
-    )
-    .await?;
-    // 无阅读的日期补 0，保证折线图横轴完整覆盖近 30 天。
-    let counts: HashMap<&str, i64> = trend
+/// 仪表盘上下文：统计（卡片 + 区间趋势 + 文章排行 + 地区明细）+ 最近草稿。
+/// `from`/`to` 为有效区间（缺省近 30 天），`query` 提供排行分页与快捷天数回显。
+async fn fill_dashboard(
+    state: &AppState,
+    ctx: &mut Context,
+    from: &Option<String>,
+    to: &Option<String>,
+    query: &HashMap<String, String>,
+) -> Result<(), AppError> {
+    // 有效区间（缺省一侧补近 30 天）：表单回填 + 趋势横轴都用它
+    let (from_str, to_str) = stats::effective_range(from, to);
+    ctx.insert("from", &from_str);
+    ctx.insert("to", &to_str);
+    ctx.insert("days", &stats::query_days(query));
+
+    // 卡片（total_views 随区间过滤，文章/说说/附件为全量）+ 趋势（区间内无阅读补 0）
+    let summary = stats_service::summary(&state.db, from.as_deref(), to.as_deref()).await?;
+    let days = stats::date_range(&from_str, &to_str);
+    let counts: HashMap<&str, i64> = summary
         .trend
         .iter()
         .map(|d| (d.date.as_str(), d.count))
@@ -372,6 +377,43 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
         .iter()
         .map(|d| counts.get(d.as_str()).copied().unwrap_or(0))
         .collect();
+
+    // 文章排行：服务层一次拉取（上限内），内存分页
+    let top = stats_service::top_posts(&state.db, from.as_deref(), to.as_deref(), stats::TOP_POSTS_CAP)
+        .await?;
+    let total = top.len();
+    let total_pages = total.div_ceil(stats::POSTS_PAGE_SIZE).max(1);
+    let page = query
+        .get("page")
+        .and_then(|p| p.parse::<usize>().ok())
+        .filter(|&p| p > 0)
+        .unwrap_or(1)
+        .min(total_pages);
+    let slice = top
+        .iter()
+        .skip((page - 1) * stats::POSTS_PAGE_SIZE)
+        .take(stats::POSTS_PAGE_SIZE);
+    ctx.insert(
+        "posts",
+        &slice
+            .map(|(p, period)| {
+                json!({
+                    "id": p.id,
+                    "title": p.title,
+                    "views": p.views,
+                    "period_views": period,
+                })
+            })
+            .collect::<Vec<_>>(),
+    );
+    ctx.insert("post_total", &total);
+    ctx.insert("post_page", &page);
+    ctx.insert("post_total_pages", &total_pages);
+    ctx.insert("post_page_size", &stats::POSTS_PAGE_SIZE);
+
+    // 地区：按 (国家, 省份, 城市) 明细分组，阅读降序
+    let regions = stats_service::by_region(&state.db, from.as_deref(), to.as_deref()).await?;
+    ctx.insert("regions", &stats::region_view(&regions));
 
     let (drafts, _total) = posts_service::list_posts(
         &state.db,
@@ -417,21 +459,6 @@ async fn fill_dashboard(state: &AppState, ctx: &mut Context) -> Result<(), AppEr
     Ok(())
 }
 
-/// 近 30 天日期序列（含今天，升序，UTC 日期）。
-pub(crate) fn trend_dates() -> Vec<String> {
-    let today = Utc::now().date_naive();
-    (0..TREND_DAYS)
-        .rev()
-        .map(|i| {
-            today
-                .checked_sub_days(Days::new(i as u64))
-                .expect("30 天内日期不会下溢")
-                .format("%Y-%m-%d")
-                .to_string()
-        })
-        .collect()
-}
-
 /// 后台时间展示：UTC → Asia/Shanghai（UTC+8）格式化 `YYYY-MM-DD HH:MM`。
 pub(crate) fn format_local(dt: DateTime<Utc>) -> String {
     let tz = FixedOffset::east_opt(TZ_OFFSET_SECS).expect("UTC+8 偏移量合法");
@@ -456,8 +483,8 @@ mod tests {
         assert_eq!(nav("/admin/"), vec!["仪表盘"]);
         assert_eq!(nav("/admin/login"), Vec::<&str>::new());
         // 其余按前缀匹配
-        assert_eq!(nav("/admin/stats"), vec!["统计"]);
         assert_eq!(nav("/admin/settings"), vec!["站点设置"]);
+        assert_eq!(nav("/admin/stats"), Vec::<&str>::new()); // 统计已合并进仪表盘，无独立菜单
         // 前导相似路径不误伤
         assert_eq!(nav("/admin/setup"), Vec::<&str>::new());
         // 根路径无菜单项

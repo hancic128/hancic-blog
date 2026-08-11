@@ -31,9 +31,11 @@ pub async fn list(
     }
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
     let tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
+    let cat_counts = taxonomy::count_categories_posts(&state.db).await.unwrap_or_default();
+    let tag_counts = taxonomy::count_tags_posts(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
-    ctx.insert("categories", &categories_value(&categories));
-    ctx.insert("tags", &tags_value(&tags));
+    ctx.insert("categories", &categories_value(&categories, &cat_counts));
+    ctx.insert("tags", &tags_value(&tags, &tag_counts));
     // POST 失败回显的错误提示（`?msg=`，见 `fail`）
     ctx.insert(
         "error_msg",
@@ -54,6 +56,9 @@ pub async fn create_category(
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
         return Ok(fail(&state.config.base_path, "分类名称不能为空"));
+    }
+    if name.trim().chars().count() > 5 {
+        return Ok(fail(&state.config.base_path, "分类名称最多 5 个字"));
     }
     let slug = parse_slug(form.get("slug"), &name).await;
     let sort_order = parse_sort_order(form.get("sort_order"));
@@ -81,6 +86,9 @@ pub async fn update_category(
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
         return Ok(fail(&state.config.base_path, "分类名称不能为空"));
+    }
+    if name.trim().chars().count() > 5 {
+        return Ok(fail(&state.config.base_path, "分类名称最多 5 个字"));
     }
     // 表单不再提供 slug/sort_order（UI 只留名称）：保留库中原值，
     // 避免改名导致前台分类页链接失效。
@@ -138,6 +146,9 @@ pub async fn create_tag(
     let name = form.get("name").cloned().unwrap_or_default();
     if name.trim().is_empty() {
         return Ok(fail(&state.config.base_path, "标签名称不能为空"));
+    }
+    if name.trim().chars().count() > 5 {
+        return Ok(fail(&state.config.base_path, "标签名称最多 5 个字"));
     }
     // ensure_tag 内部按 slug 去重：同名标签复用已有记录，不会冲突
     match taxonomy::ensure_tag(&state.db, &name).await {
@@ -201,7 +212,7 @@ fn urlencode(s: &str) -> String {
     out
 }
 
-fn categories_value(cats: &[Category]) -> Value {
+fn categories_value(cats: &[Category], counts: &HashMap<i64, i64>) -> Value {
     json!(cats
         .iter()
         .map(|c| json!({
@@ -209,13 +220,14 @@ fn categories_value(cats: &[Category]) -> Value {
             "slug": c.slug,
             "name": c.name,
             "sort_order": c.sort_order,
+            "count": counts.get(&c.id).copied().unwrap_or(0),
         }))
         .collect::<Vec<_>>())
 }
 
-fn tags_value(tags: &[Tag]) -> Value {
+fn tags_value(tags: &[Tag], counts: &HashMap<i64, i64>) -> Value {
     json!(tags
         .iter()
-        .map(|t| json!({ "id": t.id, "slug": t.slug, "name": t.name }))
+        .map(|t| json!({ "id": t.id, "slug": t.slug, "name": t.name, "count": counts.get(&t.id).copied().unwrap_or(0) }))
         .collect::<Vec<_>>())
 }

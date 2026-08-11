@@ -25,24 +25,12 @@
     </section>
     {% endif %}
 
-    {# 2. 最近说说（时间线，每条可折叠） #}
+    {# 2. 最近说说（时间线，每条可折叠，含缩略图） #}
     {% if moments %}
     <section class="activity-section" id="moments">
       <h3 class="section-title">最近说说</h3>
       <div class="moment-timeline">
-        {% for m in moments %}
-        <article class="moment-item">
-          <span class="moment-dot"></span>
-          <div class="moment-body">
-            <button class="moment-toggle" type="button" aria-expanded="false">
-              <span class="moment-time">{{ m.created_at }}</span>
-              <span class="moment-preview">{{ m.content | truncate(length=40) }}</span>
-              <span class="moment-arrow">▸</span>
-            </button>
-            <div class="moment-full">{{ m.content | markdown_breaks | safe }}</div>
-          </div>
-        </article>
-        {% endfor %}
+        {% include "partials/moment_item.html" %}
       </div>
       <p class="more-link"><a href="{{ base_path }}/moments">更多说说 →</a></p>
     </section>

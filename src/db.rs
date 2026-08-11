@@ -33,6 +33,15 @@ async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
         ("active_theme", "default"),
         ("theme_mode", "auto"),        // auto | light | dark
         ("timezone", "Asia/Shanghai"),
+        // 页脚/友情链接/悬浮联系方式卡片（空默认，后台设置页填）
+        ("footer_text", ""),
+        ("friend_links", r#"[]"#),
+        ("contact_enabled", "0"),
+        ("contact_email", ""),
+        ("contact_qr", r#"{}"#),
+        // 站点 Logo / 社交图标（空默认，后台设置页填）
+        ("site_logo", ""),
+        ("social_logos", r#"{}"#),
     ];
     for (k, v) in defaults {
         sqlx::query("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)")

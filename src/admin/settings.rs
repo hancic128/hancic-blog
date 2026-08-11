@@ -18,13 +18,21 @@ use std::str::FromStr;
 use tower_sessions::Session;
 
 /// 设置表单字段（settings 表键名，与前台 `site_context` 读取一致）。
-const FORM_KEYS: [&str; 6] = [
+/// 站点信息 + 页脚/友情链接 + 悬浮联系方式卡片。
+const FORM_KEYS: [&str; 13] = [
     "site_name",
     "site_desc",
     "site_nav",
     "site_social",
+    "social_logos",
+    "site_logo",
     "theme_mode",
     "timezone",
+    "footer_text",
+    "friend_links",
+    "contact_enabled",
+    "contact_email",
+    "contact_qr",
 ];
 
 /// 允许的主题模式。
@@ -179,7 +187,14 @@ async fn render(
             .iter()
             .map(|k| (k.to_string(), form.get(*k).cloned().unwrap_or_default()))
             .collect(),
-        None => settings::get_many(&state.db, &FORM_KEYS).await.unwrap_or_default(),
+        None => {
+            // get_many 只返回数据库存在的键；缺失键补空值，避免模板访问未定义字段
+            let mut v = settings::get_many(&state.db, &FORM_KEYS).await.unwrap_or_default();
+            for k in FORM_KEYS {
+                v.entry(k.to_string()).or_default();
+            }
+            v
+        }
     };
     ctx.insert("form", &values);
     ctx.insert("settings_error", settings_error);
@@ -209,6 +224,29 @@ fn validate(form: &HashMap<String, String>) -> Vec<String> {
     let timezone = form.get("timezone").map(String::as_str).unwrap_or("");
     if chrono_tz::Tz::from_str(timezone.trim()).is_err() {
         errors.push("时区不合法".into());
+    }
+    // 空串跳过：未填写的可选字段（友情链接/二维码）不校验
+    let friend_links = form.get("friend_links").map(String::as_str).unwrap_or("");
+    if !friend_links.trim().is_empty() {
+        if let Some(msg) = validate_nav(friend_links) {
+            errors.push(format!("友情链接：{msg}"));
+        }
+    }
+    let contact_enabled = form.get("contact_enabled").map(String::as_str).unwrap_or("");
+    if !contact_enabled.is_empty() && contact_enabled != "1" && contact_enabled != "0" {
+        errors.push("联系方式开关不合法".into());
+    }
+    let contact_qr = form.get("contact_qr").map(String::as_str).unwrap_or("");
+    if !contact_qr.trim().is_empty() {
+        if let Some(msg) = validate_social(contact_qr) {
+            errors.push(format!("二维码：{msg}"));
+        }
+    }
+    let social_logos = form.get("social_logos").map(String::as_str).unwrap_or("");
+    if !social_logos.trim().is_empty() {
+        if let Some(msg) = validate_social(social_logos) {
+            errors.push(format!("社交图标：{msg}"));
+        }
     }
     errors
 }

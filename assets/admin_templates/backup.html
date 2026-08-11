@@ -46,7 +46,11 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="backup-file">备份包（zip，≤ 500MB）</label>
-      <input id="backup-file" type="file" name="backup" accept=".zip,application/zip" required>
+      <input id="backup-file" type="file" name="backup" accept=".zip,application/zip" required class="file-input-sr">
+      <div class="file-pick-row">
+        <label class="btn" for="backup-file">选择 zip 文件</label>
+        <span class="muted" id="backup-file-name">未选择</span>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-danger" type="submit"

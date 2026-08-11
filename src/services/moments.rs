@@ -235,3 +235,40 @@ pub async fn update_content(db: &Db, id: i64, content: &str) -> Result<bool, App
         .await?;
     Ok(r.rows_affected() > 0)
 }
+
+/// 更新说说内容并**整体重建附件关联**：删除该说说原有关联，按 `attachment_ids`
+/// 顺序重新插入（编辑页提交完整保留列表：移除项=删除，新增项=新增，替换=删旧加新）。
+/// 返回 false 表示说说不存在。
+pub async fn update_moment_with_attachments(
+    db: &Db,
+    id: i64,
+    content: &str,
+    attachment_ids: &[i64],
+) -> Result<bool, AppError> {
+    let mut tx = db.begin().await?;
+    let r = sqlx::query("UPDATE moments SET content = ? WHERE id = ?")
+        .bind(content)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    if r.rows_affected() == 0 {
+        return Ok(false);
+    }
+    sqlx::query("DELETE FROM moment_attachments WHERE moment_id = ?")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    for (i, aid) in attachment_ids.iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO moment_attachments(moment_id, attachment_id, sort_order) \
+             VALUES (?, ?, ?)",
+        )
+        .bind(id)
+        .bind(aid)
+        .bind(i as i64)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(true)
+}

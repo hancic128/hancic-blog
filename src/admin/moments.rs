@@ -53,6 +53,7 @@ pub async fn list(
     };
     let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
     ctx.insert("moments", &moment_list_value(&state, &items).await);
+    ctx.insert("flash_msg", &query.get("msg").map(String::as_str).unwrap_or(""));
     ctx.insert("total", &total);
     ctx.insert("page", &page);
     ctx.insert("total_pages", &((total + PAGE_SIZE - 1) / PAGE_SIZE).max(1));
@@ -79,14 +80,17 @@ async fn moment_list_value(state: &AppState, items: &[Moment]) -> Value {
         let atts = moments::list_moment_attachments(&state.db, m.id)
             .await
             .unwrap_or_default();
+        let attachments: Vec<Value> = atts
+            .iter()
+            .map(|(a, _)| attachment_value(&state.config.base_path, a))
+            .collect();
         out.push(json!({
             "id": m.id,
             "content": m.content,
             "created_at": super::format_local(m.created_at),
-            "attachments": atts
-                .iter()
-                .map(|(a, _)| attachment_value(&state.config.base_path, a))
-                .collect::<Vec<_>>(),
+            "attachments": attachments,
+            // 编辑表单 JS 用：序列化字符串注入 data-attachments 属性（tera autoescape 保证安全）
+            "attachments_json": serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into()),
         }));
     }
     json!(out)
@@ -94,10 +98,25 @@ async fn moment_list_value(state: &AppState, items: &[Moment]) -> Value {
 
 fn attachment_value(base: &str, a: &Attachment) -> Value {
     json!({
+        "id": a.id,
         "kind": a.kind.to_str(),
         "orig_name": a.orig_name,
         "url": format!("{base}/uploads/{}", a.path),
     })
+}
+
+/// 简单百分号编码（保留 ASCII 字母数字与 `-_.~`），用于 redirect 查询串携带中文提示。
+fn encode_query(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
 }
 
 // ---------- 发布 ----------
@@ -118,6 +137,13 @@ pub async fn create(
         .split(',')
         .filter_map(|s| s.trim().parse::<i64>().ok())
         .collect::<Vec<_>>();
+    // 非空校验：说说至少要包含文字/图片/视频之一
+    if content.trim().is_empty() && attachment_ids.is_empty() {
+        return Ok(super::redirect(
+            &state.config.base_path,
+            &format!("/admin/moments?msg={}", encode_query("说说至少要包含文字或图片/视频")),
+        ));
+    }
     match moments::create_moment(&state.db, &content, &attachment_ids).await {
         Ok(_) => Ok(super::redirect(&state.config.base_path, "/admin/moments")),
         Err(e) => {
@@ -138,7 +164,22 @@ pub async fn update(
     session::require_admin(&session).await?;
     session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
     let content = form.get("content").cloned().unwrap_or_default();
-    match moments::update_content(&state.db, id, &content).await {
+    // attachment_ids 逗号分隔（编辑页提交完整保留列表：移除=删除，新增=新增）
+    let attachment_ids = form
+        .get("attachment_ids")
+        .map(String::as_str)
+        .unwrap_or("")
+        .split(',')
+        .filter_map(|s| s.trim().parse::<i64>().ok())
+        .collect::<Vec<_>>();
+    // 编辑后不能为空：文字为空且无附件则拒绝（附件列表随本次提交整体重建）
+    if content.trim().is_empty() && attachment_ids.is_empty() {
+        return Ok(super::redirect(
+            &state.config.base_path,
+            &format!("/admin/moments?msg={}", encode_query("说说至少要包含文字或图片/视频")),
+        ));
+    }
+    match moments::update_moment_with_attachments(&state.db, id, &content, &attachment_ids).await {
         Ok(true) => Ok(super::redirect(&state.config.base_path, "/admin/moments")),
         Ok(false) => {
             tracing::warn!("编辑说说失败: 说说不存在 id={id}");

@@ -3,6 +3,8 @@
 {% block content %}
 <h1>说说管理</h1>
 
+{% if flash_msg %}<p class="error">{{ flash_msg }}</p>{% endif %}
+
 <div class="panel">
   <form id="moment-form" method="post" action="{{ base_path }}/admin/moments">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -63,7 +65,7 @@
       <div class="moment-admin-meta">
         <time class="muted">{{ m.created_at }}</time>
         <span class="col-ops">
-          <button class="icon-btn moment-edit-btn" type="button" data-id="{{ m.id }}" title="编辑" aria-label="编辑">
+          <button class="icon-btn moment-edit-btn" type="button" data-id="{{ m.id }}" data-attachments="{{ m.attachments_json }}" title="编辑" aria-label="编辑">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
           <form class="inline-form" method="post" action="{{ base_path }}/admin/moments/{{ m.id }}/delete" data-confirm="确认删除这条说说？">
@@ -172,10 +174,55 @@
   form.addEventListener('submit', syncHidden);
 })();
 
-// 说说编辑：点击编辑按钮在行内展开 textarea + 保存/取消，提交 POST {id}/update
+// 说说编辑：点击编辑按钮在行内展开编辑区（textarea + 附件管理 + 保存/取消）。
+// 附件支持新增（上传追加）、删除（缩略图 × 移除）、替换（删旧 + 传新）；
+// 提交 attachment_ids = 完整保留列表，后端整体重建关联。
 (function () {
   'use strict';
   var MOMENT_BASE = "{{ base_path }}";
+
+  // 渲染单个附件缩略（图片缩略 / 视频徽章 / 文件徽章），带删除按钮
+  function buildPick(att, onRemove) {
+    var el = document.createElement('span');
+    el.className = 'moment-pick';
+    el.dataset.id = att.id;
+    el.title = att.orig_name || '';
+    if (att.kind === 'image') {
+      var img = document.createElement('img');
+      img.src = att.url;
+      img.alt = att.orig_name || '';
+      el.appendChild(img);
+    } else if (att.kind === 'video') {
+      el.textContent = '视频';
+    } else {
+      el.textContent = att.orig_name || '文件';
+    }
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'moment-pick-del';
+    del.setAttribute('aria-label', '删除此附件');
+    del.textContent = '×';
+    del.addEventListener('click', function () {
+      el.remove();
+      if (onRemove) onRemove(att.id);
+    });
+    el.appendChild(del);
+    return el;
+  }
+
+  // 上传文件 → /api/uploads → 逐个回调
+  function uploadFiles(files, onAtt, onError) {
+    var data = new FormData();
+    Array.prototype.forEach.call(files, function (f) { data.append('files', f); });
+    window.hancicFetch('/api/uploads', { method: 'POST', body: data })
+      .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('上传失败（HTTP ' + res.status + '）')); })
+      .then(function (json) {
+        if (!json.data) return;
+        json.data.forEach(function (att) { onAtt(att); });
+      })
+      .catch(function (err) { onError(err); });
+  }
+
   document.querySelectorAll('.moment-edit-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var card = btn.closest('.moment-admin');
@@ -196,6 +243,48 @@
       ta.value = text;
       ta.maxLength = 2000;
       ta.rows = 3;
+
+      // 附件编辑区：现有附件缩略 + 删除，添加上传
+      var picks = document.createElement('div');
+      picks.className = 'moment-picks';
+      var ids = [];
+      var attachments = [];
+      try { attachments = JSON.parse(btn.dataset.attachments || '[]'); } catch (e) { attachments = []; }
+      attachments.forEach(function (att) {
+        ids.push(att.id);
+        picks.appendChild(buildPick(att, function (id) {
+          ids = ids.filter(function (x) { return x !== id; });
+          syncHidden();
+        }));
+      });
+
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*,video/mp4,video/webm,video/quicktime';
+      fileInput.multiple = true;
+      fileInput.hidden = true;
+      var uploadBtn = document.createElement('button');
+      uploadBtn.type = 'button';
+      uploadBtn.className = 'btn btn-sm';
+      uploadBtn.textContent = '添加图片/视频';
+      uploadBtn.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        if (!fileInput.files || !fileInput.files.length) return;
+        uploadFiles(fileInput.files, function (att) {
+          ids.push(att.id);
+          picks.appendChild(buildPick(att, function (id) {
+            ids = ids.filter(function (x) { return x !== id; });
+            syncHidden();
+          }));
+          syncHidden();
+        }, function (err) {
+          window.hancicToast(err && err.message ? err.message : '上传失败，请重试', 'error');
+        });
+        fileInput.value = '';
+      });
+
+      var actions = document.createElement('div');
+      actions.className = 'moment-edit-actions';
       var save = document.createElement('button');
       save.type = 'submit';
       save.className = 'btn btn-primary btn-sm';
@@ -205,10 +294,22 @@
       cancel.className = 'btn btn-sm';
       cancel.textContent = '取消';
       cancel.addEventListener('click', function () { form.remove(); });
+      actions.appendChild(uploadBtn);
+      actions.appendChild(fileInput);
+      actions.appendChild(save);
+      actions.appendChild(cancel);
+
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'attachment_ids';
+      function syncHidden() { hidden.value = ids.join(','); }
+      syncHidden();
+
       form.appendChild(csrf);
       form.appendChild(ta);
-      form.appendChild(save);
-      form.appendChild(cancel);
+      form.appendChild(picks);
+      form.appendChild(actions);
+      form.appendChild(hidden);
       // 保存前确认（异步；确认后带标记重提交，避免二次询问）
       form.addEventListener('submit', function (e) {
         if (form.dataset.confirmed) return;

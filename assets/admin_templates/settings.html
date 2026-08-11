@@ -20,6 +20,23 @@
       <input id="site-desc" name="site_desc" value="{{ form.site_desc }}">
     </div>
     <div class="field">
+      <label for="site-logo">站点 Logo</label>
+      <input id="site-logo" name="site_logo" value="{{ form.site_logo }}" placeholder="/uploads/logo.png">
+      <p class="muted">前台导航栏以圆形展示；图片请先上传到附件库后粘贴链接</p>
+    </div>
+    <div class="field">
+      <label for="footer-text">页脚文本</label>
+      <input id="footer-text" name="footer_text" value="{{ form.footer_text }}" placeholder="如 ICP 备案号 / 版权信息">
+      <p class="muted">显示在页脚版权行右侧，常用于备案号</p>
+    </div>
+    <div class="field">
+      <label for="friend-links">友情链接</label>
+      <div class="kv-editor" id="friend-editor" data-target="friend_links" data-format="nav"></div>
+      <button type="button" class="kv-add" data-add="friend">+ 添加友情链接</button>
+      <input type="hidden" id="friend_links" name="friend_links" value="{{ form.friend_links }}">
+      <p class="muted">每项为「名称 + 链接」，显示在页脚</p>
+    </div>
+    <div class="field">
       <label for="site-nav">导航菜单</label>
       <div class="kv-editor" id="nav-editor" data-target="site_nav" data-format="nav"></div>
       <button type="button" class="kv-add" data-add="nav">+ 添加导航项</button>
@@ -32,6 +49,13 @@
       <button type="button" class="kv-add" data-add="social">+ 添加社交链接</button>
       <input type="hidden" id="site_social" name="site_social" value="{{ form.site_social }}">
       <p class="muted">每项为「平台名 + 链接」，如 github → https://github.com/xxx</p>
+    </div>
+    <div class="field">
+      <label for="social-logos">社交图标</label>
+      <div class="kv-editor" id="social-logos-editor" data-target="social_logos" data-format="social"></div>
+      <button type="button" class="kv-add" data-add="social-logos">+ 添加图标</button>
+      <input type="hidden" id="social_logos" name="social_logos" value="{{ form.social_logos }}">
+      <p class="muted">每项为「平台名 + 图片链接」（与社交链接的平台名一致），前台圆形展示</p>
     </div>
     <div class="field">
       <label for="theme-mode">主题模式</label>
@@ -48,6 +72,38 @@
       <label for="timezone">时区</label>
       <input id="timezone" name="timezone" value="{{ form.timezone }}" placeholder="Asia/Shanghai">
       <p class="muted">IANA 时区名，如 Asia/Shanghai、Asia/Tokyo、UTC</p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存设置</button>
+    </div>
+  </form>
+</section>
+
+  <section class="panel-section">
+  <h2>联系方式卡片</h2>
+  <p class="muted">前台右下角悬浮联系方式卡片：社交链接 + 邮箱 + 二维码，可整体开关</p>
+  <form method="post" action="{{ base_path }}/admin/settings/save">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="contact-enabled">悬浮卡片</label>
+      <div class="cs" data-select="#contact-enabled">
+      <button class="cs-btn" type="button" aria-label="悬浮卡片开关" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="contact-enabled" name="contact_enabled" class="cs-hidden">
+        <option value="1"{% if form.contact_enabled == "1" %} selected{% endif %}>启用</option>
+        <option value="0"{% if form.contact_enabled != "1" %} selected{% endif %}>禁用</option>
+      </select>
+    </div>
+    </div>
+    <div class="field">
+      <label for="contact-email">联系邮箱</label>
+      <input id="contact-email" name="contact_email" type="email" value="{{ form.contact_email }}" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label for="contact-qr">二维码</label>
+      <div class="kv-editor" id="qr-editor" data-target="contact_qr" data-format="social"></div>
+      <button type="button" class="kv-add" data-add="qr">+ 添加二维码</button>
+      <input type="hidden" id="contact_qr" name="contact_qr" value="{{ form.contact_qr }}">
+      <p class="muted">每项为「平台名 + 图片链接」，如 微信 → /uploads/xxx.png（二维码图片请先上传到附件库）</p>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
