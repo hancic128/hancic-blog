@@ -1,6 +1,6 @@
 //! T13：后台文章管理集成测试。
 //!
-//! 覆盖：创建草稿 → 发布 → 编辑页含正文与 Vditor 资源 → 删除；
+//! 覆盖：创建草稿 → 发布 → 编辑页含正文与 milkdown 资源 → 删除；
 //! 自动保存（X-CSRF-Token 头）更新草稿正文且不改状态。
 
 mod common;
@@ -21,7 +21,7 @@ async fn find_by_title(pool: &db::Db, title: &str) -> Option<hancic::models::Pos
 }
 
 /// 创建草稿（POST /admin/posts）→ 发布（POST /update）→ 编辑页含正文与
-/// Vditor 资源（GET /edit）→ 删除（POST /delete）后按 slug 查无此文章。
+/// milkdown 资源（GET /edit）→ 删除（POST /delete）后按 slug 查无此文章。
 #[tokio::test]
 async fn create_publish_edit_delete_flow() {
     let cfg = test_config("admin-posts");
@@ -85,7 +85,7 @@ async fn create_publish_edit_delete_flow() {
     let p = find_by_title(&pool, "管理端文章").await.unwrap();
     assert_eq!(p.status, PostStatus::Published, "更新后应为已发布");
 
-    // 编辑页：含标题、正文、Vditor 资源与 _post
+    // 编辑页：含标题、正文、milkdown 资源与 _post
     let res = client
         .get(format!("{base}/admin/posts/{}/edit", p.id))
         .send()
@@ -95,7 +95,7 @@ async fn create_publish_edit_delete_flow() {
     let html = res.text().await.unwrap();
     assert!(html.contains("管理端文章"), "编辑页应含标题");
     assert!(html.contains("# 正文"), "编辑页应含正文");
-    assert!(html.contains("vditor.min.js"), "编辑页应引 Vditor");
+    assert!(html.contains("milkdown.min.js"), "编辑页应引 milkdown 编辑器");
     assert!(html.contains("window._post"), "编辑页应输出 _post");
 
     // 删除 → 按 slug 查无
