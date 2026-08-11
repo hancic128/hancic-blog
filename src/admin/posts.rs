@@ -421,10 +421,7 @@ pub async fn update(
         title: optional_field(form.get("title")),
         content_md: Some(form.get("content_md").cloned().unwrap_or_default()),
         // 编辑页已移除摘要输入：未提交（None）→ 保留原值；提交则设值/清空
-        excerpt: match form.get("excerpt") {
-            Some(v) => Some(optional_field(Some(v))),
-            None => None,
-        },
+        excerpt: form.get("excerpt").map(|v| optional_field(Some(v))),
         slug: None, // 固定链接由系统管理（uuid），编辑不再改动
         status: Some(parse_status(form.get("status").map(String::as_str).unwrap_or(""))),
         post_type: None,
