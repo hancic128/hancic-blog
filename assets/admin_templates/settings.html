@@ -3,7 +3,8 @@
 {% block content %}
 <h1>站点设置</h1>
 
-<section class="panel">
+<div class="panel">
+  <section class="panel-section">
   <h2>站点信息</h2>
   {% if settings_error %}
   <p class="error">{{ settings_error }}</p>
@@ -54,7 +55,7 @@
   </form>
 </section>
 
-<section class="panel">
+  <section class="panel-section">
   <h2>修改密码</h2>
   {% if password_error %}
   <p class="error">{{ password_error }}</p>
@@ -78,4 +79,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}

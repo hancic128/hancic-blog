@@ -37,9 +37,9 @@
             <button class="moment-toggle" type="button" aria-expanded="false">
               <span class="moment-time">{{ m.created_at }}</span>
               <span class="moment-preview">{{ m.content | truncate(length=40) }}</span>
-              <span class="moment-arrow">▾</span>
+              <span class="moment-arrow">▸</span>
             </button>
-            <p class="moment-full">{{ m.content | markdown_breaks | safe }}</p>
+            <div class="moment-full">{{ m.content | markdown_breaks | safe }}</div>
           </div>
         </article>
         {% endfor %}

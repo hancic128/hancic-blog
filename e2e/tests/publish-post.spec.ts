@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin, acceptConfirmDialog } from "../helpers";
+import { loginAsAdmin, acceptConfirmDialog, clearEditor } from "../helpers";
 
 /**
  * 文章发布全流程（桌面视口）：
@@ -16,8 +16,10 @@ test("发布文章：新建→草稿→发布→前台可见正文", async ({ pa
   await page.goto("/admin/posts/new");
   await page.locator("#post-title").fill(title);
   // 等 Vditor 挂载完成（CDN 加载后）
-  await page.locator(".vditor").waitFor({ state: "visible" });
-  await page.locator(".vditor-ir").click();
+  await page.locator("#editor .ProseMirror").waitFor({ state: "visible" });
+  await page.locator("#editor .ProseMirror").click();
+  // 清空新建页预填的 Markdown 语法模板
+  await clearEditor(page);
   await page.keyboard.type(body);
 
   // 存草稿：自定义确认对话框 → POST /admin/posts → 302 /admin/posts/{id}/edit
@@ -30,7 +32,7 @@ test("发布文章：新建→草稿→发布→前台可见正文", async ({ pa
   await page.waitForURL("**/admin/posts/*/edit");
 
   // 编辑页（Vditor 已回填草稿正文）→ 发布；slug 从 window._post 读取
-  await page.locator(".vditor-ir").waitFor({ state: "visible" });
+  await page.locator("#editor .ProseMirror").waitFor({ state: "visible" });
   const slug = await page.evaluate(() => (window as any)._post.slug);
   const updateRes = page.waitForResponse(
     (r) => r.request().method() === "POST" && /\/admin\/posts\/\d+\/update$/.test(r.request().url()),

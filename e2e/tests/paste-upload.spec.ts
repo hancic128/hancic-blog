@@ -16,7 +16,7 @@ async function attachmentCount(page: Page): Promise<number> {
 /**
  * 粘贴上传（桌面视口）：
  * 编辑页 → 构造 ClipboardEvent（clipboardData 含 PNG File）dispatch 到
- * Vditor IR 编辑器 → 真实触发 Vditor 的 upload.handler（POST /api/uploads）
+ * milkdown WYSIWYG 编辑器 → 真实触发上传（POST /api/uploads）
  * → 编辑器出现 <img src="/uploads/..."> 且附件库 +1。
  */
 test("粘贴图片上传：编辑器出现 uploads 图片且附件库 +1", async ({ page }) => {
@@ -24,12 +24,11 @@ test("粘贴图片上传：编辑器出现 uploads 图片且附件库 +1", async
 
   const before = await attachmentCount(page);
 
-  // 编辑页等 Vditor 就绪
+  // 编辑页等 milkdown 就绪
   await page.goto("/admin/posts/new");
-  await page.locator(".vditor").waitFor({ state: "visible" });
-  await page.locator(".vditor-ir").waitFor({ state: "visible" });
+  await page.locator("#editor .ProseMirror").waitFor({ state: "visible" });
 
-  // 捕获 Vditor 上传请求：能等到该请求说明确实触发了 upload.handler
+  // 捕获上传请求：能等到该请求说明确实触发了 paste 上传
   const uploadRes = page.waitForResponse(
     (r) => r.request().method() === "POST" && r.url().includes("/api/uploads"),
     { timeout: 15_000 },
@@ -40,8 +39,8 @@ test("粘贴图片上传：编辑器出现 uploads 图片且附件库 +1", async
 
   await uploadRes;
 
-  // Vditor 插入 markdown 图片：编辑器里出现 /uploads/ 图片
-  const editorImg = page.locator('.vditor-ir img[src^="/uploads/"]').first();
+  // milkdown 插入 markdown 图片：编辑器里出现 /uploads/ 图片
+  const editorImg = page.locator('#editor img[src^="/uploads/"]').first();
   await expect(editorImg).toBeVisible({ timeout: 15_000 });
   const src = await editorImg.getAttribute("src");
   expect(src).toMatch(/^\/uploads\//);

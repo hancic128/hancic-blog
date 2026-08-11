@@ -1,10 +1,13 @@
 </main>
 <footer class="site-footer">
+  {% if site.desc %}<p class="site-desc">{{ site.desc }}</p>{% endif %}
   <p>© {{ site.name }}</p>
 </footer>
 <button class="back-top" id="back-top" type="button" aria-label="回到顶部" title="回到顶部" hidden>
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
 </button>
+<script src="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/highlight.min.js"></script>
+<script src="{{ base_path }}/theme/{{ site.active_theme }}/static/mermaid/mermaid.min.js"></script>
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/main.js"></script>
 </body>
 </html>

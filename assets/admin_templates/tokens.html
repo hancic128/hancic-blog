@@ -7,7 +7,8 @@
 <p class="error">{{ error_msg }}</p>
 {% endif %}
 
-<section class="panel">
+<div class="panel">
+  <section class="panel-section">
   <h2>生成新 Token</h2>
   <form method="post" action="{{ base_path }}/admin/tokens">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -22,7 +23,7 @@
   </form>
 </section>
 
-<section class="panel">
+<section class="panel-section">
   <h2>Token 列表</h2>
   {% if tokens %}
   <table class="data-table data-sortable">
@@ -56,4 +57,5 @@
   <p class="empty">暂无 Token</p>
   {% endif %}
 </section>
+</div>
 {% endblock %}

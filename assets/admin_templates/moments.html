@@ -17,9 +17,7 @@
       <button class="btn btn-primary" type="submit">发布</button>
     </div>
   </form>
-</div>
 
-<div class="panel">
   <form class="filter-bar" method="get" action="{{ base_path }}/admin/moments">
     <div class="cs" data-select="#f-month">
       <button class="cs-btn" type="button" aria-label="按月份筛选" aria-haspopup="listbox" aria-expanded="false"></button>
@@ -44,9 +42,7 @@
       </button>
     </div>
   </form>
-</div>
 
-<div class="panel">
   {% if moments %}
     {% for m in moments %}
     <article class="moment-admin" id="moment-{{ m.id }}">
@@ -213,6 +209,16 @@
       form.appendChild(ta);
       form.appendChild(save);
       form.appendChild(cancel);
+      // 保存前确认（异步；确认后带标记重提交，避免二次询问）
+      form.addEventListener('submit', function (e) {
+        if (form.dataset.confirmed) return;
+        e.preventDefault();
+        window.hancicConfirm('确认保存这条说说的修改？', save).then(function (ok) {
+          if (!ok) return;
+          form.dataset.confirmed = '1';
+          form.requestSubmit(save);
+        });
+      });
       // 插到内容区后面
       contentEl.after(form);
       ta.focus();

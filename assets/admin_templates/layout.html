@@ -12,7 +12,10 @@
 <div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
     <div class="admin-brand">
-      <span class="brand-text"><span class="brand-dot"></span>{{ site_name }}<small>管理后台</small></span>
+      <div class="brand-main">
+        <span class="brand-name"><span class="brand-dot"></span>{{ site_name }}</span>
+        <small>管理后台</small>
+      </div>
       <button class="side-collapse" id="side-collapse" type="button" aria-label="折叠菜单" title="折叠/展开菜单">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
       </button>
@@ -25,25 +28,33 @@
       </a>
       {% endfor %}
     </nav>
+    <div class="admin-side-actions">
+      <button class="side-icon-btn" id="mode-toggle" type="button" aria-label="切换亮暗模式" title="切换亮暗模式">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <div class="accent-wrap">
+        <button class="side-icon-btn" id="accent-toggle" type="button" aria-label="选择配色" title="选择主题配色" aria-expanded="false" aria-controls="accent-panel">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-2a3 3 0 0 0-3 3c0 1.5 1 3 3 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="11" cy="7.5" r="1"/><circle cx="15.5" cy="9.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>
+        </button>
+        <div class="accent-panel" id="accent-panel" hidden>
+          <button class="accent-swatch" type="button" data-accent="pink" aria-label="粉红" title="粉红"></button>
+          <button class="accent-swatch" type="button" data-accent="blue" aria-label="蓝色" title="蓝色"></button>
+          <button class="accent-swatch" type="button" data-accent="green" aria-label="绿色" title="绿色"></button>
+          <button class="accent-swatch" type="button" data-accent="purple" aria-label="紫色" title="紫色"></button>
+          <button class="accent-swatch" type="button" data-accent="orange" aria-label="橙色" title="橙色"></button>
+        </div>
+      </div>
+      <a class="side-icon-btn" href="{{ base_path }}/" title="查看站点" aria-label="查看站点" target="_blank" rel="noopener">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
     <a class="admin-logout" href="{{ base_path }}/admin/logout" title="退出登录">
       <span class="nav-icon" data-icon="logout"></span>
       <span class="nav-label">退出登录</span>
     </a>
   </aside>
   <div class="admin-main">
-    <header class="admin-topbar">
-      <span class="topbar-title">{% for item in admin_nav %}{% if item.active %}{{ item.label }}{% endif %}{% endfor %}</span>
-      <div class="topbar-actions">
-        <button class="mode-toggle" id="mode-toggle" type="button" aria-label="切换亮暗模式" title="切换亮暗模式">
-          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
-        <a class="topbar-link" href="{{ base_path }}/" title="查看站点">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          查看站点
-        </a>
-      </div>
-    </header>
     <button class="admin-toggle" id="admin-toggle" type="button" aria-label="展开导航" title="展开导航">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>

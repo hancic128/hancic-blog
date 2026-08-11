@@ -7,8 +7,9 @@
 <p class="error">{{ error_msg }}</p>
 {% endif %}
 
+<div class="panel">
 {% if result %}
-<section class="panel">
+<section class="panel-section">
   <h2>导入完成</h2>
   <ul>
     <li>新建文章：{{ result.posts_created }} 篇</li>
@@ -27,7 +28,7 @@
 </section>
 {% endif %}
 
-<section class="panel">
+<section class="panel-section">
   <h2>Halo Markdown 迁移</h2>
   <p class="muted">上传 Halo 导出的 Markdown zip（任意层级含 <code>*.md</code> 与图片）。
     front-matter（<code>---</code> 块）中的 <code>title / date / categories / tags / slug / type</code>
@@ -50,4 +51,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}

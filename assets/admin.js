@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  // ---- 明暗模式切换：localStorage 持久化，Chart.js / Vditor 联动 ----
+  // ---- 明暗模式切换：localStorage 持久化，Chart.js 联动 ----
   var MODE_KEY = 'admin-mode';
   function currentMode() {
     return document.documentElement.getAttribute('data-mode') || 'dark';
@@ -25,11 +25,7 @@
       chart.options.scales.y.ticks.color = tickColor;
       chart.update('none');
     }
-    // 联动 Vditor：切换编辑器主题
-    var vditor = window._adminVditor;
-    if (vditor && vditor.setTheme) {
-      vditor.setTheme(mode === 'light' ? 'classic' : 'dark');
-    }
+    // milkdown 编辑器明暗随 CSS 变量（[data-mode]）自动切换，无需 JS 联动
   }
   var modeBtn = document.getElementById('mode-toggle');
   if (modeBtn) {
@@ -43,6 +39,53 @@
       setMode(e.matches ? 'dark' : 'light');
     }
   });
+
+  // ---- 主题配色切换：与前台博客一致的内置 5 色（localStorage 持久化） ----
+  var ACCENT_KEY = 'admin-accent';
+  var ACCENTS = ['pink', 'blue', 'green', 'purple', 'orange'];
+  function currentAccent() {
+    return document.documentElement.getAttribute('data-accent') || 'green';
+  }
+  function markCurrentSwatch() {
+    var cur = currentAccent();
+    document.querySelectorAll('.accent-swatch').forEach(function (s) {
+      s.classList.toggle('current', s.getAttribute('data-accent') === cur);
+    });
+  }
+  function applyAccent(accent) {
+    document.documentElement.setAttribute('data-accent', accent);
+    try { localStorage.setItem(ACCENT_KEY, accent); } catch (e) { /* 忽略 */ }
+    markCurrentSwatch();
+  }
+  var savedAccent;
+  try { savedAccent = localStorage.getItem(ACCENT_KEY); } catch (e) { savedAccent = null; }
+  if (savedAccent && ACCENTS.indexOf(savedAccent) !== -1) {
+    document.documentElement.setAttribute('data-accent', savedAccent);
+  }
+  markCurrentSwatch();
+  var accentToggle = document.getElementById('accent-toggle');
+  var accentPanel = document.getElementById('accent-panel');
+  if (accentToggle && accentPanel) {
+    accentToggle.addEventListener('click', function () {
+      var willShow = accentPanel.hidden;
+      accentPanel.hidden = !willShow;
+      accentToggle.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+    });
+    accentPanel.addEventListener('click', function (e) {
+      var swatch = e.target.closest('.accent-swatch');
+      if (!swatch) return;
+      applyAccent(swatch.getAttribute('data-accent'));
+      accentPanel.hidden = true;
+      accentToggle.setAttribute('aria-expanded', 'false');
+    });
+    // 点击页面其他区域关闭色板
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.accent-wrap') && !accentPanel.hidden) {
+        accentPanel.hidden = true;
+        accentToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 
   // ---- CSRF：读取 meta，注入 POST 表单；fetch 包装自动带 X-CSRF-Token ----
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -129,9 +172,60 @@
       });
     };
 
+    // 返回 Promise<string|null>；确认 resolve(输入值)，取消/遮罩/Esc resolve(null)。
+    // 遮罩/Esc 走 confirm 的共享监听（settle(false)），这里把 false 归一为 null。
+    window.hancicPrompt = function (message, defaultValue) {
+      ensure();
+      if (state) state.resolve(null);
+      return new Promise(function (resolve) {
+        state = {
+          resolve: function (v) { resolve(v === false ? null : v); },
+          done: false,
+          triggerEl: null
+        };
+        var box = overlay.firstChild;
+        var titleEl = box.querySelector('.modal-title');
+        var msgEl = box.querySelector('.modal-msg');
+        var actionsEl = box.querySelector('.modal-actions');
+        titleEl.textContent = message;
+        msgEl.innerHTML = '';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'modal-input';
+        input.value = defaultValue || '';
+        msgEl.appendChild(input);
+        actionsEl.innerHTML = '';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn';
+        cancel.textContent = '取消';
+        var ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'btn btn-primary';
+        ok.textContent = '确定';
+        actionsEl.appendChild(cancel);
+        actionsEl.appendChild(ok);
+        var done = false;
+        function finish(val) {
+          if (done) return;
+          done = true;
+          overlay.hidden = true;
+          state = null;
+          resolve(val === false ? null : val);
+        }
+        ok.addEventListener('click', function () { finish(input.value.trim()); });
+        cancel.addEventListener('click', function () { finish(null); });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); finish(input.value.trim()); }
+        });
+        overlay.hidden = false;
+        input.focus();
+        input.select();
+      });
+    };
+
     // 底部轻提示（错误/成功等短暂反馈）
-    window.hancicToast = function (message, type) {
-      var t = document.createElement('div');
+    window.hancicToast = function (message, type) {      var t = document.createElement('div');
       t.className = 'toast' + (type === 'error' ? ' toast-error' : '');
       t.setAttribute('role', 'status');
       if (type === 'error') {
@@ -398,22 +492,22 @@
   });
 })();
 
-// ---- 文章编辑器（Vditor IR）与自动保存 ----
+// ---- 文章编辑器（milkdown WYSIWYG）与自动保存 ----
 (function () {
   'use strict';
 
   var editorEl = document.getElementById('editor');
-  // vditor.min.js 在 admin.js 之后加载（layout.html 的 block scripts 在其后），
+  // milkdown.min.js 在 admin.js 之后加载（layout.html 的 block scripts 在其后），
   // 故等到 DOMContentLoaded（此时所有经典脚本已执行完毕）再初始化编辑器。
   if (!editorEl) return;
-  if (window.Vditor) {
+  if (window.HancicEditor) {
     initEditor();
   } else {
     document.addEventListener('DOMContentLoaded', initEditor);
   }
 
-  // 新建页本地草稿的 localStorage key（Vditor cache 的 id，恢复/清除共用）。
-  var DRAFT_KEY = 'vditor-draft';
+  // 新建页本地草稿的 localStorage key（无服务端 autosave，I1）。
+  var DRAFT_KEY = 'hancic-draft';
 
   function initEditor() {
     var form = document.getElementById('post-form');
@@ -421,15 +515,13 @@
     var statusEl = document.getElementById('save-status');
     var editor = null;
     var lastSaved = null;
-    // 新建页（_post 无 id）：无服务端 autosave，改走 Vditor 本地草稿（I1）
+    // 新建页（_post 无 id）：无服务端 autosave，改走本地草稿（I1）
     var isNewPost = !window._post || !window._post.id;
 
-    // Vditor 上传处理器：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）。
-    // Vditor 3.x 的 upload.handler 契约要求处理器自行把结果插入编辑器：
-    // 返回 undefined 表示成功，返回字符串会被当作错误提示展示。
-    // res 非 2xx 直接抛错（I2：上传失败不得静默当作成功），错误消息带
-    // 服务端返回/401 场景提示。
-    window.vditorUpload = function (files) {
+    // 图片上传：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）。
+    // 返回 [{path, orig_name}]，由 milkdown bundle 以 Markdown 图片语法插入光标处；
+    // 失败 Toast 提示并返回空数组（bundle 侧不插入）。
+    function uploadImages(files) {
       var data = new FormData();
       files.forEach(function (file) { data.append('files', file); });
       return window.hancicFetch('/api/uploads', { method: 'POST', body: data })
@@ -448,18 +540,18 @@
           });
         })
         .then(function (json) {
-          (json.data || []).forEach(function (att) {
-            editor.insertValue('![' + att.orig_name + '](/uploads/' + att.path + ')\n');
+          return (json.data || []).map(function (att) {
+            return { path: att.path, orig_name: att.orig_name };
           });
-          return undefined;
         })
         .catch(function (err) {
-          return err && err.message ? err.message : '上传失败，请重试';
+          window.hancicToast(err && err.message ? err.message : '上传失败，请重试', 'error');
+          return [];
         });
-    };
+    }
 
     function currentContent() {
-      return editor ? editor.getValue() : '';
+      return editor ? editor.getMarkdown() : '';
     }
 
     function contentChanged() {
@@ -525,10 +617,11 @@
     }
 
     // 存草稿 / 发布：点击的按钮 data-action 写入隐藏 status；正文 content_md
-    // 由 Vditor 取值补进隐藏字段（编辑器是 div，不会随表单自动提交）。
+    // 由 milkdown 取值补进隐藏字段（编辑器是 div，不会随表单自动提交）。
+    // 确认后先 getMarkdownAsync 强制序列化（规避 listener 异步延迟导致丢内容），
+    // 写入隐藏字段再 requestSubmit；二次提交（dataset.confirmed）直接补字段。
     if (form) {
       form.addEventListener('submit', function (e) {
-        // 发布/存草稿确认提示（异步；确认后带标记重提交，避免二次询问）
         var sb = e.submitter;
         var action = sb && sb.dataset ? sb.dataset.action : null;
         if (action && !form.dataset.confirmed) {
@@ -538,42 +631,138 @@
             if (!ok) return;
             form.dataset.confirmed = '1';
             statusInput.value = action;
-            form.requestSubmit(sb);
+            var finalize = function (md) {
+              var el = form.querySelector('input[name="content_md"]');
+              if (!el) {
+                el = document.createElement('input');
+                el.type = 'hidden';
+                el.name = 'content_md';
+                form.appendChild(el);
+              }
+              el.value = md;
+              form.requestSubmit(sb);
+            };
+            if (editor && editor.getMarkdownAsync) {
+              editor.getMarkdownAsync().then(finalize);
+            } else {
+              finalize(currentContent());
+            }
           });
           return;
         }
-        var md = document.createElement('input');
-        md.type = 'hidden';
-        md.name = 'content_md';
-        md.value = currentContent();
-        form.appendChild(md);
+        if (!form.querySelector('input[name="content_md"]')) {
+          var md = document.createElement('input');
+          md.type = 'hidden';
+          md.name = 'content_md';
+          md.value = currentContent();
+          form.appendChild(md);
+        }
       });
     }
 
-    // 初始化 Vditor：IR 模式，内容取自容器 data-content（页面已 tera 转义）。
-    // cdn 指向本地 /static/vendor/vditor（i18n/lute/icons 已随仓库 assets 发布，
-    // 见 scripts/fetch-assets.sh），避免运行时外网依赖（M120）。
-    // 新建页启用 Vditor 内置 cache（写入 localStorage 草稿并恢复，I1）；
-    // 编辑页关闭 cache（服务端内容为准，autosave 负责落库）。
-    editor = new window.Vditor('editor', {
-      mode: 'ir',
-      cdn: '/static/vendor/vditor',
-      theme: window.hancicMode() === 'light' ? 'classic' : 'dark',
-      cache: isNewPost ? { enable: true, id: DRAFT_KEY } : false,
-      height: 460,
-      value: editorEl.getAttribute('data-content') || '',
-      after: function () {
-        lastSaved = editor.getValue();
-        // 保存编辑器实例供明暗切换联动
-        window._adminVditor = editor;
-        // 已保存文章（有 id）进入编辑页时清掉新建页草稿，防止误恢复（I1）
-        if (!isNewPost && window.localStorage) {
-          window.localStorage.removeItem(DRAFT_KEY);
+    // 初始内容：编辑页取服务端 data-content；新建页优先恢复本地草稿，
+    // 无草稿时注入 Markdown 语法模板（window._newPostTemplate，JSON 注入避免属性转义截断）。
+    var initial = editorEl.getAttribute('data-content') || '';
+    if (isNewPost) {
+      try {
+        var draft = localStorage.getItem(DRAFT_KEY);
+        if (draft) {
+          initial = draft;
+        } else if (window._newPostTemplate) {
+          initial = window._newPostTemplate;
         }
-      },
-      blur: function () { autosaveNow(); },
-      upload: { handler: window.vditorUpload }
+      } catch (e) { /* 忽略 */ }
+    }
+
+    // 初始化 milkdown WYSIWYG 编辑器（本地 vendor bundle，无外网依赖）。
+    // 文档变化（onUpdate）触发自动保存 / 本地草稿写入。
+    window.HancicEditor.create({
+      el: editorEl,
+      content: initial,
+      isNewPost: isNewPost,
+      draftKey: DRAFT_KEY,
+      onUpdate: autosaveNow,
+      onUpload: uploadImages
+    }).then(function (inst) {
+      editor = inst;
+      // 首次同步 lastSaved，避免初始化即触发“内容变化”
+      lastSaved = initial;
+      // 已保存文章（有 id）进入编辑页时清掉新建页草稿，防止误恢复（I1）
+      if (!isNewPost && window.localStorage) {
+        window.localStorage.removeItem(DRAFT_KEY);
+      }
+      initToolbar();
     });
+
+    // 工具栏：图片/视频文件上传插入、链接（hancicPrompt）、源码模式切换
+    function initToolbar() {
+      var imgBtn = document.getElementById('md-insert-img');
+      var videoBtn = document.getElementById('md-insert-video');
+      var linkBtn = document.getElementById('md-insert-link');
+      var imgInput = document.getElementById('md-file-input');
+      var videoInput = document.getElementById('md-video-input');
+      var sourceTa = document.getElementById('editor-source');
+      if (imgBtn && imgInput) {
+        imgBtn.addEventListener('click', function () { imgInput.click(); });
+        imgInput.addEventListener('change', function () {
+          if (!imgInput.files.length) return;
+          uploadImages(Array.prototype.slice.call(imgInput.files)).then(function (atts) {
+            atts.forEach(function (a) { if (editor) editor.insertImage(a); });
+          });
+          imgInput.value = '';
+        });
+      }
+      if (videoBtn && videoInput) {
+        videoBtn.addEventListener('click', function () { videoInput.click(); });
+        videoInput.addEventListener('change', function () {
+          if (!videoInput.files.length) return;
+          uploadImages(Array.prototype.slice.call(videoInput.files)).then(function (atts) {
+            atts.forEach(function (a) { if (editor) editor.insertVideo('/uploads/' + a.path); });
+          });
+          videoInput.value = '';
+        });
+      }
+      if (linkBtn) {
+        linkBtn.addEventListener('click', function () {
+          window.hancicPrompt('链接地址（http/https）', 'https://').then(function (url) {
+            if (!url) return;
+            if (editor) editor.insertLink(null, url);
+            editorEl.focus();
+          });
+        });
+      }
+      // 标记命令按钮：H1/H2/H3、加粗、斜体、行内代码、引用、列表、有序列表、代码块、分割线
+      function bindCmd(id, fn) {
+        var btn = document.getElementById(id);
+        if (btn && editor && editor.command) {
+          btn.addEventListener('click', function () {
+            fn();
+            editorEl.focus();
+          });
+        }
+      }
+      if (editor && editor.command) {
+        var cmd = editor.command;
+        bindCmd('md-h1', function () { cmd.heading(1); });
+        bindCmd('md-h2', function () { cmd.heading(2); });
+        bindCmd('md-h3', function () { cmd.heading(3); });
+        bindCmd('md-p', function () { cmd.paragraph(); });
+        bindCmd('md-bold', function () { cmd.strong(); });
+        bindCmd('md-italic', function () { cmd.emphasis(); });
+        bindCmd('md-code', function () { cmd.inlineCode(); });
+        bindCmd('md-quote', function () { cmd.blockquote(); });
+        bindCmd('md-ul', function () { cmd.bulletList(); });
+        bindCmd('md-ol', function () { cmd.orderedList(); });
+        bindCmd('md-hr', function () { cmd.hr(); });
+        bindCmd('md-table', function () { cmd.table(); });
+        bindCmd('md-codeblock', function () {
+          window.hancicPrompt('代码块语言（如 python / json / sql，留空为纯文本）', '').then(function (lang) {
+            if (lang === null) return;
+            cmd.codeBlock(lang);
+          });
+        });
+      }
+    }
 
     // 自动保存：30s 轮询 + blur（编辑器失焦）+ pagehide 兜底（仅内容变化时发请求）
     setInterval(autosaveNow, 30000);
@@ -588,7 +777,66 @@
 })();
 
 
-// ---- 文章编辑页：标签 chips（回车/逗号添加，datalist 选择已有，点击删除）----
+// ---- 文章编辑页：分类选择器（与标签同款输入框 + 建议面板，单选）----
+(function () {
+  'use strict';
+  var input = document.getElementById('post-category');
+  var hidden = document.getElementById('post-category-id');
+  if (!input || !hidden) return;
+  var panel = document.getElementById('cat-suggest-panel');
+  var options = [];
+  var dataEl = document.getElementById('cat-suggest-data');
+  if (dataEl) {
+    Array.prototype.forEach.call(dataEl.querySelectorAll('li'), function (li) {
+      options.push({ id: li.dataset.id || '', name: li.textContent.trim() });
+    });
+  }
+
+  function currentId() { return String(hidden.value); }
+  function syncDisplay() {
+    var cur = null;
+    options.forEach(function (o) { if (String(o.id) === currentId()) cur = o; });
+    input.value = cur ? cur.name : '';
+  }
+  function showPanel() {
+    if (!panel) return;
+    panel.innerHTML = '';
+    options.forEach(function (o) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'suggest-item';
+      item.textContent = o.name;
+      if (String(o.id) === currentId()) item.classList.add('selected');
+      item.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      item.addEventListener('click', function () {
+        hidden.value = o.id;
+        input.value = o.name;
+        panel.hidden = true;
+        input.focus();
+      });
+      panel.appendChild(item);
+    });
+    panel.hidden = false;
+    panel.scrollTop = 0;
+  }
+  syncDisplay();
+  input.addEventListener('click', showPanel);
+  input.addEventListener('focus', showPanel);
+  input.addEventListener('blur', function () { setTimeout(function () { if (panel) panel.hidden = true; }, 150); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (currentId()) {
+        hidden.value = '';
+        syncDisplay();
+        e.preventDefault();
+      }
+    } else if (e.key === 'Escape') {
+      if (panel) panel.hidden = true;
+    }
+  });
+})();
+
+// ---- 文章编辑页：标签 chips + 建议面板（限高滚动，替代 datalist 防高度异常）----
 (function () {
   'use strict';
   var editor = document.getElementById('tag-editor');
@@ -596,6 +844,15 @@
   var input = document.getElementById('post-tags');
   if (!editor || !hidden || !input) return;
   var chips = document.getElementById('tag-chips');
+  var panel = document.getElementById('tag-suggest-panel');
+  var allTags = [];
+  var dataEl = document.getElementById('tag-suggest-data');
+  if (dataEl) {
+    Array.prototype.forEach.call(dataEl.querySelectorAll('li'), function (li) {
+      var n = li.textContent.trim();
+      if (n) allTags.push(n);
+    });
+  }
 
   function currentTags() {
     return (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -625,22 +882,65 @@
       render();
     }
   }
+
+  // 建议面板：focus 显示全部已有标签，输入过滤；限高 240px 滚动
+  function showSuggest(filter) {
+    if (!panel) return;
+    panel.innerHTML = '';
+    var kw = (filter || '').toLowerCase();
+    var cur = currentTags();
+    var shown = 0;
+    allTags.forEach(function (name) {
+      if (cur.indexOf(name) !== -1) return; // 已添加的不重复建议
+      if (kw && name.toLowerCase().indexOf(kw) === -1) return;
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'suggest-item';
+      item.textContent = name;
+      // mousedown 阻止默认，避免 input blur 先触发隐藏面板
+      item.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      item.addEventListener('click', function () {
+        addTag(name);
+        input.value = '';
+        showSuggest('');
+        input.focus();
+      });
+      panel.appendChild(item);
+      shown++;
+    });
+    panel.hidden = shown === 0;
+    panel.scrollTop = 0;
+  }
+  function hideSuggest() {
+    if (panel) panel.hidden = true;
+  }
+
   render();
+  input.addEventListener('focus', function () { showSuggest(input.value); });
+  input.addEventListener('input', function () { showSuggest(input.value); });
+  input.addEventListener('blur', function () {
+    // 延迟隐藏，让点击建议项的 mousedown 先执行
+    setTimeout(hideSuggest, 150);
+  });
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag(input.value);
       input.value = '';
+      showSuggest('');
     } else if (e.key === 'Backspace' && !input.value && currentTags().length) {
       var cur = currentTags();
       cur.pop();
       hidden.value = cur.join(',');
       render();
+    } else if (e.key === 'Escape') {
+      hideSuggest();
     }
   });
   input.addEventListener('change', function () {
     addTag(input.value);
     input.value = '';
+    showSuggest('');
   });
 })();
 

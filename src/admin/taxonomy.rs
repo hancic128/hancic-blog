@@ -4,6 +4,9 @@
 //! 再过 CSRF。操作结果统一 302 回 `/admin/taxonomy`，失败带 `?msg=` 错误回显
 //! （空名称、slug 冲突等）。删除分类依赖 `ON DELETE SET NULL` 保留关联文章，
 //! 删除标签依赖 `post_tags` 级联清空关联（CASCADE）。
+//!
+//! UI 只展示分类名称（slug 由名称自动生成；改名保留原 slug 以免破坏前台
+//! 分类页链接；无排序概念，sort_order 仅建库默认 0）。
 
 use crate::error::AppError;
 use crate::models::{Category, Tag};
@@ -79,7 +82,13 @@ pub async fn update_category(
     if name.trim().is_empty() {
         return Ok(fail(&state.config.base_path, "分类名称不能为空"));
     }
-    let slug = parse_slug(form.get("slug"), &name).await;
+    // 表单不再提供 slug/sort_order（UI 只留名称）：保留库中原值，
+    // 避免改名导致前台分类页链接失效。
+    let existing = taxonomy::get_category_by_id(&state.db, id).await?;
+    let slug = match form.get("slug").map(String::as_str).unwrap_or("").trim() {
+        "" => existing.as_ref().map(|c| c.slug.clone()).unwrap_or_default(),
+        s => s.to_string(),
+    };
     // slug 冲突预检：update_category 直接写库不查重，撞 UNIQUE 约束会 500，
     // 提前比对其他分类，命中则错误回显（与新建路径同一提示）。
     if let Some(other) = taxonomy::get_category_by_slug(&state.db, &slug).await? {
@@ -87,7 +96,10 @@ pub async fn update_category(
             return Ok(fail(&state.config.base_path, "分类 slug 已存在"));
         }
     }
-    let sort_order = parse_sort_order(form.get("sort_order"));
+    let sort_order = match form.get("sort_order") {
+        Some(v) => v.trim().parse::<i64>().unwrap_or(0),
+        None => existing.map(|c| c.sort_order).unwrap_or(0),
+    };
     match taxonomy::update_category(&state.db, id, &name, &slug, sort_order).await {
         Ok(_) => Ok(super::redirect(&state.config.base_path,  "/admin/taxonomy")),
         Err(e) => {

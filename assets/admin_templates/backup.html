@@ -7,8 +7,9 @@
 <p class="error">{{ error_msg }}</p>
 {% endif %}
 
+<div class="panel">
 {% if result %}
-<section class="panel">
+<section class="panel-section">
   <h2>恢复完成</h2>
   <p class="muted">数据已从备份包恢复并通过完整性校验。原数据目录已整体改名保留在
     <code>{{ result.backup_dir }}</code>，确认无误后可手动删除。请<strong>重启服务</strong>
@@ -24,7 +25,7 @@
 </section>
 {% endif %}
 
-<section class="panel">
+<section class="panel-section">
   <h2>导出备份</h2>
   <p class="muted">导出内容：数据库一致性快照（hancic.db）、配置文件（config.toml）、
     上传附件（uploads/）、主题（themes/）。</p>
@@ -36,7 +37,7 @@
   </form>
 </section>
 
-<section class="panel">
+<section class="panel-section">
   <h2>恢复备份</h2>
   <p class="error">恢复会用备份包<strong>覆盖当前全部数据</strong>；原数据目录将自动改名
     为 <code>&lt;数据目录&gt;.bak-&lt;时间戳&gt;</code> 保留，确认无误后可手动删除。
@@ -53,4 +54,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}

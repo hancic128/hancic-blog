@@ -23,8 +23,8 @@ pub const ADMIN_ID: i64 = 1;
 
 const CSRF_KEY: &str = "csrf";
 
-/// 登录限流窗口：10 分钟。
-const LIMIT_WINDOW_SECS: i64 = 600;
+/// 登录限流窗口：3 分钟。
+const LIMIT_WINDOW_SECS: i64 = 180;
 /// 窗口内允许的最大失败次数。
 const LIMIT_MAX_FAILURES: i64 = 5;
 
@@ -105,7 +105,7 @@ pub async fn verify_csrf(session: &Session, provided: Option<&str>) -> Result<()
     }
 }
 
-/// 登录限流器：同 IP 10 分钟窗口内失败 ≥5 次则拒绝后续尝试。
+/// 登录限流器：同 IP 3 分钟窗口内失败 ≥5 次则拒绝后续尝试。
 ///
 /// 记录结构 `ip -> (失败次数, 窗口内首次失败时间戳)`，仅存于内存（进程级）。
 #[derive(Clone)]
@@ -130,7 +130,7 @@ impl LoginLimiter {
     /// 该 IP 本次是否允许尝试登录。
     ///
     /// `allowed = true`（密码校验已通过）时清除失败记录并放行；
-    /// 否则在 10 分钟窗口内失败次数 ≥5 即拒绝（窗口过期自动放行并清除记录）。
+    /// 否则在 3 分钟窗口内失败次数 ≥5 即拒绝（窗口过期自动放行并清除记录）。
     pub fn check(&self, ip: &str, allowed: bool) -> bool {
         let mut map = self.inner.lock().expect("login limiter 锁可用");
         if allowed {

@@ -49,7 +49,19 @@ pub async fn index(
         Err(msg) => return bad_request(&msg),
     };
     render_or_500(
-        render(&state, &session, uri.path(), &from, &to, "overview", None, None, 1).await,
+        render(
+            &state,
+            &session,
+            uri.path(),
+            &from,
+            &to,
+            "overview",
+            None,
+            None,
+            1,
+            query_days(&query),
+        )
+        .await,
     )
 }
 
@@ -74,7 +86,19 @@ pub async fn ranking(
         .filter(|&p| p > 0)
         .unwrap_or(1);
     render_or_500(
-        render(&state, &session, uri.path(), &from, &to, "posts", None, None, page).await,
+        render(
+            &state,
+            &session,
+            uri.path(),
+            &from,
+            &to,
+            "posts",
+            None,
+            None,
+            page,
+            query_days(&query),
+        )
+        .await,
     )
 }
 
@@ -112,6 +136,7 @@ pub async fn regions(
             country,
             province,
             1,
+            query_days(&query),
         )
         .await,
     )
@@ -150,6 +175,7 @@ async fn render(
     country: Option<&str>,
     province: Option<&str>,
     page: usize,
+    days: u32,
 ) -> Result<Response, AppError> {
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
 
@@ -158,6 +184,7 @@ async fn render(
     ctx.insert("from", &from_str);
     ctx.insert("to", &to_str);
     ctx.insert("sub", sub);
+    ctx.insert("days", &days);
 
     // 总览卡片（total_views 随区间过滤，文章/说说/附件为全量）
     let summary = stats::summary(&state.db, from.as_deref(), to.as_deref()).await?;
@@ -255,7 +282,17 @@ fn bad_request(msg: &str) -> Response {
 
 // ---------- 参数与数据加工 ----------
 
+/// 快捷天数参数：`days=30/60/90`（默认 30，上限 3650），供模板快捷按钮回显。
+fn query_days(query: &HashMap<String, String>) -> u32 {
+    query
+        .get("days")
+        .and_then(|s| s.trim().parse::<u32>().ok())
+        .unwrap_or(30)
+        .clamp(1, 3650)
+}
+
 /// 解析 from/to（`YYYY-MM-DD`）：两者缺省 → 近 30 天（含今天）；
+/// 支持 `days=30/60/90` 快捷参数（仅当 from/to 都缺省时生效，默认 30）；
 /// 提供但非法 → Err；只给一侧时另一侧保持 None（服务层视为不设限）。
 fn parse_range(
     query: &HashMap<String, String>,
@@ -283,10 +320,19 @@ fn parse_range(
         }
     }
     if from.is_none() && to.is_none() {
-        let days = super::trend_dates();
+        // 快捷天数：days=30/60/90（默认 30），与「近 30 天」缺省行为一致
+        let days = query
+            .get("days")
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .unwrap_or(30)
+            .clamp(1, 3650);
+        let today = Utc::now().date_naive();
+        let from_d = today
+            .checked_sub_days(Days::new(u64::from(days - 1)))
+            .expect("days 上限内不会下溢");
         return Ok((
-            Some(days.first().expect("30 天序列非空").clone()),
-            Some(days.last().expect("30 天序列非空").clone()),
+            Some(from_d.format("%Y-%m-%d").to_string()),
+            Some(today.format("%Y-%m-%d").to_string()),
         ));
     }
     Ok((from, to))

@@ -17,7 +17,8 @@ use std::collections::HashMap;
 use tower_sessions::Session;
 
 /// 列表每页条数。
-const PAGE_SIZE: i64 = 20;
+/// 列表每页条数（说说默认 10 条/页）。
+const PAGE_SIZE: i64 = 10;
 
 // ---------- 列表 ----------
 

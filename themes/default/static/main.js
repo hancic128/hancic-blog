@@ -227,6 +227,49 @@
     initCodeCopy();
   }
 
+  /* ---------- 代码块语法高亮（highlight.js）+ 语言标记；mermaid 渲染为图 ---------- */
+  function renderMermaid(pre, code) {
+    if (!window.mermaid || !mermaid.render) return;
+    var text = (code.innerText || code.textContent || "").trim();
+    if (!text) return;
+    var holder = document.createElement("div");
+    holder.className = "mermaid-chart";
+    var theme = document.documentElement.getAttribute("data-mode") === "dark" ? "dark" : "default";
+    mermaid.initialize({ startOnLoad: false, theme: theme });
+    var pid = "hancic-mmd-" + Math.floor(Math.random() * 1e9);
+    mermaid.render(pid, text).then(function (res) {
+      holder.innerHTML = res.svg;
+      pre.replaceWith(holder);
+    }).catch(function () {
+      holder.className += " mermaid-chart-error";
+      holder.textContent = "mermaid 渲染失败：请检查语法";
+      pre.replaceWith(holder);
+    });
+  }
+
+  function initCodeHighlight() {
+    if (!window.hljs || !hljs.highlightElement) return;
+    var codes = document.querySelectorAll(".md-body pre code");
+    for (var i = 0; i < codes.length; i++) {
+      var code = codes[i];
+      var pre = code.closest("pre");
+      var m = (code.className || "").match(/language-([\w+-]+)/);
+      var lang = m ? m[1] : "";
+      if (lang === "mermaid") {
+        renderMermaid(pre, code);
+        continue;
+      }
+      try {
+        hljs.highlightElement(code);
+      } catch (e) { /* 单块失败不影响其它 */ }
+      if (lang && pre) pre.setAttribute("data-language", lang);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", initCodeHighlight);
+  if (document.readyState !== "loading") {
+    initCodeHighlight();
+  }
+
   /* ---------- 首页文章列表滚动浮现（淡入 + 上移 8px，300ms ease-out） ---------- */
 
   function initScrollReveal() {
@@ -290,14 +333,29 @@
   document.querySelectorAll(".heat-cell").forEach(on);
 })();
 
-// 最近说说折叠/展开：点击切换 .expanded（不依赖 details 原生行为）
+// 最近说说折叠/展开：点击切换 .expanded（不依赖 details 原生行为）。
+// 首页与说说页同款：默认折叠（箭头 ▸），点击展开全文（箭头 ▾）。
+// 内容短的说说（预览未截断，即全文 ≤40 字）不需要折叠：直接显示全文、隐藏 toggle。
 (function initMomentToggle() {
-  document.querySelectorAll(".moment-toggle").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const body = btn.closest(".moment-body");
+  document.querySelectorAll(".moment-item").forEach((item) => {
+    const preview = item.querySelector(".moment-preview");
+    const full = item.querySelector(".moment-full");
+    const toggle = item.querySelector(".moment-toggle");
+    if (preview && full && toggle) {
+      const short = preview.textContent.trim() === full.textContent.trim();
+      item.classList.toggle("moment-short", short);
+      if (short) {
+        toggle.style.display = "none";
+        item.querySelector(".moment-body")?.classList.add("expanded");
+        return;
+      }
+    }
+    if (!toggle) return;
+    toggle.addEventListener("click", () => {
+      const body = toggle.closest(".moment-body");
       const expanded = body.classList.toggle("expanded");
-      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-      const arrow = btn.querySelector(".moment-arrow");
+      toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      const arrow = toggle.querySelector(".moment-arrow");
       if (arrow) arrow.textContent = expanded ? "▾" : "▸";
     });
   });

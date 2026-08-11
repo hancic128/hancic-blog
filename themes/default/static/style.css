@@ -136,6 +136,13 @@ button, a, [role="button"], label { cursor: pointer; }
   overflow-wrap: break-word;
 }
 
+.site-footer .site-desc {
+  margin: 0 0 .35rem;
+  font-size: .8rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
 .site-brand {
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -371,7 +378,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .md-body pre {
   background: var(--code-bg);
   border: 1px solid var(--border);
-  padding: 1rem;
+  padding: 2.3rem 1rem 1rem;
   border-radius: 8px;
   overflow-x: auto;
   line-height: 1.6;
@@ -379,6 +386,20 @@ button, a, [role="button"], label { cursor: pointer; }
 }
 
 .md-body pre code { background: none; padding: 0; border-radius: 0; }
+
+/* 代码块语言标记：左上角（复制按钮在右上角，互不冲突） */
+.md-body pre::before {
+  content: attr(data-language);
+  position: absolute;
+  top: .55rem;
+  left: 1rem;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: lowercase;
+  color: var(--muted);
+  opacity: .8;
+}
 
 /* 代码块复制按钮：右上角悬浮，hover 代码块时显示 */
 .md-body pre .code-copy { position: absolute; top: .5rem; right: .5rem;
@@ -391,6 +412,52 @@ button, a, [role="button"], label { cursor: pointer; }
 .md-body pre .code-copy:focus-visible { opacity: 1; outline: 2px solid var(--accent); }
 .md-body pre .code-copy.copied { color: var(--accent); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .md-body pre .code-copy { transition: none; } }
+
+/* 暗色模式：highlight.js GitHub 浅色主题颜色改为 GitHub Dark 配色 */
+html[data-mode="dark"] .md-body .hljs { color: #e6edf3; background: transparent; }
+html[data-mode="dark"] .md-body .hljs-keyword,
+html[data-mode="dark"] .md-body .hljs-doctag,
+html[data-mode="dark"] .md-body .hljs-template-tag,
+html[data-mode="dark"] .md-body .hljs-template-variable,
+html[data-mode="dark"] .md-body .hljs-type,
+html[data-mode="dark"] .md-body .hljs-variable.language_ { color: #ff7b72; }
+html[data-mode="dark"] .md-body .hljs-title,
+html[data-mode="dark"] .md-body .hljs-title.class_,
+html[data-mode="dark"] .md-body .hljs-title.class_.inherited__,
+html[data-mode="dark"] .md-body .hljs-title.function_ { color: #d2a8ff; }
+html[data-mode="dark"] .md-body .hljs-attr,
+html[data-mode="dark"] .md-body .hljs-attribute,
+html[data-mode="dark"] .md-body .hljs-literal,
+html[data-mode="dark"] .md-body .hljs-meta,
+html[data-mode="dark"] .md-body .hljs-number,
+html[data-mode="dark"] .md-body .hljs-operator,
+html[data-mode="dark"] .md-body .hljs-variable { color: #79c0ff; }
+html[data-mode="dark"] .md-body .hljs-regexp,
+html[data-mode="dark"] .md-body .hljs-string { color: #a5d6ff; }
+html[data-mode="dark"] .md-body .hljs-built_in,
+html[data-mode="dark"] .md-body .hljs-symbol { color: #ffa657; }
+html[data-mode="dark"] .md-body .hljs-comment,
+html[data-mode="dark"] .md-body .hljs-code,
+html[data-mode="dark"] .md-body .hljs-formula { color: #8b949e; }
+html[data-mode="dark"] .md-body .hljs-name,
+html[data-mode="dark"] .md-body .hljs-quote,
+html[data-mode="dark"] .md-body .hljs-selector-tag { color: #7ee787; }
+html[data-mode="dark"] .md-body .hljs-section { color: #79c0ff; }
+html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
+
+/* mermaid 图（前台渲染结果） */
+.md-body .mermaid-chart {
+  margin: 1.2em 0;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+.md-body .mermaid-chart svg { max-width: 100%; height: auto; }
+.md-body .mermaid-chart-error { color: var(--muted); font-size: .875rem; justify-content: flex-start; }
 
 /* 目录锚点：固定头部偏移，点击目录滚动到位 */
 .md-body [id^="toc-"] { scroll-margin-top: 5rem; }
@@ -756,6 +823,8 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .moment-full { display: none; margin: .5rem 0 0; font-size: .95rem; line-height: 1.7; }
 .moment-body.expanded .moment-full { display: block; }
 .moment-body.expanded .moment-preview { display: none; }
+/* 内容短的说说：直接显示全文、隐藏折叠按钮 */
+.moment-item.moment-short .moment-full { display: block; }
 
 /* 锚点平滑滚动与固定头部补偿 */
 html { scroll-behavior: smooth; }

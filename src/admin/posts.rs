@@ -218,8 +218,40 @@ async fn render_new(state: &AppState, session: &Session, path: &str, error_tip: 
     ctx.insert("categories", &categories_value(&categories));
     ctx.insert("all_tags", &tags_value(&tags));
     ctx.insert("error_tip", error_tip);
+    // 新建页正文模板：覆盖编辑器支持的全部 Markdown 标记与样式。
+    // 注入 JSON 字符串字面量（json!(..).to_string() 带引号与转义），模板经 safe 原样输出为 JS 字符串。
+    ctx.insert("new_post_template", &json!(NEW_POST_TEMPLATE).to_string());
     super::render_admin(state, "post_edit.html", &ctx)
 }
+
+/// 新建文章正文的 Markdown 语法模板（与编辑器 milkdown commonmark 支持范围对齐：
+/// 标题/段落/加粗/斜体/行内代码/链接/引用/无序·有序列表/代码块/分割线；
+/// 任务列表、表格、删除线、HTML 视频块 milkdown 不支持，不列入模板）。
+const NEW_POST_TEMPLATE: &str = "\
+# 一级标题\n\
+\n\
+## 二级标题\n\
+\n\
+正文段落：支持 **加粗**、*斜体*、`行内代码`、[链接](https://example.com)。\n\
+\n\
+> 引用块\n\
+\n\
+- 无序列表项\n\
+  - 嵌套子项\n\
+\n\
+1. 有序列表项\n\
+2. 第二项\n\
+\n\
+```rust\n\
+// 代码块：三个反引号 + 语言名 + 回车创建\n\
+fn main() { println!(\"Hello\"); }\n\
+```\n\
+\n\
+---\n\
+\n\
+图片：点击工具栏「插入图片」上传，或直接粘贴 / 拖拽到编辑区。\n\
+视频：点击工具栏「插入视频」上传（≤100MB）。\n\
+";
 
 /// 新建页的空文章 JSON：id=0 时 `window._post` 无 id，自动保存不生效。
 fn empty_post_value() -> Value {

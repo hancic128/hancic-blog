@@ -173,15 +173,15 @@ pub(crate) fn render_admin(state: &AppState, template: &str, ctx: &Context) -> R
 struct NavItem {
     url: &'static str,
     label: &'static str,
-    /// 侧栏分组：content（内容管理）/ system（系统）/ link（查看站点）
+    /// 侧栏分组：content（内容管理）/ system（系统）
     group: &'static str,
     active: bool,
 }
 
-/// 侧边栏 11 模块 + 「查看站点」；active 按当前请求路径匹配。
+/// 侧边栏 11 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
-    // (url, label, group)：内容管理 / 系统 / 外部链接
-    let items: [(&str, &str, &str); 12] = [
+    // (url, label, group)：内容管理 / 系统
+    let items: [(&str, &str, &str); 11] = [
         ("/admin", "仪表盘", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
@@ -193,7 +193,6 @@ fn admin_nav(path: &str) -> Vec<NavItem> {
         ("/admin/tokens", "API Token", "system"),
         ("/admin/backup", "备份", "system"),
         ("/admin/migrate", "迁移导入", "system"),
-        ("/", "查看站点", "link"),
     ];
     items
         .iter()
@@ -211,9 +210,6 @@ fn admin_nav(path: &str) -> Vec<NavItem> {
 fn is_active(path: &str, url: &str) -> bool {
     if url == "/admin" {
         return path == "/admin" || path == "/admin/";
-    }
-    if url == "/" {
-        return false; // 查看站点永不高亮
     }
     path.starts_with(url)
 }
@@ -252,7 +248,7 @@ async fn login_page(
     let has_password = auth::has_password(&state.db).await.unwrap_or(false);
     let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
     let error_tip = match query.get("error").map(String::as_str) {
-        Some("rate") => Some("尝试过于频繁，请 10 分钟后再试。"),
+        Some("rate") => Some("尝试过于频繁，请 3 分钟后再试。"),
         Some("csrf") => Some("安全校验失败，请刷新页面后重试。"),
         Some(_) => Some("登录失败，请检查密码。"),
         None => None,
@@ -464,7 +460,7 @@ mod tests {
         assert_eq!(nav("/admin/settings"), vec!["站点设置"]);
         // 前导相似路径不误伤
         assert_eq!(nav("/admin/setup"), Vec::<&str>::new());
-        // 查看站点永不高亮
+        // 根路径无菜单项
         assert_eq!(nav("/"), Vec::<&str>::new());
         assert_eq!(nav("/post/x"), Vec::<&str>::new());
     }

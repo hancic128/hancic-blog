@@ -11,7 +11,7 @@ const FIXTURE = path.resolve(__dirname, "../fixtures/1x1.png");
  * 前台 /moments 可见文字与 <img>。
  */
 test("发布带图说说：后台上传图 → 前台可见文字与图片", async ({ page }) => {
-  const text = `E2E 说说 ${Date.now()} e2e-moment-text`;
+  const text = `E2E 说说 ${Date.now()} e2e-moment-text 这是一条足够长的说说正文内容，确保超过四十字的预览截断阈值从而启用折叠展开功能`;
 
   await loginAsAdmin(page);
 

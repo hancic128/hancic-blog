@@ -12,6 +12,8 @@
   </a>
 </div>
 
+<div class="panel">
+  <section class="panel-section">
 <div class="stat-grid">
   <div class="stat-card">
     <div class="stat-row">
@@ -58,13 +60,15 @@
     </div>
   </div>
 </div>
+  </section>
 
-<div class="panel">
+  <section class="panel-section">
   <h2>近 30 日阅读趋势</h2>
   <div class="chart-wrap"><canvas id="trend" aria-label="近 30 日阅读趋势折线图"></canvas></div>
 </div>
+  </section>
 
-<div class="panel">
+  <section class="panel-section">
   <h2>最近草稿</h2>
   {% if drafts %}
   <ul class="draft-list">
@@ -78,6 +82,7 @@
   {% else %}
   <p class="empty">暂无草稿</p>
   {% endif %}
+  </section>
 </div>
 {% endblock %}
 

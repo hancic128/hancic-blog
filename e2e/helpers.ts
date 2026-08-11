@@ -12,6 +12,17 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 }
 
 /**
+ * 清空 milkdown 编辑器内容（E2E 用：经 bundle 暴露的 _hancicEditor 钩子可靠清空，
+ * 避免 Ctrl+A/Delete 在 ProseMirror 中删不干净）。
+ */
+export async function clearEditor(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const ed = (window as any)._hancicEditor;
+    if (ed && ed.setContent) await ed.setContent("");
+  });
+}
+
+/**
  * 点后台自定义确认对话框的「确认」按钮。
  * 发布/存草稿/删除等带 data-confirm 的操作改用自定义对话框
  * （不再触发原生 confirm），测试需显式点确认。
@@ -23,10 +34,10 @@ export async function acceptConfirmDialog(page: Page): Promise<void> {
 }
 
 /**
- * 向 Vditor IR 编辑器派发「粘贴图片」事件：构造 ClipboardEvent，
+ * 向 milkdown 编辑器派发「粘贴图片」事件：构造 ClipboardEvent，
  * clipboardData 由 DataTransfer 提供（含一个 PNG File），dispatch 到
- * IR 模式的编辑面 `.vditor-reset`（contenteditable 元素，Vditor 的 paste
- * 监听器绑在其上），真实触发 Vditor 的 upload.handler → POST /api/uploads。
+ * 编辑器根容器 `#editor`（milkdown bundle 在容器上以捕获阶段监听 paste），
+ * 真实触发上传处理 → POST /api/uploads。
  */
 export async function pastePngToEditor(page: Page, pngBase64: string): Promise<void> {
   await page.evaluate((b64) => {
@@ -41,9 +52,6 @@ export async function pastePngToEditor(page: Page, pngBase64: string): Promise<v
       bubbles: true,
       cancelable: true,
     });
-    const target =
-      document.querySelector(".vditor-reset") ||
-      document.querySelector(".vditor-ir");
-    target?.dispatchEvent(evt);
+    document.getElementById("editor")?.dispatchEvent(evt);
   }, pngBase64);
 }
