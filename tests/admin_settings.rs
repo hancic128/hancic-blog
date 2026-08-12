@@ -10,22 +10,30 @@ use hancic::db;
 use hancic::services::settings;
 
 /// 设置页表单完整字段（与页面一致），`save` 时拼上 csrf 再提交。
-fn save_fields<'a>(site_name: &'a str, site_nav: &'a str, site_social: &'a str, theme_mode: &'a str, timezone: &'a str) -> Vec<(&'a str, &'a str)> {
+/// 主题模式/时区已移至系统设置页，此处不含。
+fn save_fields<'a>(site_name: &'a str, site_nav: &'a str, site_social: &'a str) -> Vec<(&'a str, &'a str)> {
     vec![
         ("site_name", site_name),
         ("site_desc", "测试描述"),
         ("site_nav", site_nav),
         ("site_social", site_social),
-        ("theme_mode", theme_mode),
-        ("timezone", timezone),
     ]
 }
 
 /// `save` 提交字段：完整字段 + csrf（reqwest `.form()` 二次调用会覆盖，需一次拼齐）。
-fn save_form<'a>(site_name: &'a str, site_nav: &'a str, site_social: &'a str, theme_mode: &'a str, timezone: &'a str, csrf: &'a str) -> Vec<(&'a str, &'a str)> {
-    let mut fields = save_fields(site_name, site_nav, site_social, theme_mode, timezone);
+fn save_form<'a>(site_name: &'a str, site_nav: &'a str, site_social: &'a str, csrf: &'a str) -> Vec<(&'a str, &'a str)> {
+    let mut fields = save_fields(site_name, site_nav, site_social);
     fields.push(("csrf", csrf));
     fields
+}
+
+/// 系统设置页表单（主题模式 + 时区）+ csrf。
+fn system_form<'a>(theme_mode: &'a str, timezone: &'a str, csrf: &'a str) -> Vec<(&'a str, &'a str)> {
+    vec![
+        ("theme_mode", theme_mode),
+        ("timezone", timezone),
+        ("csrf", csrf),
+    ]
 }
 
 #[tokio::test]
@@ -47,7 +55,8 @@ async fn settings_save_updates_db_and_front_header() {
     assert!(html.contains("寒蝉 Hancic"), "设置页应显示当前站点名");
     assert!(html.contains("name=\"site_name\""), "设置页应有站点名输入框");
     assert!(html.contains("name=\"site_nav\""), "设置页应有导航输入框");
-    assert!(html.contains("name=\"old_password\""), "设置页应有修改密码表单");
+    // 修改密码已拆为独立页（左侧菜单），设置页不含密码表单
+    assert!(!html.contains("name=\"old_password\""), "设置页不应含修改密码表单");
 
     // 保存新配置（含导航/社交 JSON、深色模式、东京时区）
     let res = client
@@ -56,8 +65,6 @@ async fn settings_save_updates_db_and_front_header() {
             "寒蝉测试站",
             r#"[{"label":"首页","url":"/"},{"label":"关于","url":"/about"}]"#,
             r#"{"github":"https://github.com/hancic"}"#,
-            "dark",
-            "Asia/Tokyo",
             csrf.as_str(),
         ))
         .send()
@@ -82,6 +89,23 @@ async fn settings_save_updates_db_and_front_header() {
         settings::get(&pool, "site_social").await.unwrap().as_deref(),
         Some(r#"{"github":"https://github.com/hancic"}"#)
     );
+    // 主题模式/时区走系统设置页保存
+    let html_sys = client
+        .get(format!("{base}/admin/system"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let csrf_sys = extract_csrf(&html_sys);
+    let res = client
+        .post(format!("{base}/admin/system/save"))
+        .form(&system_form("dark", "Asia/Tokyo", csrf_sys.as_str()))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302, "系统设置保存成功应 302 回系统设置页");
     assert_eq!(
         settings::get(&pool, "theme_mode").await.unwrap().as_deref(),
         Some("dark")
@@ -123,7 +147,7 @@ async fn invalid_inputs_error_render_and_keep_db() {
     // 1. 非法 nav JSON（对象而非数组）→ 200 错误回显，保留已填值，不落库
     let res = client
         .post(format!("{base}/admin/settings/save"))
-        .form(&save_form("应回显站名", r#"{"label":"首页"}"#, r#"{}"#, "auto", "Asia/Shanghai", csrf.as_str()))
+        .form(&save_form("应回显站名", r#"{"label":"首页"}"#, r#"{}"#, csrf.as_str()))
         .send()
         .await
         .unwrap();
@@ -140,18 +164,27 @@ async fn invalid_inputs_error_render_and_keep_db() {
     // 2. 导航数组但某项缺 url → 200 错误回显
     let res = client
         .post(format!("{base}/admin/settings/save"))
-        .form(&save_form("站名", r#"[{"label":"首页"}]"#, r#"{}"#, "auto", "Asia/Shanghai", csrf.as_str()))
+        .form(&save_form("站名", r#"[{"label":"首页"}]"#, r#"{}"#, csrf.as_str()))
         .send()
         .await
         .unwrap();
     assert_eq!(res.status(), 200, "缺 url 的导航项应校验失败");
     let html = res.text().await.unwrap();
-    assert!(html.contains("缺少 label 或 url"), "应提示缺字段: {html}");
+    assert!(html.contains("缺少链接"), "应提示缺字段: {html}");
 
-    // 3. 非法时区 → 200 错误回显
+    // 3/4. 非法时区 / 非法主题模式 → 200 错误回显（系统设置页）
+    let html_sys = client
+        .get(format!("{base}/admin/system"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let csrf_sys = extract_csrf(&html_sys);
     let res = client
-        .post(format!("{base}/admin/settings/save"))
-        .form(&save_form("站名", r#"[]"#, r#"{}"#, "auto", "Not/AZone", csrf.as_str()))
+        .post(format!("{base}/admin/system/save"))
+        .form(&system_form("auto", "Not/AZone", csrf_sys.as_str()))
         .send()
         .await
         .unwrap();
@@ -159,10 +192,9 @@ async fn invalid_inputs_error_render_and_keep_db() {
     let html = res.text().await.unwrap();
     assert!(html.contains("时区"), "应提示时区不合法: {html}");
 
-    // 4. 非法主题模式 → 200 错误回显
     let res = client
-        .post(format!("{base}/admin/settings/save"))
-        .form(&save_form("站名", r#"[]"#, r#"{}"#, "neon", "Asia/Shanghai", csrf.as_str()))
+        .post(format!("{base}/admin/system/save"))
+        .form(&system_form("neon", "Asia/Shanghai", csrf_sys.as_str()))
         .send()
         .await
         .unwrap();
@@ -173,7 +205,7 @@ async fn invalid_inputs_error_render_and_keep_db() {
     // 5. 空站点名 → 200 错误回显
     let res = client
         .post(format!("{base}/admin/settings/save"))
-        .form(&save_form("   ", r#"[]"#, r#"{}"#, "auto", "Asia/Shanghai", csrf.as_str()))
+        .form(&save_form("   ", r#"[]"#, r#"{}"#, csrf.as_str()))
         .send()
         .await
         .unwrap();
@@ -212,7 +244,7 @@ async fn change_password_flow() {
     let csrf = extract_csrf(&html);
     let old_hash = hancic::auth::get_password_hash(&pool).await.unwrap().unwrap();
     let res = client
-        .post(format!("{base}/admin/settings/password"))
+        .post(format!("{base}/admin/system/password"))
         .form(&[
             ("old_password", "wrong-old-password"),
             ("new_password", "new-password-456"),
@@ -242,7 +274,7 @@ async fn change_password_flow() {
         .unwrap();
     let csrf = extract_csrf(&html);
     let res = client
-        .post(format!("{base}/admin/settings/password"))
+        .post(format!("{base}/admin/system/password"))
         .form(&[
             ("old_password", common::TEST_PASSWORD),
             ("new_password", "short"),
@@ -267,7 +299,7 @@ async fn change_password_flow() {
         .unwrap();
     let csrf = extract_csrf(&html);
     let res = client
-        .post(format!("{base}/admin/settings/password"))
+        .post(format!("{base}/admin/system/password"))
         .form(&[
             ("old_password", common::TEST_PASSWORD),
             ("new_password", "new-password-456"),
@@ -292,7 +324,7 @@ async fn change_password_flow() {
         .unwrap();
     let csrf = extract_csrf(&html);
     let res = client
-        .post(format!("{base}/admin/settings/password"))
+        .post(format!("{base}/admin/system/password"))
         .form(&[
             ("old_password", common::TEST_PASSWORD),
             ("new_password", "new-password-456"),
@@ -395,7 +427,7 @@ async fn change_password_invalidates_existing_sessions() {
         .unwrap();
     let csrf = extract_csrf(&html);
     let res = client
-        .post(format!("{base}/admin/settings/password"))
+        .post(format!("{base}/admin/system/password"))
         .form(&[
             ("old_password", common::TEST_PASSWORD),
             ("new_password", "new-password-456"),

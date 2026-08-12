@@ -11,7 +11,7 @@ use crate::models::AttachmentKind;
 use crate::services::uploads;
 use crate::{session, AppState};
 use axum::extract::{Form, OriginalUri, Path, Query, State};
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use tower_sessions::Session;
@@ -20,6 +20,41 @@ use tower_sessions::Session;
 const PAGE_SIZE: i64 = 20;
 
 // ---------- 列表 ----------
+
+/// 附件 JSON 列表（设置页 Logo 选择器用）：按 kind 筛选，返回 id/url/名称。
+/// 鉴权同列表页（未登录 302 登录页）。
+pub async fn api_list(
+    State(state): State<AppState>,
+    session: Session,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    if session::require_admin(&session).await.is_err() {
+        return super::redirect(&state.config.base_path, "/admin/login");
+    }
+    let kind = match query.get("kind").map(String::as_str).unwrap_or("") {
+        "image" => Some(AttachmentKind::Image),
+        "video" => Some(AttachmentKind::Video),
+        "file" => Some(AttachmentKind::File),
+        _ => None,
+    };
+    let (items, _) = match uploads::list_attachments(&state.db, kind, false, 1, 200).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("附件 JSON 列表查询失败: {e:?}");
+            return axum::Json(json!([])).into_response();
+        }
+    };
+    let base = state.config.base_path.clone();
+    axum::Json(json!(items
+        .iter()
+        .map(|a| json!({
+            "id": a.id,
+            "url": format!("{base}/uploads/{}", a.path),
+            "name": a.orig_name,
+        }))
+        .collect::<Vec<_>>()))
+    .into_response()
+}
 
 pub async fn list(
     State(state): State<AppState>,

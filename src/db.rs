@@ -28,7 +28,7 @@ async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
     let defaults: &[(&str, &str)] = &[
         ("site_name", "寒蝉 Hancic"),
         ("site_desc", ""),
-        ("site_nav", r#"[{"label":"首页","url":"/"},{"label":"文章","url":"/archives"},{"label":"说说","url":"/moments"},{"label":"关于","url":"/about"}]"#),
+        ("site_nav", r#"[{"type":"home","label":"首页","url":"/"},{"type":"articles","label":"文章","url":"/archives"},{"type":"moments","label":"说说","url":"/moments"},{"type":"link","label":"关于","url":"/about"}]"#),
         ("site_social", r#"{}"#),
         ("active_theme", "default"),
         ("theme_mode", "auto"),        // auto | light | dark
@@ -38,7 +38,6 @@ async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
         ("friend_links", r#"[]"#),
         ("contact_enabled", "0"),
         ("contact_email", ""),
-        ("contact_qr", r#"{}"#),
         // 站点 Logo / 社交图标（空默认，后台设置页填）
         ("site_logo", ""),
         ("social_logos", r#"{}"#),

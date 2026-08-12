@@ -12,12 +12,12 @@
       <label for="moment-content">发布说说</label>
       <textarea id="moment-content" name="content" rows="4" placeholder="这一刻的想法…" maxlength="2000"></textarea>
     </div>
-    <div id="moment-picks" class="moment-picks"></div>
-    <div class="form-actions">
+    <div class="moment-actions">
       <input id="moment-file" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden>
       <button class="btn" id="moment-upload-btn" type="button">添加图片/视频</button>
       <button class="btn btn-primary" type="submit">发布</button>
     </div>
+    <div id="moment-picks" class="moment-picks"></div>
   </form>
 
   <form class="filter-bar" method="get" action="{{ base_path }}/admin/moments">
@@ -181,16 +181,25 @@
   'use strict';
   var MOMENT_BASE = "{{ base_path }}";
 
-  // 渲染单个附件缩略（图片缩略 / 视频徽章 / 文件徽章），带删除按钮
+  // 渲染单个附件缩略（图片缩略 / 视频徽章 / 文件徽章），带删除按钮 + 拖拽 + 点击预览
   function buildPick(att, onRemove) {
     var el = document.createElement('span');
     el.className = 'moment-pick';
     el.dataset.id = att.id;
     el.title = att.orig_name || '';
+    el.draggable = true;
+    el.addEventListener('click', function () {
+      if (att.kind === 'image') {
+        previewMedia(att.url);
+      } else {
+        window.open(att.url, '_blank', 'noopener');
+      }
+    });
     if (att.kind === 'image') {
       var img = document.createElement('img');
       img.src = att.url;
       img.alt = att.orig_name || '';
+      img.draggable = false; // 阻止图片原生拖拽干扰排序
       el.appendChild(img);
     } else if (att.kind === 'video') {
       el.textContent = '视频';
@@ -202,12 +211,116 @@
     del.className = 'moment-pick-del';
     del.setAttribute('aria-label', '删除此附件');
     del.textContent = '×';
-    del.addEventListener('click', function () {
+    del.addEventListener('click', function (e) {
+      e.stopPropagation();
       el.remove();
       if (onRemove) onRemove(att.id);
     });
     el.appendChild(del);
     return el;
+  }
+
+  // 附件缩略图点击预览：图片 → 后台 lightbox；视频/文件 → 新窗口
+  function previewMedia(url) {
+    var overlay = document.createElement('div');
+    overlay.className = 'admin-lightbox';
+    var img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+    var close = function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+    overlay.addEventListener('click', close);
+    var onKey = function (e) { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+  }
+
+  // 附件拖拽排序：pointer 事件自实现，拖拽元素跟手（ghost 跟随鼠标 + 原位半透明占位），
+  // 悬停目标高亮指示插入位置，松手才落到目标前/后；同步 id 顺序（attachment_ids）
+  function enableSort(picks, ids, sync) {
+    var dragEl = null;
+    var ghost = null;
+    var startX = 0, startY = 0, offX = 0, offY = 0;
+    var suppressClick = false;
+    function syncIds() {
+      ids.length = 0;
+      picks.querySelectorAll('.moment-pick').forEach(function (p) {
+        ids.push(parseInt(p.dataset.id, 10));
+      });
+      sync();
+    }
+    function clearTargets() {
+      picks.querySelectorAll('.moment-pick').forEach(function (p) {
+        p.classList.remove('drop-before', 'drop-after');
+      });
+    }
+    picks.addEventListener('mousedown', function (e) {
+      var pick = e.target.closest('.moment-pick');
+      if (!pick) return;
+      if (e.target.closest('.moment-pick-del')) return; // 删除按钮不触发拖拽
+      if (e.button !== 0) return;
+      e.preventDefault(); // 阻止文本选择 / 图片原生拖拽
+      var rect = pick.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      offX = e.clientX - rect.left;
+      offY = e.clientY - rect.top;
+      // ghost 跟手：克隆元素 fixed 定位，原元素半透明占位
+      ghost = pick.cloneNode(true);
+      ghost.classList.add('drag-ghost');
+      ghost.style.width = rect.width + 'px';
+      ghost.style.height = rect.height + 'px';
+      document.body.appendChild(ghost);
+      dragEl = pick;
+      pick.classList.add('dragging');
+      moveGhost(e.clientX, e.clientY);
+      function moveGhost(x, y) {
+        ghost.style.left = (x - offX) + 'px';
+        ghost.style.top = (y - offY) + 'px';
+      }
+      function onMove(ev) {
+        if (!dragEl) return;
+        moveGhost(ev.clientX, ev.clientY);
+        // 悬停目标高亮：前/后半区指示插入位置
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest('.moment-pick');
+        clearTargets();
+        if (t && t !== dragEl) {
+          var r = t.getBoundingClientRect();
+          t.classList.add(ev.clientY > r.top + r.height / 2 ? 'drop-after' : 'drop-before');
+        }
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (!dragEl) return;
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest('.moment-pick');
+        if (t && t !== dragEl) {
+          var r = t.getBoundingClientRect();
+          if (ev.clientY > r.top + r.height / 2) {
+            t.after(dragEl);
+          } else {
+            t.before(dragEl);
+          }
+          syncIds();
+          suppressClick = true; // 拖动后抑制本次 click（避免误触预览）
+        }
+        dragEl.classList.remove('dragging');
+        dragEl = null;
+        if (ghost) { ghost.remove(); ghost = null; }
+        clearTargets();
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    // 拖动后抑制一次点击（预览）
+    picks.addEventListener('click', function (e) {
+      if (suppressClick) {
+        e.stopPropagation();
+        suppressClick = false;
+      }
+    });
   }
 
   // 上传文件 → /api/uploads → 逐个回调
@@ -307,9 +420,11 @@
 
       form.appendChild(csrf);
       form.appendChild(ta);
-      form.appendChild(picks);
       form.appendChild(actions);
+      form.appendChild(picks);
       form.appendChild(hidden);
+      // 附件拖拽排序（编辑态）
+      enableSort(picks, ids, syncHidden);
       // 保存前确认（异步；确认后带标记重提交，避免二次询问）
       form.addEventListener('submit', function (e) {
         if (form.dataset.confirmed) return;
@@ -322,6 +437,15 @@
       });
       // 插到内容区后面
       contentEl.after(form);
+      // 编辑态：隐藏原卡片缩略图（编辑表单内已有可管理的附件），取消时还原
+      var thumbs = card.querySelector('.moment-admin-thumbs');
+      var thumbsDisplay = thumbs ? thumbs.style.display : '';
+      if (thumbs) thumbs.style.display = 'none';
+      var origCancel = cancel;
+      cancel.addEventListener('click', function () {
+        if (thumbs) thumbs.style.display = thumbsDisplay;
+        form.remove();
+      });
       ta.focus();
     });
   });

@@ -3,78 +3,68 @@
 {% block content %}
 <h1>站点设置</h1>
 
+{% if settings_error %}
+<p class="error">{{ settings_error }}</p>
+{% endif %}
+
 <div class="panel">
   <section class="panel-section">
   <h2>站点信息</h2>
-  {% if settings_error %}
-  <p class="error">{{ settings_error }}</p>
-  {% endif %}
   <form method="post" action="{{ base_path }}/admin/settings/save">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="site-name">站点名称</label>
-      <input id="site-name" name="site_name" value="{{ form.site_name }}" required>
+      <input id="site-name" name="site_name" value="{{ form.site_name }}" placeholder="如：寒蝉 Hancic" maxlength="30" required>
     </div>
     <div class="field">
       <label for="site-desc">站点描述</label>
-      <input id="site-desc" name="site_desc" value="{{ form.site_desc }}">
+      <input id="site-desc" name="site_desc" value="{{ form.site_desc }}" placeholder="一句话介绍你的站点，显示在页脚" maxlength="120">
     </div>
     <div class="field">
       <label for="site-logo">站点 Logo</label>
-      <input id="site-logo" name="site_logo" value="{{ form.site_logo }}" placeholder="/uploads/logo.png">
-      <p class="muted">前台导航栏以圆形展示；图片请先上传到附件库后粘贴链接</p>
+      <div class="logo-picker">
+        <img id="logo-preview" class="logo-preview" src="{{ form.site_logo }}" alt="站点 Logo 预览"{% if not form.site_logo %} hidden{% endif %}>
+        <div class="logo-actions">
+          <input id="logo-file" type="file" accept="image/*" hidden>
+          <button type="button" class="btn btn-sm" id="logo-upload">上传图片</button>
+          <button type="button" class="btn btn-sm" id="logo-browse">从附件库选择</button>
+          <button type="button" class="btn btn-sm" id="logo-clear"{% if not form.site_logo %} hidden{% endif %}>清除</button>
+        </div>
+        <input type="hidden" name="site_logo" id="site_logo" value="{{ form.site_logo }}">
+      </div>
+      <p class="muted">前台导航栏圆形展示（建议正方形图片）</p>
     </div>
     <div class="field">
       <label for="footer-text">页脚文本</label>
-      <input id="footer-text" name="footer_text" value="{{ form.footer_text }}" placeholder="如 ICP 备案号 / 版权信息">
+      <input id="footer-text" name="footer_text" value="{{ form.footer_text }}" placeholder="如 ICP 备案号 / 版权信息" maxlength="100">
       <p class="muted">显示在页脚版权行右侧，常用于备案号</p>
     </div>
     <div class="field">
       <label for="friend-links">友情链接</label>
-      <div class="kv-editor" id="friend-editor" data-target="friend_links" data-format="nav"></div>
+      <div class="kv-editor" id="friend-editor" data-target="friend_links" data-format="friend"></div>
       <button type="button" class="kv-add" data-add="friend">+ 添加友情链接</button>
       <input type="hidden" id="friend_links" name="friend_links" value="{{ form.friend_links }}">
-      <p class="muted">每项为「名称 + 链接」，显示在页脚</p>
+      <p class="muted">每项为「名称 + 链接」，显示在页脚，可拖拽调整顺序</p>
     </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存设置</button>
+    </div>
+  </form>
+</section>
+
+  <section class="panel-section">
+  <h2>导航菜单</h2>
+  <form method="post" action="{{ base_path }}/admin/settings/save">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="site-nav">导航菜单</label>
       <div class="kv-editor" id="nav-editor" data-target="site_nav" data-format="nav"></div>
       <button type="button" class="kv-add" data-add="nav">+ 添加导航项</button>
       <input type="hidden" id="site_nav" name="site_nav" value="{{ form.site_nav }}">
-      <p class="muted">每项为「名称 + 链接」，如 首页 → /archives</p>
-    </div>
-    <div class="field">
-      <label for="site-social">社交链接</label>
-      <div class="kv-editor" id="social-editor" data-target="site_social" data-format="social"></div>
-      <button type="button" class="kv-add" data-add="social">+ 添加社交链接</button>
-      <input type="hidden" id="site_social" name="site_social" value="{{ form.site_social }}">
-      <p class="muted">每项为「平台名 + 链接」，如 github → https://github.com/xxx</p>
-    </div>
-    <div class="field">
-      <label for="social-logos">社交图标</label>
-      <div class="kv-editor" id="social-logos-editor" data-target="social_logos" data-format="social"></div>
-      <button type="button" class="kv-add" data-add="social-logos">+ 添加图标</button>
-      <input type="hidden" id="social_logos" name="social_logos" value="{{ form.social_logos }}">
-      <p class="muted">每项为「平台名 + 图片链接」（与社交链接的平台名一致），前台圆形展示</p>
-    </div>
-    <div class="field">
-      <label for="theme-mode">主题模式</label>
-      <div class="cs" data-select="#theme-mode">
-      <button class="cs-btn" type="button" aria-label="主题模式" aria-haspopup="listbox" aria-expanded="false"></button>
-      <select id="theme-mode" name="theme_mode" class="cs-hidden">
-        <option value="auto"{% if form.theme_mode == "auto" %} selected{% endif %}>自动</option>
-        <option value="light"{% if form.theme_mode == "light" %} selected{% endif %}>浅色</option>
-        <option value="dark"{% if form.theme_mode == "dark" %} selected{% endif %}>深色</option>
-      </select>
-    </div>
-    </div>
-    <div class="field">
-      <label for="timezone">时区</label>
-      <input id="timezone" name="timezone" value="{{ form.timezone }}" placeholder="Asia/Shanghai">
-      <p class="muted">IANA 时区名，如 Asia/Shanghai、Asia/Tokyo、UTC</p>
+      <p class="muted">每项为「类型 + 名称」；首页/文章/说说路径自动预设，页面类型展开独立页下拉，链接类型需填自定义路径；可拖拽调整顺序</p>
     </div>
     <div class="form-actions">
-      <button class="btn btn-primary" type="submit">保存设置</button>
+      <button class="btn btn-primary" type="submit">保存导航</button>
     </div>
   </form>
 </section>
@@ -95,45 +85,58 @@
     </div>
     </div>
     <div class="field">
-      <label for="contact-email">联系邮箱</label>
-      <input id="contact-email" name="contact_email" type="email" value="{{ form.contact_email }}" placeholder="you@example.com">
+      <label for="site-social">社交链接</label>
+      <div class="kv-editor" id="social-editor" data-target="site_social" data-format="social"></div>
+      <button type="button" class="kv-add" data-add="social">+ 添加社交链接</button>
+      <input type="hidden" id="site_social" name="site_social" value="{{ form.site_social }}">
+      <p class="muted">每项为「平台名 + 链接」，如 github → https://github.com/xxx</p>
     </div>
     <div class="field">
-      <label for="contact-qr">二维码</label>
-      <div class="kv-editor" id="qr-editor" data-target="contact_qr" data-format="social"></div>
-      <button type="button" class="kv-add" data-add="qr">+ 添加二维码</button>
-      <input type="hidden" id="contact_qr" name="contact_qr" value="{{ form.contact_qr }}">
-      <p class="muted">每项为「平台名 + 图片链接」，如 微信 → /uploads/xxx.png（二维码图片请先上传到附件库）</p>
+      <label for="social-logos">社交图标</label>
+      <div class="kv-editor" id="social-logos-editor" data-target="social_logos" data-format="logo"></div>
+      <button type="button" class="kv-add" data-add="social-logos">+ 添加图标</button>
+      <input type="hidden" id="social_logos" name="social_logos" value="{{ form.social_logos }}">
+      <p class="muted">每项为「平台名 + 图片」，如 微信/抖音/小红书（上传或从附件库选择），前台圆形展示</p>
+    </div>
+    <div class="field">
+      <label for="contact-email">联系邮箱</label>
+      <input id="contact-email" name="contact_email" type="email" value="{{ form.contact_email }}" placeholder="you@example.com" maxlength="100">
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
     </div>
   </form>
 </section>
-
-  <section class="panel-section">
-  <h2>修改密码</h2>
-  {% if password_error %}
-  <p class="error">{{ password_error }}</p>
-  {% endif %}
-  <form method="post" action="{{ base_path }}/admin/settings/password">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="field">
-      <label for="old-password">旧密码</label>
-      <input id="old-password" name="old_password" type="password" required>
-    </div>
-    <div class="field">
-      <label for="new-password">新密码</label>
-      <input id="new-password" name="new_password" type="password" required minlength="8">
-    </div>
-    <div class="field">
-      <label for="confirm-password">确认新密码</label>
-      <input id="confirm-password" name="confirm" type="password" required minlength="8">
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">修改密码</button>
-    </div>
-  </form>
-</section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 站点 Logo：上传 / 从附件库选择 / 清除（复用公共图片选择器 hancicPickImage）
+(function () {
+  'use strict';
+  var input = document.getElementById('site_logo');
+  var preview = document.getElementById('logo-preview');
+  var clearBtn = document.getElementById('logo-clear');
+  if (!input || !preview) return;
+  function setLogo(url) {
+    input.value = url;
+    if (url) {
+      preview.src = url;
+      preview.hidden = false;
+      clearBtn.hidden = false;
+    } else {
+      preview.hidden = true;
+      clearBtn.hidden = true;
+    }
+  }
+  document.getElementById('logo-upload').addEventListener('click', function () {
+    window.hancicPickImage(setLogo);
+  });
+  document.getElementById('logo-browse').addEventListener('click', function () {
+    window.hancicPickImage(setLogo);
+  });
+  clearBtn.addEventListener('click', function () { setLogo(''); });
+})();
+</script>
 {% endblock %}

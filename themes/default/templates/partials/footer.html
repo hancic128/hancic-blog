@@ -34,16 +34,6 @@
     <span>{{ site.contact.email }}</span>
   </a>
   {% endif %}
-  {% if site.contact.qr %}
-  <div class="contact-qrs">
-    {% for k, v in site.contact.qr %}
-    <figure class="contact-qr">
-      <img src="{{ v }}" alt="{{ k }} 二维码" loading="lazy">
-      <figcaption>{{ k }}</figcaption>
-    </figure>
-    {% endfor %}
-  </div>
-  {% endif %}
 </div>
 {% endif %}
 

@@ -15,7 +15,7 @@ use axum::extract::{ConnectInfo, Form, OriginalUri, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Days, FixedOffset, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -27,6 +27,7 @@ pub mod attachments;
 pub mod backup;
 pub mod migrate;
 pub mod moments;
+pub mod system;
 pub mod posts;
 pub mod settings;
 pub mod stats;
@@ -57,6 +58,7 @@ pub fn router() -> Router<AppState> {
         .route("/attachments", get(attachments::list))
         .route("/attachments/{id}/delete", post(attachments::delete))
         .route("/attachments/upload", get(attachments::upload_page))
+        .route("/api/attachments", get(attachments::api_list))
         .route("/taxonomy", get(taxonomy::list))
         .route("/taxonomy/categories", post(taxonomy::create_category))
         .route("/taxonomy/categories/{id}/update", post(taxonomy::update_category))
@@ -65,7 +67,9 @@ pub fn router() -> Router<AppState> {
         .route("/taxonomy/tags/{id}/delete", post(taxonomy::delete_tag))
         .route("/settings", get(settings::page))
         .route("/settings/save", post(settings::save))
-        .route("/settings/password", post(settings::password))
+        .route("/system", get(system::page))
+        .route("/system/save", post(system::save))
+        .route("/system/password", post(system::password))
         .route("/themes", get(themes::list))
         .route("/themes/import", post(themes::import))
         .route("/themes/{name}/activate", post(themes::activate))
@@ -112,6 +116,7 @@ pub fn build_tera() -> Tera {
         ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
+        ("system.html", include_str!("../../assets/admin_templates/system.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
         ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
         ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
@@ -178,7 +183,7 @@ struct NavItem {
 /// 侧边栏 9 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
     // (url, label, group)：内容管理 / 系统
-    let items: [(&str, &str, &str); 9] = [
+    let items: [(&str, &str, &str); 10] = [
         ("/admin", "仪表盘", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
@@ -188,6 +193,7 @@ fn admin_nav(path: &str) -> Vec<NavItem> {
         ("/admin/themes", "主题管理", "system"),
         ("/admin/tokens", "API Token", "system"),
         ("/admin/backup", "备份恢复", "system"),
+        ("/admin/system", "系统设置", "system"),
     ];
     items
         .iter()
@@ -364,6 +370,19 @@ async fn fill_dashboard(
     ctx.insert("from", &from_str);
     ctx.insert("to", &to_str);
     ctx.insert("days", &stats::query_days(query));
+    // 快捷按钮高亮：from/to 恰为 30/60/90 天窗口（含今天）时对应高亮，自定义范围不高亮
+    let today = Utc::now().date_naive();
+    let active_days = [30u32, 60, 90]
+        .iter()
+        .find_map(|d| {
+            today
+                .checked_sub_days(Days::new(u64::from(d - 1)))
+                .map(|start| (start.format("%Y-%m-%d").to_string(), *d))
+                .filter(|(s, _)| *s == from_str && today.format("%Y-%m-%d").to_string() == to_str)
+                .map(|(_, d)| d)
+        })
+        .unwrap_or(0);
+    ctx.insert("active_days", &active_days);
 
     // 卡片（total_views 随区间过滤，文章/说说/附件为全量）+ 趋势（区间内无阅读补 0）
     let summary = stats_service::summary(&state.db, from.as_deref(), to.as_deref()).await?;

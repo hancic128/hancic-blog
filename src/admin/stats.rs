@@ -126,24 +126,25 @@ pub fn date_range(from: &str, to: &str) -> Vec<String> {
     out
 }
 
-/// 地区明细：按 (国家, 省份, 城市) 分组计数，阅读降序；空维度保持原样由模板显示「—」。
+/// 地区明细：按 (国家, 省份) 分组计数，阅读降序（城市并入省份，不单独展示）。
+/// 空维度保持原样由模板显示「—」。
 pub fn region_view(rows: &[stats::RegionStat]) -> Vec<Value> {
-    let mut groups: Vec<(String, String, String, i64)> = Vec::new();
+    let mut groups: Vec<(String, String, i64)> = Vec::new();
     for r in rows {
-        let key = (r.country.as_str(), r.province.as_str(), r.city.as_str());
+        let key = (r.country.as_str(), r.province.as_str());
         match groups
             .iter_mut()
-            .find(|(c, p, cty, _)| (c.as_str(), p.as_str(), cty.as_str()) == key)
+            .find(|(c, p, _)| (c.as_str(), p.as_str()) == key)
         {
-            Some((_, _, _, count)) => *count += r.count,
-            None => groups.push((r.country.clone(), r.province.clone(), r.city.clone(), r.count)),
+            Some((_, _, count)) => *count += r.count,
+            None => groups.push((r.country.clone(), r.province.clone(), r.count)),
         }
     }
-    groups.sort_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)));
+    groups.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
     groups
         .into_iter()
-        .map(|(country, province, city, count)| {
-            json!({ "country": country, "province": province, "city": city, "count": count })
+        .map(|(country, province, count)| {
+            json!({ "country": country, "province": province, "count": count })
         })
         .collect()
 }

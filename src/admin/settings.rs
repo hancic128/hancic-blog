@@ -9,34 +9,27 @@
 //! settings 表，保存后即时生效（T7）。
 
 use crate::services::settings;
-use crate::{auth, session, AppState};
+use crate::{session, AppState};
 use axum::extract::{Form, OriginalUri, State};
 use axum::response::Response;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::str::FromStr;
 use tower_sessions::Session;
 
 /// 设置表单字段（settings 表键名，与前台 `site_context` 读取一致）。
 /// 站点信息 + 页脚/友情链接 + 悬浮联系方式卡片。
-const FORM_KEYS: [&str; 13] = [
+const FORM_KEYS: [&str; 10] = [
     "site_name",
     "site_desc",
     "site_nav",
     "site_social",
     "social_logos",
     "site_logo",
-    "theme_mode",
-    "timezone",
     "footer_text",
     "friend_links",
     "contact_enabled",
     "contact_email",
-    "contact_qr",
 ];
-
-/// 允许的主题模式。
-const THEME_MODES: [&str; 3] = ["auto", "light", "dark"];
 
 // ---------- 设置页 ----------
 
@@ -44,7 +37,7 @@ pub async fn page(State(state): State<AppState>, session: Session, uri: Original
     if session::require_admin(&session).await.is_err() {
         return super::redirect(&state.config.base_path, "/admin/login");
     }
-    render(&state, &session, uri.path(), None, "", "").await
+    render(&state, &session, uri.path(), None, "").await
 }
 
 // ---------- 保存站点信息 ----------
@@ -68,7 +61,6 @@ pub async fn save(
             uri.path(),
             Some(&form),
             "安全校验失败，请刷新页面后重试",
-            "",
         )
         .await;
     }
@@ -76,94 +68,26 @@ pub async fn save(
     let errors = validate(&form);
     if !errors.is_empty() {
         let msg = errors.join("；");
-        return render(&state, &session, uri.path(), Some(&form), &msg, "").await;
+        return render(&state, &session, uri.path(), Some(&form), &msg).await;
     }
-    // 逐项写库（trim 后存储；校验已保证非空与格式合法）
+    // 逐项写库（仅更新表单中出现的字段——设置页拆为多个独立表单，
+    // 各自提交自己的字段，缺失键保持库中原值，避免误清空）
     for key in FORM_KEYS {
-        let value = form.get(key).map(String::as_str).unwrap_or("").trim();
-        if let Err(e) = settings::set(&state.db, key, value).await {
-            tracing::error!("保存设置 {key} 失败: {e:?}");
-            return render(
-                &state,
-                &session,
-                uri.path(),
-                Some(&form),
-                "保存失败，请重试",
-                "",
-            )
-            .await;
+        if let Some(value) = form.get(key) {
+            if let Err(e) = settings::set(&state.db, key, value.trim()).await {
+                tracing::error!("保存设置 {key} 失败: {e:?}");
+                return render(
+                    &state,
+                    &session,
+                    uri.path(),
+                    Some(&form),
+                    "保存失败，请重试",
+                )
+                .await;
+            }
         }
     }
     super::redirect(&state.config.base_path, "/admin/settings")
-}
-
-// ---------- 修改密码 ----------
-
-pub async fn password(
-    State(state): State<AppState>,
-    session: Session,
-    uri: OriginalUri,
-    Form(form): Form<HashMap<String, String>>,
-) -> Response {
-    if session::require_admin(&session).await.is_err() {
-        return super::redirect(&state.config.base_path, "/admin/login");
-    }
-    if session::verify_csrf(&session, form.get("csrf").map(String::as_str))
-        .await
-        .is_err()
-    {
-        return render(&state, &session, uri.path(), None, "", "安全校验失败，请刷新页面后重试")
-            .await;
-    }
-    let old = form.get("old_password").map(String::as_str).unwrap_or("");
-    let new = form.get("new_password").map(String::as_str).unwrap_or("");
-    let confirm = form.get("confirm").map(String::as_str).unwrap_or("");
-
-    // 旧密码校验：argon2 为 CPU 密集操作，走 spawn_blocking（与登录一致）
-    let Some(hash) = auth::get_password_hash(&state.db).await.ok().flatten() else {
-        return render(
-            &state,
-            &session,
-            uri.path(),
-            None,
-            "",
-            "尚未设置管理员密码，请通过安装流程初始化",
-        )
-        .await;
-    };
-    let new_same_as_old = new == old;
-    let old_owned = old.to_string();
-    let old_ok = tokio::task::spawn_blocking(move || auth::verify_password(&old_owned, &hash))
-        .await
-        .unwrap_or(false);
-    if !old_ok {
-        return render(&state, &session, uri.path(), None, "", "旧密码不正确").await;
-    }
-    if new.chars().count() < auth::PASSWORD_MIN_LEN {
-        let msg = format!("新密码至少 {} 个字符", auth::PASSWORD_MIN_LEN);
-        return render(&state, &session, uri.path(), None, "", &msg).await;
-    }
-    if new_same_as_old {
-        return render(&state, &session, uri.path(), None, "", "新密码不能与旧密码相同").await;
-    }
-    if new != confirm {
-        return render(&state, &session, uri.path(), None, "", "两次输入的新密码不一致").await;
-    }
-    match auth::set_password(&state.db, new).await {
-        Ok(()) => {
-            // 改密后失效全部既有会话（多端登录一并踢出）；当前会话 flush
-            // 让中间件下发清除 cookie，随后跳登录页强制重新登录（I3）。
-            let _ = sqlx::query(&format!("DELETE FROM {}", session::SESSION_TABLE))
-                .execute(&state.db)
-                .await;
-            let _ = session::logout(&session).await;
-            super::redirect(&state.config.base_path, "/admin/login")
-        }
-        Err(e) => {
-            tracing::error!("修改密码失败: {e:?}");
-            render(&state, &session, uri.path(), None, "", "密码修改失败，请重试").await
-        }
-    }
 }
 
 // ---------- 渲染 ----------
@@ -171,15 +95,13 @@ pub async fn password(
 /// 渲染设置页。
 ///
 /// `submitted` 为 Some 时用它回填站点信息表单（校验失败保留已填值），
-/// None 时从 settings 表读取当前值；`settings_error` / `password_error`
-/// 分别展示在站点信息与修改密码区块。
+/// None 时从 settings 表读取当前值；`settings_error` 展示在站点信息区块。
 async fn render(
     state: &AppState,
     session: &Session,
     path: &str,
     submitted: Option<&HashMap<String, String>>,
     settings_error: &str,
-    password_error: &str,
 ) -> Response {
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     let values: HashMap<String, String> = match submitted {
@@ -198,60 +120,59 @@ async fn render(
     };
     ctx.insert("form", &values);
     ctx.insert("settings_error", settings_error);
-    ctx.insert("password_error", password_error);
     super::render_admin(state, "settings.html", &ctx)
 }
 
 // ---------- 校验 ----------
 
 /// 校验设置表单，返回错误列表（空表示全部通过）。
+/// 仅校验表单中出现的字段（设置页拆为多个独立表单，各自提交部分字段）。
 fn validate(form: &HashMap<String, String>) -> Vec<String> {
     let mut errors = Vec::new();
-    let site_name = form.get("site_name").map(String::as_str).unwrap_or("");
-    if site_name.trim().is_empty() {
-        errors.push("站点名称不能为空".into());
-    }
-    if let Some(msg) = validate_nav(form.get("site_nav").map(String::as_str).unwrap_or("")) {
-        errors.push(msg);
-    }
-    if let Some(msg) = validate_social(form.get("site_social").map(String::as_str).unwrap_or("")) {
-        errors.push(msg);
-    }
-    let theme_mode = form.get("theme_mode").map(String::as_str).unwrap_or("");
-    if !THEME_MODES.contains(&theme_mode) {
-        errors.push("主题模式不合法".into());
-    }
-    let timezone = form.get("timezone").map(String::as_str).unwrap_or("");
-    if chrono_tz::Tz::from_str(timezone.trim()).is_err() {
-        errors.push("时区不合法".into());
-    }
-    // 空串跳过：未填写的可选字段（友情链接/二维码）不校验
-    let friend_links = form.get("friend_links").map(String::as_str).unwrap_or("");
-    if !friend_links.trim().is_empty() {
-        if let Some(msg) = validate_nav(friend_links) {
-            errors.push(format!("友情链接：{msg}"));
+    if let Some(site_name) = form.get("site_name") {
+        if site_name.trim().is_empty() {
+            errors.push("站点名称不能为空".into());
         }
     }
-    let contact_enabled = form.get("contact_enabled").map(String::as_str).unwrap_or("");
-    if !contact_enabled.is_empty() && contact_enabled != "1" && contact_enabled != "0" {
-        errors.push("联系方式开关不合法".into());
-    }
-    let contact_qr = form.get("contact_qr").map(String::as_str).unwrap_or("");
-    if !contact_qr.trim().is_empty() {
-        if let Some(msg) = validate_social(contact_qr) {
-            errors.push(format!("二维码：{msg}"));
+    if let Some(site_nav) = form.get("site_nav") {
+        if let Some(msg) = validate_nav(site_nav) {
+            errors.push(msg);
         }
     }
-    let social_logos = form.get("social_logos").map(String::as_str).unwrap_or("");
-    if !social_logos.trim().is_empty() {
-        if let Some(msg) = validate_social(social_logos) {
-            errors.push(format!("社交图标：{msg}"));
+    if let Some(site_social) = form.get("site_social") {
+        if let Some(msg) = validate_social(site_social) {
+            errors.push(msg);
+        }
+    }
+    // 空串跳过：未填写的可选字段（友情链接/二维码/社交图标）不校验
+    if let Some(friend_links) = form.get("friend_links") {
+        if !friend_links.trim().is_empty() {
+            if let Some(msg) = validate_nav(friend_links) {
+                errors.push(format!("友情链接：{msg}"));
+            }
+        }
+    }
+    if let Some(contact_enabled) = form.get("contact_enabled") {
+        if !contact_enabled.is_empty()
+            && contact_enabled != "1"
+            && contact_enabled != "0"
+        {
+            errors.push("联系方式开关不合法".into());
+        }
+    }
+    if let Some(social_logos) = form.get("social_logos") {
+        if !social_logos.trim().is_empty() {
+            if let Some(msg) = validate_social(social_logos) {
+                errors.push(format!("社交图标：{msg}"));
+            }
         }
     }
     errors
 }
 
-/// 校验导航 JSON：必须为数组，每项含非空 label/url。
+/// 校验导航 JSON：必须为数组，每项含非空 label，type 合法
+/// （home/articles/moments/pages/link，缺省 link）；仅 link 类型必须填 url
+/// （首页/文章/说说路径由类型预设，页面为下拉入口无需路径）。
 fn validate_nav(s: &str) -> Option<String> {
     let v: Value = match serde_json::from_str(s) {
         Ok(v) => v,
@@ -260,11 +181,20 @@ fn validate_nav(s: &str) -> Option<String> {
     let Some(arr) = v.as_array() else {
         return Some("导航必须为 JSON 数组".into());
     };
+    const TYPES: [&str; 5] = ["home", "articles", "moments", "pages", "link"];
     for (i, item) in arr.iter().enumerate() {
         let label = item.get("label").and_then(Value::as_str).unwrap_or("").trim();
         let url = item.get("url").and_then(Value::as_str).unwrap_or("").trim();
-        if label.is_empty() || url.is_empty() {
-            return Some(format!("导航第 {} 项缺少 label 或 url", i + 1));
+        let ty = item.get("type").and_then(Value::as_str).unwrap_or("link");
+        if !TYPES.contains(&ty) {
+            return Some(format!("导航第 {} 项的类型不合法", i + 1));
+        }
+        if label.is_empty() {
+            return Some(format!("导航第 {} 项缺少名称", i + 1));
+        }
+        // 自定义链接必须有跳转地址；其余类型路径由预设/下拉决定
+        if ty == "link" && url.is_empty() {
+            return Some(format!("导航第 {} 项缺少链接", i + 1));
         }
     }
     None

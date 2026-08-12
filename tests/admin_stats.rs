@@ -93,10 +93,11 @@ async fn stats_overview_region_detail_and_clear() {
     // 文章排行：两篇文章都在仪表盘排行区
     assert!(html.contains("统计文章一") && html.contains("统计文章二"), "排行应含两篇文章");
 
-    // 地区明细：同屏四列（国家/省份/城市），中国/美国/江苏/南京全部可见
+    // 地区明细：国家/省份两列（城市并入省份），中国/美国/江苏可见
     assert!(html.contains("中国") && html.contains("美国"), "地区应含中国与美国");
-    assert!(html.contains("江苏") && html.contains("南京"), "地区应含江苏·南京");
-    assert!(html.contains("<th>国家</th>") && html.contains("<th>省份</th>") && html.contains("<th>城市</th>"), "地区应四列表头");
+    assert!(html.contains("江苏"), "地区应含江苏（城市并入省份）");
+    assert!(html.contains("<th>国家</th>") && html.contains("<th>省份</th>"), "地区应国家/省份两列表头");
+    assert!(!html.contains("<th>城市</th>"), "地区不应再有城市列");
 
     // 非法 from/to：回落默认区间，页面仍 200
     let res = client

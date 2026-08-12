@@ -69,7 +69,6 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "friend_links",
             "contact_enabled",
             "contact_email",
-            "contact_qr",
         ],
     )
     .await?;
@@ -82,6 +81,53 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     let mut ctx = Context::new();
     ctx.insert("base_path", base);
     let categories = taxonomy::list_categories(db).await?;
+    // 导航归一化：每项 `{type, label, url}`。类型：home/首页、articles/文章、
+    // moments/说说、pages/页面（下拉列出独立页）、link/链接（自定义）。
+    // 兼容旧数据：无 type 字段的名称为「文章」项 → articles；type=categories → pages
+    // （旧「分类下拉」被「页面下拉」取代）。
+    let nav_raw = parse_json_array(s.get("site_nav").map(String::as_str).unwrap_or("[]"));
+    let nav: Vec<Value> = nav_raw
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .map(|item| {
+                    let label = item.get("label").and_then(Value::as_str).unwrap_or("");
+                    let url = item.get("url").and_then(Value::as_str).unwrap_or("");
+                    let ty = item
+                        .get("type")
+                        .and_then(Value::as_str)
+                        .unwrap_or("link");
+                    let ty = if ty == "categories" {
+                        "pages"
+                    } else if !item.get("type").is_some() && ty == "link" && label == "文章" {
+                        "articles"
+                    } else {
+                        ty
+                    };
+                    json!({ "type": ty, "label": label, "url": url })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    // 独立页列表（type=page 已发布），供「页面」类型导航下拉
+    let (pages, _pages_total) = posts::list_posts(
+        db,
+        posts::PostListOptions {
+            status: Some(PostStatus::Published),
+            post_type: Some(PostType::Page),
+            category_slug: None,
+            tag_slug: None,
+            month: None,
+            sort: None,
+            page: 1,
+            page_size: 100,
+        },
+    )
+    .await?;
+    let pages_value: Vec<Value> = pages
+        .iter()
+        .map(|p| json!({ "slug": p.slug, "title": p.title }))
+        .collect();
     // 社交链接数组化：`[{key, url, logo}]`，logo 来自 social_logos（{平台: 图片URL}），
     // 模板直接遍历渲染（含联系方式卡片圆形图标）。
     let social_raw = parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}"));
@@ -105,7 +151,8 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
         &json!({
             "name": s.get("site_name").map(String::as_str).unwrap_or("寒蝉 Hancic"),
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
-            "nav": parse_json_array(s.get("site_nav").map(String::as_str).unwrap_or("[]")),
+            "nav": nav,
+            "pages": pages_value,
             "social": social,
             "logo": s.get("site_logo").map(String::as_str).unwrap_or(""),
             "active_theme": active_theme,
@@ -115,7 +162,6 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "contact": json!({
                 "enabled": s.get("contact_enabled").map(String::as_str).unwrap_or("0") == "1",
                 "email": s.get("contact_email").map(String::as_str).unwrap_or(""),
-                "qr": parse_json_array(s.get("contact_qr").map(String::as_str).unwrap_or("{}")),
             }),
             "categories": categories.iter().map(|c| json!({ "slug": c.slug, "name": c.name })).collect::<Vec<_>>(),
         }),

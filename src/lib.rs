@@ -95,11 +95,30 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
             api::router().layer(axum::extract::DefaultBodyLimit::max(body_limit as usize)),
         )
         .nest("/admin", admin::router())
-        .nest_service("/static", ServeDir::new(&assets_dir))
+        .nest_service(
+            "/static",
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn(no_cache_static))
+                .service(ServeDir::new(&assets_dir)),
+        )
         .merge(web::front::routes())
         .fallback(web::front::not_found)
         .layer(session::session_layer(&db))
         .with_state(state))
+}
+
+/// 后台静态资源（admin.css/admin.js/vendor）不设长缓存：这些文件随版本热服务，
+/// 浏览器缓存旧版会导致样式/脚本不一致。统一 `no-cache`（协商缓存，改后立即生效）。
+async fn no_cache_static(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut res = next.run(req).await;
+    res.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-cache"),
+    );
+    res
 }
 
 /// 启动 IP 搜索器：确保 xdb 落盘后加载。失败直接阻断启动（地区统计属核心能力）。

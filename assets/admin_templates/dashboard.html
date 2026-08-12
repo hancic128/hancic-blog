@@ -6,10 +6,16 @@
     <h1>仪表盘</h1>
     <p class="page-sub">站点内容概览与阅读统计</p>
   </div>
-  <a class="btn" href="{{ base_path }}/admin/posts/new">
-    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    写文章
-  </a>
+  <div class="page-head-actions">
+    <a class="btn" href="{{ base_path }}/admin/posts/new">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      写文章
+    </a>
+    <a class="btn" href="{{ base_path }}/admin/moments">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      写说说
+    </a>
+  </div>
 </div>
 
 <div class="panel">
@@ -30,9 +36,9 @@
     </div>
     <button class="btn" type="submit">查询</button>
     <span class="filter-sep" aria-hidden="true"></span>
-    <a class="btn btn-sm{% if days == 30 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=30">最近30天</a>
-    <a class="btn btn-sm{% if days == 60 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=60">最近60天</a>
-    <a class="btn btn-sm{% if days == 90 %} btn-primary{% endif %}" href="{{ base_path }}/admin?days=90">最近90天</a>
+    <a class="btn btn-sm quick-days{% if active_days == 30 %} btn-primary{% endif %}" data-days="30" href="{{ base_path }}/admin?days=30">最近30天</a>
+    <a class="btn btn-sm quick-days{% if active_days == 60 %} btn-primary{% endif %}" data-days="60" href="{{ base_path }}/admin?days=60">最近60天</a>
+    <a class="btn btn-sm quick-days{% if active_days == 90 %} btn-primary{% endif %}" data-days="90" href="{{ base_path }}/admin?days=90">最近90天</a>
   </form>
   </section>
 
@@ -129,13 +135,12 @@
   <h2>地区分布 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
   {% if regions %}
   <table class="data-table">
-    <thead><tr><th>国家</th><th>省份</th><th>城市</th><th>阅读</th></tr></thead>
+    <thead><tr><th>国家</th><th>省份</th><th>阅读</th></tr></thead>
     <tbody>
       {% for r in regions %}
       <tr>
         <td>{{ r.country if r.country else "—" }}</td>
         <td>{{ r.province if r.province else "—" }}</td>
-        <td>{{ r.city if r.city else "—" }}</td>
         <td class="muted">{{ r.count }}</td>
       </tr>
       {% endfor %}
@@ -161,19 +166,35 @@
   <p class="empty">暂无草稿</p>
   {% endif %}
   </section>
-
-  <section class="panel-section">
-  <h2>危险操作</h2>
-  <p class="muted">清空全部阅读明细日志（page_views 表）后不可恢复，文章累计阅读数（posts.views）保留。</p>
-  <form class="inline-form" method="post" action="{{ base_path }}/admin/stats/clear" data-confirm="确定清空全部阅读日志？">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="btn btn-danger" type="submit">清空阅读日志</button>
-  </form>
-  </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ base_path }}/static/vendor/chart.umd.min.js"></script>
 <script>window.chartData = {{ chart_data | safe }};</script>
+<script>
+// 快捷日期按钮：点击即把对应日期范围填入 from/to 输入框并提交（与输入框联动一致）
+(function () {
+  'use strict';
+  document.querySelectorAll('.quick-days').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var days = parseInt(btn.getAttribute('data-days'), 10) || 30;
+      var today = new Date();
+      var from = new Date(today);
+      from.setDate(from.getDate() - (days - 1));
+      function fmt(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+          '-' + String(d.getDate()).padStart(2, '0');
+      }
+      var f = document.querySelector('input[name="from"]');
+      var t = document.querySelector('input[name="to"]');
+      if (f) f.value = fmt(from);
+      if (t) t.value = fmt(today);
+      var form = btn.closest('form');
+      if (form) form.submit();
+    });
+  });
+})();
+</script>
 {% endblock %}

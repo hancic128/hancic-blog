@@ -320,6 +320,7 @@
     '/admin/stats': '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
     '/admin/tokens': '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
     '/admin/backup': '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+    '/admin/system': '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     '/admin/migrate': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     '/': '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
     'logout': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'
@@ -364,70 +365,362 @@
     });
   }
 
-  // ---- 设置页键值编辑器（导航菜单 / 社交链接）----
-  // 结构：<div class="kv-editor" data-target="site_nav" data-format="nav|social">
-  //       行由 JS 管理；提交时 _sync() 序列化 JSON 写回隐藏字段
+  // ---- 设置页键值编辑器（导航菜单 / 友情链接 / 社交链接 / 社交图标）----
+  // 结构：<div class="kv-editor" data-target="..." data-format="nav|friend|social|logo">
+  // 行由 JS 管理；提交时 _sync() 序列化 JSON 写回隐藏字段。
+  //   nav    导航菜单：[类型(首页|文章|说说|页面|链接), 名称, 路径]（非链接类型路径预设/隐藏）
+  //   friend 友情链接：[名称, 链接]，无类型
+  //   social 社交链接 / 二维码：[平台名, 链接]
+  //   logo   社交图标：[平台名, 图片URL]（上传 / 附件库选择）
+  // nav/friend 支持拖拽排序（行首手柄）。
+  var KV_TYPES = [
+    ['home', '首页', '/'],
+    ['articles', '文章', '/archives'],
+    ['moments', '说说', '/moments'],
+    ['pages', '页面', ''],
+    ['link', '链接', '']
+  ];
+  function kvTypeDefaultUrl(t) {
+    for (var i = 0; i < KV_TYPES.length; i++) {
+      if (KV_TYPES[i][0] === t) return KV_TYPES[i][2];
+    }
+    return '';
+  }
+  // 图片选择：弹窗（上传 / 附件库网格），选中后回调 URL
+  function kvBuildMediaPicker(row, value, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'kv-media';
+    var thumb = document.createElement('img');
+    thumb.className = 'kv-media-thumb';
+    thumb.alt = '';
+    var pickBtn = document.createElement('button');
+    pickBtn.type = 'button';
+    pickBtn.className = 'btn btn-sm';
+    pickBtn.textContent = '选择图片';
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'kv-media-clear';
+    clearBtn.textContent = '×';
+    clearBtn.setAttribute('aria-label', '清除图片');
+    function render() {
+      if (value) {
+        thumb.src = value;
+        thumb.hidden = false;
+        clearBtn.hidden = false;
+      } else {
+        thumb.hidden = true;
+        clearBtn.hidden = true;
+      }
+    }
+    pickBtn.addEventListener('click', function () {
+      window.hancicPickImage(function (url) { value = url; render(); onChange(value); });
+    });
+    clearBtn.addEventListener('click', function () { value = ''; render(); onChange(value); });
+    render();
+    wrap.appendChild(thumb);
+    wrap.appendChild(pickBtn);
+    wrap.appendChild(clearBtn);
+    return wrap;
+  }
+  function kvBuildRow(ed, format, keyVal, urlVal, typeVal) {
+    var row = document.createElement('div');
+    row.className = 'kv-row';
+    if (format === 'nav' || format === 'friend') {
+      var drag = document.createElement('span');
+      drag.className = 'kv-drag';
+      drag.title = '拖拽排序';
+      drag.setAttribute('aria-label', '拖拽排序');
+      drag.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>';
+      row.appendChild(drag);
+    }
+    if (format === 'nav') {
+      var typeSel = document.createElement('select');
+      typeSel.className = 'kv-type';
+      typeSel.setAttribute('aria-label', '导航类型');
+      KV_TYPES.forEach(function (t) {
+        var opt = document.createElement('option');
+        opt.value = t[0];
+        opt.textContent = t[1];
+        opt.selected = typeVal === t[0];
+        typeSel.appendChild(opt);
+      });
+      row.appendChild(typeSel);
+    }
+    var key = document.createElement('input');
+    key.className = 'kv-key';
+    key.placeholder = format === 'social' || format === 'logo' ? '平台名，如 github / 微信' : '名称，如 首页';
+    key.setAttribute('aria-label', key.placeholder);
+    key.value = keyVal || '';
+    row.appendChild(key);
+    var url;
+    if (format === 'logo') {
+      // 图片选择列（替换文本 URL 输入）
+      var urlHidden = document.createElement('input');
+      urlHidden.type = 'hidden';
+      urlHidden.className = 'kv-url';
+      urlHidden.value = urlVal || '';
+      url = urlHidden;
+      var media = kvBuildMediaPicker(row, urlVal || '', function (v) { urlHidden.value = v; });
+      row.appendChild(urlHidden);
+      row.appendChild(media);
+    } else {
+      url = document.createElement('input');
+      url.className = 'kv-url';
+      url.placeholder = format === 'social' ? '链接，如 https://github.com/xxx' : '路径，如 /archives';
+      url.setAttribute('aria-label', url.placeholder);
+      url.value = urlVal || '';
+      if (format === 'nav' && typeVal !== 'link') {
+        url.style.display = 'none';
+        if (!urlVal) url.value = kvTypeDefaultUrl(typeVal || 'link');
+      }
+      row.appendChild(url);
+    }
+    if (format === 'nav') {
+      typeSel.addEventListener('change', function () {
+        var t = typeSel.value;
+        url.style.display = t === 'link' ? '' : 'none';
+        if (t !== 'link') url.value = kvTypeDefaultUrl(t);
+      });
+    }
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'kv-del';
+    del.setAttribute('aria-label', '删除这一行');
+    del.textContent = '✕';
+    del.addEventListener('click', function () { row.remove(); });
+    row.appendChild(del);
+    return row;
+  }
+  // 行拖拽排序（nav/friend）：按住手柄 → ghost 跟手 → 松手落位
+  function kvEnableSort(ed) {
+    var dragEl = null;
+    var ghost = null;
+    var offX = 0, offY = 0;
+    ed.addEventListener('mousedown', function (e) {
+      var handle = e.target.closest('.kv-drag');
+      if (!handle) return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      var row = handle.closest('.kv-row');
+      var rect = row.getBoundingClientRect();
+      offX = e.clientX - rect.left;
+      offY = e.clientY - rect.top;
+      ghost = row.cloneNode(true);
+      ghost.classList.add('kv-ghost');
+      ghost.style.width = rect.width + 'px';
+      document.body.appendChild(ghost);
+      dragEl = row;
+      row.classList.add('kv-dragging');
+      moveGhost(e.clientX, e.clientY);
+      function moveGhost(x, y) {
+        ghost.style.left = (x - offX) + 'px';
+        ghost.style.top = (y - offY) + 'px';
+      }
+      function clearTargets() {
+        ed.querySelectorAll('.kv-row').forEach(function (r) { r.classList.remove('kv-drop-before', 'kv-drop-after'); });
+      }
+      function onMove(ev) {
+        if (!dragEl) return;
+        moveGhost(ev.clientX, ev.clientY);
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest('.kv-row');
+        clearTargets();
+        if (t && t !== dragEl) {
+          var r = t.getBoundingClientRect();
+          t.classList.add(ev.clientY > r.top + r.height / 2 ? 'kv-drop-after' : 'kv-drop-before');
+        }
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (!dragEl) return;
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest('.kv-row');
+        if (t && t !== dragEl) {
+          var r = t.getBoundingClientRect();
+          if (ev.clientY > r.top + r.height / 2) t.after(dragEl);
+          else t.before(dragEl);
+        }
+        dragEl.classList.remove('kv-dragging');
+        dragEl = null;
+        if (ghost) { ghost.remove(); ghost = null; }
+        clearTargets();
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
   document.querySelectorAll('.kv-editor').forEach(function (ed) {
     var target = document.getElementById(ed.dataset.target);
     if (!target) return;
     var format = ed.dataset.format || 'nav';
-    var keyPh = format === 'social' ? '平台名，如 github' : '名称，如 首页';
-    var urlPh = format === 'social' ? '链接，如 https://github.com/xxx' : '链接，如 /archives';
     function parse() {
       try { var v = JSON.parse(target.value || ''); return v; } catch (e) { return []; }
     }
-    function buildRow(keyVal, urlVal) {
-      var row = document.createElement('div');
-      row.className = 'kv-row';
-      var key = document.createElement('input');
-      key.className = 'kv-key';
-      key.placeholder = keyPh;
-      key.setAttribute('aria-label', keyPh);
-      key.value = keyVal || '';
-      var url = document.createElement('input');
-      url.className = 'kv-url';
-      url.placeholder = urlPh;
-      url.setAttribute('aria-label', urlPh);
-      url.value = urlVal || '';
-      var del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'kv-del';
-      del.setAttribute('aria-label', '删除这一行');
-      del.textContent = '✕';
-      del.addEventListener('click', function () { row.remove(); });
-      row.appendChild(key);
-      row.appendChild(url);
-      row.appendChild(del);
-      return row;
+    var pairs;
+    if (format === 'social' || format === 'logo') {
+      var obj = parse();
+      pairs = Object.keys(obj).map(function (k) { return [k, obj[k]]; });
+    } else if (format === 'friend') {
+      pairs = parse().map(function (o) { return [o.label || '', o.url || '']; });
+    } else {
+      pairs = parse().map(function (o) {
+        var ty = o.type || 'link';
+        if (ty === 'categories') ty = 'pages';
+        return [o.label || '', o.url || '', ty];
+      });
     }
-    var pairs = format === 'social'
-      ? Object.keys(parse()).map(function (k) { return [k, parse()[k]]; })
-      : parse().map(function (o) { return [o.label || '', o.url || '']; });
-    pairs.forEach(function (p) { ed.appendChild(buildRow(p[0], p[1])); });
-    if (!ed.querySelector('.kv-row')) ed.appendChild(buildRow('', ''));
+    pairs.forEach(function (p) {
+      ed.appendChild(kvBuildRow(ed, format, p[0], p[1], p[2]));
+    });
+    if (!ed.querySelector('.kv-row')) {
+      ed.appendChild(kvBuildRow(ed, format, '', '', format === 'nav' ? 'home' : ''));
+    }
     var add = ed.parentNode.querySelector('.kv-add');
     if (add) {
-      add.addEventListener('click', function () { ed.appendChild(buildRow('', '')); });
+      add.addEventListener('click', function () {
+        ed.appendChild(kvBuildRow(ed, format, '', '', format === 'nav' ? 'home' : ''));
+      });
+    }
+    if (format === 'nav' || format === 'friend') {
+      kvEnableSort(ed);
     }
     ed._sync = function () {
       var items = [];
       ed.querySelectorAll('.kv-row').forEach(function (row) {
         var k = row.querySelector('.kv-key').value.trim();
-        var u = row.querySelector('.kv-url').value.trim();
-        if (!k && !u) return;
-        items.push([k, u]);
+        if (!k) return;
+        var u = (row.querySelector('.kv-url') || { value: '' }).value.trim();
+        if (format === 'nav') {
+          var t = row.querySelector('.kv-type').value;
+          u = t === 'link' ? u : kvTypeDefaultUrl(t);
+          items.push([k, u, t]);
+        } else {
+          items.push([k, u]);
+        }
       });
-      if (format === 'social') {
+      if (format === 'social' || format === 'logo') {
         var obj = {};
         items.forEach(function (p) { if (p[0]) obj[p[0]] = p[1]; });
         target.value = JSON.stringify(obj);
-      } else {
+      } else if (format === 'friend') {
         target.value = JSON.stringify(items.map(function (p) {
           return { label: p[0], url: p[1] };
+        }));
+      } else {
+        target.value = JSON.stringify(items.map(function (p) {
+          return { type: p[2] || 'link', label: p[0], url: p[1] };
         }));
       }
     };
   });
+
+  // ---- 公共图片选择器：上传 / 从附件库选择（站点 Logo 与社交图标共用）----
+  (function () {
+    'use strict';
+    function adminBase() {
+      var link = document.querySelector('link[href$="/static/admin.css"]');
+      if (!link) return '';
+      var href = link.getAttribute('href');
+      var i = href.indexOf('/static/admin.css');
+      return i > 0 ? href.slice(0, i) : '';
+    }
+    function openPicker(base, list, callback, fileInput) {
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      var box = document.createElement('div');
+      box.className = 'modal-box picker-box';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      var title = document.createElement('h3');
+      title.className = 'modal-title';
+      title.textContent = '选择图片';
+      var head = document.createElement('div');
+      head.className = 'picker-head';
+      var uploadBtn = document.createElement('button');
+      uploadBtn.type = 'button';
+      uploadBtn.className = 'btn btn-sm';
+      uploadBtn.textContent = '上传图片';
+      uploadBtn.addEventListener('click', function () { fileInput.click(); });
+      head.appendChild(uploadBtn);
+      var grid = document.createElement('div');
+      grid.className = 'picker-grid';
+      if (!list.length) {
+        var empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = '附件库暂无图片，请先上传';
+        grid.appendChild(empty);
+      }
+      list.forEach(function (att) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'picker-item';
+        item.title = att.name;
+        var img = document.createElement('img');
+        img.src = att.url;
+        img.alt = att.name;
+        img.loading = 'lazy';
+        item.appendChild(img);
+        item.addEventListener('click', function () {
+          callback(att.url);
+          overlay.remove();
+        });
+        grid.appendChild(item);
+      });
+      var actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      var cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'btn';
+      cancel.textContent = '取消';
+      cancel.addEventListener('click', function () { overlay.remove(); });
+      actions.appendChild(cancel);
+      box.appendChild(title);
+      box.appendChild(head);
+      box.appendChild(grid);
+      box.appendChild(actions);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) overlay.remove();
+      });
+      return overlay;
+    }
+    window.hancicPickImage = function (callback) {
+      var base = adminBase();
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.hidden = true;
+      document.body.appendChild(fileInput);
+      fileInput.addEventListener('change', function () {
+        if (!fileInput.files || !fileInput.files.length) return;
+        var fd = new FormData();
+        fd.append('files', fileInput.files[0]);
+        window.hancicFetch('/api/uploads', { method: 'POST', body: fd })
+          .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('上传失败（HTTP ' + res.status + '）')); })
+          .then(function (json) {
+            if (json.data && json.data[0]) {
+              callback(base + '/uploads/' + json.data[0].path);
+              document.querySelectorAll('.picker-box').forEach(function (b) { b.closest('.modal-overlay').remove(); });
+            }
+            fileInput.value = '';
+          })
+          .catch(function (err) {
+            window.hancicToast(err && err.message ? err.message : '上传失败，请重试', 'error');
+            fileInput.value = '';
+          });
+      });
+      window.hancicFetch(base + '/admin/api/attachments?kind=image')
+        .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('加载附件失败')); })
+        .then(function (list) {
+          openPicker(base, list, callback, fileInput);
+        })
+        .catch(function (err) {
+          window.hancicToast(err && err.message ? err.message : '加载附件失败', 'error');
+        });
+    };
+  })();
 
   // ---- 抽屉导航（≤768px）：body.drawer-open 控制侧边栏滑入 ----
   var toggle = document.getElementById('admin-toggle');
