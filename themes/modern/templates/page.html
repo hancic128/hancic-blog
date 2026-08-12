@@ -1,0 +1,7 @@
+{# 独立页（post_type=page） #}
+{% include "partials/header.html" %}
+<article class="page">
+  <h1>{{ page.title }}</h1>
+  {{ page.content_md | markdown | safe }}
+</article>
+{% include "partials/footer.html" %}

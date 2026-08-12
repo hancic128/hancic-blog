@@ -12,6 +12,13 @@ services:
       # 覆盖默认配置（可选）：- ./config.toml:/app/config.toml:ro
     environment:
       - RUST_LOG=info
+    # 资源限制：静态博客 + API，当前运行 ~87MiB / CPU≈0%；256M 内存留足峰值
+    # （上传/备份压缩、并发请求）余量，CPU 1 核保证备份/上传不卡顿
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
       interval: 30s

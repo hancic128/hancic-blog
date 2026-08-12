@@ -10,7 +10,7 @@
 <div class="panel">
   <section class="panel-section">
   <h2>生成新 Token</h2>
-  <form method="post" action="{{ base_path }}/admin/tokens">
+  <form method="post" action="{{ base_path }}/admin/tokens" id="token-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="token-name">名称</label>
@@ -18,7 +18,8 @@
     </div>
     <p class="muted">明文仅显示一次，请生成后立即复制保存；库中只存哈希。</p>
     <div class="form-actions">
-      <button class="btn btn-primary" type="submit">生成 Token</button>
+      <button class="btn btn-primary" type="submit" id="token-gen-btn">生成 Token</button>
+      <a class="btn" href="{{ base_path }}/admin/tokens/help">接口使用说明</a>
     </div>
   </form>
 </section>
@@ -58,4 +59,94 @@
   {% endif %}
 </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 生成 Token 前弹出自定义对话框：说明用途与注意事项，确认后才提交
+(function () {
+  'use strict';
+  var form = document.getElementById('token-form');
+  var btn = document.getElementById('token-gen-btn');
+  if (!form || !btn) return;
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (!form.querySelector('#token-name').value.trim()) {
+      if (window.hancicToast) window.hancicToast('请先填写 Token 名称', 'error');
+      form.querySelector('#token-name').focus();
+      return;
+    }
+    // 构建说明列表
+    var lines = [
+      'API Token 用于以脚本/程序方式调用本站 /api 接口，替代后台登录鉴权：',
+      '发布与管理文章（/api/posts）',
+      '发布与删除说说（/api/moments）',
+      '管理分类（/api/categories）',
+      '上传附件（/api/uploads）',
+      '获取统计（/api/stats/summary）',
+      '下载全量备份（/api/backup）'
+    ];
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.hidden = true;
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-labelledby', 'tk-title');
+    var title = document.createElement('h3');
+    title.className = 'modal-title';
+    title.id = 'tk-title';
+    title.textContent = '生成 API Token？';
+    var msg = document.createElement('div');
+    msg.className = 'modal-msg modal-msg-left';
+    var p1 = document.createElement('p');
+    p1.textContent = lines[0];
+    var ul = document.createElement('ul');
+    for (var i = 1; i < lines.length; i++) {
+      var li = document.createElement('li');
+      li.textContent = lines[i];
+      ul.appendChild(li);
+    }
+    var p2 = document.createElement('p');
+    p2.textContent = '调用方式：请求头携带 Authorization: Bearer <你的 Token>。';
+    var p3 = document.createElement('p');
+    p3.textContent = '明文仅显示一次，请立即复制保存；遗失无法找回，吊销后立即失效且不可恢复。';
+    msg.appendChild(p1);
+    msg.appendChild(ul);
+    msg.appendChild(p2);
+    msg.appendChild(p3);
+    var actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn';
+    cancel.textContent = '取消';
+    var ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'btn btn-primary';
+    ok.textContent = '生成';
+    actions.appendChild(cancel);
+    actions.appendChild(ok);
+    box.appendChild(title);
+    box.appendChild(msg);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    overlay.hidden = false;
+    ok.focus();
+    function close() { overlay.remove(); }
+    cancel.addEventListener('click', close);
+    ok.addEventListener('click', function () { close(); form.submit(); });
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) close(); });
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape' && document.body.contains(overlay)) {
+        close();
+        document.removeEventListener('keydown', esc);
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,405 @@
+/* 默认主题脚本：汉堡菜单、亮暗切换、配色选择、lightbox 与图片懒加载 */
+
+(function () {
+  "use strict";
+
+  /* ---------- 亮暗切换（auto → light → dark → auto），默认 auto 跟随系统 ---------- */
+
+  var THEME_KEY = "hancic-theme";
+  var MODES = ["auto", "light", "dark"];
+
+  function currentMode() {
+    return document.documentElement.getAttribute("data-mode") || "auto";
+  }
+
+  function applyMode(mode) {
+    document.documentElement.setAttribute("data-mode", mode);
+    try { localStorage.setItem(THEME_KEY, mode); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  // 有本地选择则覆盖服务端默认（无则保留 auto，跟随系统偏好）
+  var savedMode;
+  try { savedMode = localStorage.getItem(THEME_KEY); } catch (e) { savedMode = null; }
+  if (savedMode && MODES.indexOf(savedMode) !== -1) {
+    applyMode(savedMode);
+  }
+
+  var themeToggle = document.getElementById("theme-toggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", function () {
+      var next = MODES[(MODES.indexOf(currentMode()) + 1) % MODES.length];
+      applyMode(next);
+    });
+  }
+
+  /* ---------- 主题配色：调色板按钮弹出色板，点击色块切换（localStorage 记忆） ---------- */
+
+  var ACCENT_KEY = "hancic-accent";
+  var ACCENTS = ["indigo", "blue", "green", "purple", "orange"];
+
+  function currentAccent() {
+    return document.documentElement.getAttribute("data-accent") || "indigo";
+  }
+
+  function markCurrentSwatch() {
+    var current = currentAccent();
+    var swatches = document.querySelectorAll(".accent-swatch");
+    for (var i = 0; i < swatches.length; i++) {
+      swatches[i].classList.toggle("current", swatches[i].getAttribute("data-accent") === current);
+    }
+  }
+
+  function applyAccent(accent) {
+    document.documentElement.setAttribute("data-accent", accent);
+    try { localStorage.setItem(ACCENT_KEY, accent); } catch (e) { /* 隐私模式忽略 */ }
+    markCurrentSwatch();
+  }
+
+  // 恢复本地配色选择并标记当前色块
+  var savedAccent;
+  try { savedAccent = localStorage.getItem(ACCENT_KEY); } catch (e) { savedAccent = null; }
+  if (savedAccent && ACCENTS.indexOf(savedAccent) !== -1) {
+    applyAccent(savedAccent);
+  } else {
+    markCurrentSwatch();
+  }
+
+  var accentToggle = document.getElementById("accent-toggle");
+  var accentPanel = document.getElementById("accent-panel");
+  if (accentToggle && accentPanel) {
+    accentToggle.addEventListener("click", function () {
+      var willShow = accentPanel.hidden;
+      accentPanel.hidden = !willShow;
+      accentToggle.setAttribute("aria-expanded", willShow ? "true" : "false");
+    });
+    accentPanel.addEventListener("click", function (e) {
+      var swatch = e.target.closest(".accent-swatch");
+      if (!swatch) return;
+      applyAccent(swatch.getAttribute("data-accent"));
+      accentPanel.hidden = true;
+      accentToggle.setAttribute("aria-expanded", "false");
+    });
+    // 点击页面其他区域关闭色板
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".accent-wrap") && !accentPanel.hidden) {
+        accentPanel.hidden = true;
+        accentToggle.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  /* ---------- 移动端汉堡菜单 ---------- */
+
+  var navToggle = document.getElementById("nav-toggle");
+  var siteNav = document.getElementById("site-nav");
+  if (navToggle && siteNav) {
+    navToggle.addEventListener("click", function () {
+      siteNav.classList.toggle("open");
+    });
+    // 点击导航链接后收起菜单
+    siteNav.addEventListener("click", function () {
+      siteNav.classList.remove("open");
+    });
+  }
+
+  /* ---------- 图片懒加载 + lightbox ---------- */
+
+  function addLazyAndLightbox() {
+    // 正文图片与说说宫格图片共用同一套懒加载 + lightbox
+    var images = document.querySelectorAll(".md-body img, .moment-grid img");
+    for (var i = 0; i < images.length; i++) {
+      var img = images[i];
+      if (!img.hasAttribute("loading")) {
+        img.setAttribute("loading", "lazy");
+      }
+      img.addEventListener("click", function (e) {
+        e.preventDefault();
+        openLightbox(this);
+      });
+    }
+  }
+
+  function openLightbox(img) {
+    var overlay = document.createElement("div");
+    overlay.className = "lightbox";
+    var clone = img.cloneNode(false);
+    overlay.appendChild(clone);
+    document.body.appendChild(overlay);
+    function close() {
+      if (overlay.parentNode) {
+        document.body.removeChild(overlay);
+      }
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") {
+        close();
+      }
+    }
+    overlay.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+  }
+
+  // 懒加载：页面渲染后即可绑定（正文为服务端渲染，无动态插入）
+  document.addEventListener("DOMContentLoaded", addLazyAndLightbox);
+  if (document.readyState !== "loading") {
+    addLazyAndLightbox();
+  }
+
+  /* ---------- 回到顶部按钮：滚动超过阈值才显示，点击平滑回顶 ---------- */
+
+  function initBackTop() {
+    var btn = document.getElementById("back-top");
+    if (!btn) return;
+    var THRESHOLD = 300;
+    function onScroll() {
+      var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+      btn.hidden = y <= THRESHOLD;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    btn.addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initBackTop);
+  if (document.readyState !== "loading") {
+    initBackTop();
+  }
+
+  /* ---------- 代码块复制按钮（正文 pre 右上角，点击复制代码） ---------- */
+
+  function initCodeCopy() {
+    var pres = document.querySelectorAll(".md-body pre");
+    for (var i = 0; i < pres.length; i++) {
+      var pre = pres[i];
+      if (pre.querySelector(".code-copy")) continue;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "code-copy";
+      btn.setAttribute("aria-label", "复制代码");
+      btn.textContent = "复制";
+      pre.appendChild(btn);
+      btn.addEventListener("click", function () {
+        var code = this.parentNode.querySelector("code");
+        var text = code ? code.innerText : "";
+        var done = function (ok) {
+          this.textContent = ok ? "已复制" : "复制失败";
+          this.classList.add("copied");
+          var btn = this;
+          setTimeout(function () {
+            btn.textContent = "复制";
+            btn.classList.remove("copied");
+          }, 1500);
+        }.bind(this);
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(
+            function () { done(true); },
+            function () { fallbackCopy(text, done); }
+          );
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  }
+
+  // 剪贴板 API 不可用时的降级复制（textarea + execCommand）
+  function fallbackCopy(text, done) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      done(ok);
+    } catch (e) {
+      done(false);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initCodeCopy);
+  if (document.readyState !== "loading") {
+    initCodeCopy();
+  }
+
+  /* ---------- 代码块语法高亮（highlight.js）+ 语言标记；mermaid 渲染为图 ---------- */
+  function renderMermaid(pre, code) {
+    if (!window.mermaid || !mermaid.render) return;
+    var text = (code.innerText || code.textContent || "").trim();
+    if (!text) return;
+    var holder = document.createElement("div");
+    holder.className = "mermaid-chart";
+    var theme = document.documentElement.getAttribute("data-mode") === "dark" ? "dark" : "default";
+    mermaid.initialize({ startOnLoad: false, theme: theme });
+    var pid = "hancic-mmd-" + Math.floor(Math.random() * 1e9);
+    mermaid.render(pid, text).then(function (res) {
+      holder.innerHTML = res.svg;
+      pre.replaceWith(holder);
+    }).catch(function () {
+      holder.className += " mermaid-chart-error";
+      holder.textContent = "mermaid 渲染失败：请检查语法";
+      pre.replaceWith(holder);
+    });
+  }
+
+  function initCodeHighlight() {
+    if (!window.hljs || !hljs.highlightElement) return;
+    var codes = document.querySelectorAll(".md-body pre code");
+    for (var i = 0; i < codes.length; i++) {
+      var code = codes[i];
+      var pre = code.closest("pre");
+      var m = (code.className || "").match(/language-([\w+-]+)/);
+      var lang = m ? m[1] : "";
+      if (lang === "mermaid") {
+        renderMermaid(pre, code);
+        continue;
+      }
+      try {
+        hljs.highlightElement(code);
+      } catch (e) { /* 单块失败不影响其它 */ }
+      if (lang && pre) pre.setAttribute("data-language", lang);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", initCodeHighlight);
+  if (document.readyState !== "loading") {
+    initCodeHighlight();
+  }
+
+  /* ---------- 首页文章列表滚动浮现（淡入 + 上移 8px，300ms ease-out） ---------- */
+
+  function initScrollReveal() {
+    var items = document.querySelectorAll(".post-list-item");
+    if (items.length === 0) return;
+    // 无 IntersectionObserver 或用户偏好减弱动效时不加类，内容保持默认可见
+    if (!("IntersectionObserver" in window)) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.add("reveal");
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      for (var j = 0; j < entries.length; j++) {
+        if (entries[j].isIntersecting) {
+          entries[j].target.classList.add("is-visible");
+          observer.unobserve(entries[j].target);
+        }
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.1 });
+    for (var k = 0; k < items.length; k++) {
+      observer.observe(items[k]);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initScrollReveal);
+  if (document.readyState !== "loading") {
+    initScrollReveal();
+  }
+})();
+
+// 更新日历 tooltip：body 级悬浮层（避免被热力图滚动容器裁剪），跟随鼠标
+(function initHeatTooltip() {
+  const tip = document.createElement("div");
+  tip.className = "heat-tooltip";
+  tip.style.display = "none";
+  document.body.appendChild(tip);
+  const show = (cell, e) => {
+    tip.textContent = cell.getAttribute("data-tip") || "";
+    tip.style.display = "block";
+    move(cell, e);
+  };
+  const move = (_cell, e) => {
+    const w = tip.offsetWidth || 220;
+    let x = e.clientX + 14;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+    tip.style.left = x + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+  };
+  const hide = () => { tip.style.display = "none"; };
+  const on = (cell) => {
+    cell.addEventListener("mouseenter", (e) => show(cell, e));
+    cell.addEventListener("mousemove", (e) => move(cell, e));
+    cell.addEventListener("mouseleave", hide);
+    // 触屏：点击切换
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      tip.style.display === "block" ? hide() : show(cell, e);
+    });
+  };
+  document.querySelectorAll(".heat-cell").forEach(on);
+})();
+
+// 最近说说折叠/展开：点击切换 .expanded（不依赖 details 原生行为）。
+// 首页与说说页同款：默认折叠（箭头 ▸），点击展开全文（箭头 ▾）。
+// 内容短的说说（预览未截断，即全文 ≤40 字）不需要折叠：直接显示全文、隐藏 toggle。
+(function initMomentToggle() {
+  document.querySelectorAll(".moment-item").forEach((item) => {
+    const preview = item.querySelector(".moment-preview");
+    const full = item.querySelector(".moment-full");
+    const toggle = item.querySelector(".moment-toggle");
+    if (preview && full && toggle) {
+      const short = preview.textContent.trim() === full.textContent.trim();
+      item.classList.toggle("moment-short", short);
+      if (short) {
+        toggle.style.display = "none";
+        item.querySelector(".moment-body")?.classList.add("expanded");
+        return;
+      }
+    }
+    if (!toggle) return;
+    toggle.addEventListener("click", () => {
+      const body = toggle.closest(".moment-body");
+      const expanded = body.classList.toggle("expanded");
+      toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      const arrow = toggle.querySelector(".moment-arrow");
+      if (arrow) arrow.textContent = expanded ? "▾" : "▸";
+    });
+  });
+})();
+
+// 归档页侧栏月份筛选：默认显示最近半年（6 个月份），点击"显示更多月份"展开其余
+(function initMonthMore() {
+  const items = document.querySelectorAll("#side-months li");
+  const btn = document.getElementById("month-more-btn");
+  if (!items.length || !btn) return;
+  const hidden = [];
+  for (let i = 6; i < items.length; i++) {
+    items[i].style.display = "none";
+    hidden.push(items[i]);
+  }
+  btn.addEventListener("click", () => {
+    const expanding = btn.getAttribute("aria-expanded") !== "true";
+    for (const li of hidden) li.style.display = expanding ? "" : "none";
+    btn.setAttribute("aria-expanded", expanding ? "true" : "false");
+    btn.textContent = expanding ? "收起 ▴" : "显示更多月份 ▾";
+  });
+})();
+
+// 悬浮联系方式卡片：无内容时隐藏按钮；点击展开/收起，Esc 或点击外部关闭
+(function initContactFab() {
+  const fab = document.getElementById("contact-fab");
+  const panel = document.getElementById("contact-panel");
+  if (!fab || !panel) return;
+  const hasContent = panel.querySelector(".contact-item");
+  if (!hasContent) return; // 未配置任何联系方式：保持 hidden 不展示
+  fab.hidden = false;
+  const close = () => {
+    panel.hidden = true;
+    fab.setAttribute("aria-expanded", "false");
+  };
+  fab.addEventListener("click", () => {
+    const willShow = panel.hidden;
+    panel.hidden = !willShow;
+    fab.setAttribute("aria-expanded", willShow ? "true" : "false");
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#contact-panel, #contact-fab") && !panel.hidden) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !panel.hidden) close();
+  });
+})();

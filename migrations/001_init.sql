@@ -105,3 +105,15 @@ CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
   INSERT INTO posts_fts(posts_fts, rowid, title, content_md) VALUES('delete', old.id, old.title, old.content_md);
   INSERT INTO posts_fts(rowid, title, content_md) VALUES (new.id, new.title, new.content_md);
 END;
+
+-- 备份/恢复操作记录（导出/恢复历史，供后台备份页展示）
+CREATE TABLE IF NOT EXISTS backup_logs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind       TEXT NOT NULL CHECK (kind IN ('export','restore')),
+  status     TEXT NOT NULL CHECK (status IN ('ok','failed')),
+  size       INTEGER NOT NULL DEFAULT 0,
+  files      INTEGER NOT NULL DEFAULT 0,
+  note       TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_backup_logs_created ON backup_logs(created_at DESC);

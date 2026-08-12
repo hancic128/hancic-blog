@@ -12,18 +12,59 @@
 //! 导出在 handler 内实时生成到临时文件再下发（备份内容随数据变化，
 //! 不预生成持久文件）；大 zip 直接读入内存下发，管理操作可接受。
 
+use crate::db::Db;
 use crate::services::backup;
 use crate::{session, AppState};
 use axum::extract::{Form, Multipart, OriginalUri, Query, State};
 use axum::http::header;
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
-use serde_json::json;
+use serde_json::{Value, json};
+use sqlx::Row;
 use std::collections::HashMap;
 use tower_sessions::Session;
 
 /// 恢复上传 zip 大小上限（字节），路由层 `DefaultBodyLimit` 与业务校验共用。
 pub const RESTORE_MAX_BYTES: u64 = 500 * 1024 * 1024;
+
+/// 写入一条备份/恢复操作记录（失败不影响主流程）。
+async fn log_backup(db: &Db, kind: &str, status: &str, size: i64, files: i64, note: &str) {
+    let _ = sqlx::query(
+        "INSERT INTO backup_logs(kind, status, size, files, note) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(kind)
+    .bind(status)
+    .bind(size)
+    .bind(files)
+    .bind(note)
+    .execute(db)
+    .await;
+}
+
+/// 最近备份记录（时间倒序前 20 条）。
+async fn recent_logs(db: &Db) -> Vec<Value> {
+    let rows = sqlx::query(
+        "SELECT kind, status, size, files, note, created_at FROM backup_logs \
+         ORDER BY created_at DESC, id DESC LIMIT 20",
+    )
+    .fetch_all(db)
+    .await
+    .unwrap_or_default();
+    rows.into_iter()
+        .map(|r| {
+            json!({
+                "kind": r.get::<String, _>("kind"),
+                "status": r.get::<String, _>("status"),
+                "size": r.get::<i64, _>("size"),
+                "files": r.get::<i64, _>("files"),
+                "note": r.get::<String, _>("note"),
+                "created_at": super::format_local(chrono::DateTime::parse_from_rfc3339(
+                    &r.get::<String, _>("created_at")
+                ).map(|t| t.with_timezone(&chrono::Utc)).unwrap_or_else(|_| chrono::Utc::now())),
+            })
+        })
+        .collect()
+}
 
 // ---------- 页面 ----------
 
@@ -42,6 +83,7 @@ pub async fn page(
         "error_msg",
         &query.get("msg").map(String::as_str).unwrap_or(""),
     );
+    ctx.insert("backup_logs", &recent_logs(&state.db).await);
     super::render_admin(&state, "backup.html", &ctx)
 }
 
@@ -84,6 +126,15 @@ pub async fn export(
         report.size,
         report.counts.files
     );
+    log_backup(
+        &state.db,
+        "export",
+        "ok",
+        bytes.len() as i64,
+        report.counts.files as i64,
+        "",
+    )
+    .await;
     (
         [
             (header::CONTENT_TYPE, "application/zip".to_string()),
@@ -166,11 +217,13 @@ pub async fn restore(
     match backup::restore(&state.config.data_dir, &zip_path).await {
         Ok(report) => {
             tracing::info!("备份恢复完成: {} 个文件", report.files);
+            log_backup(&state.db, "restore", "ok", 0, report.files as i64, "").await;
             let _ = std::fs::remove_file(&zip_path);
             render_result(&state, &session, uri.path(), report, "").await
         }
         Err(e) => {
             tracing::error!("备份恢复失败: {e:?}");
+            log_backup(&state.db, "restore", "failed", 0, 0, e.message()).await;
             let _ = std::fs::remove_file(&zip_path);
             redirect_msg(&state.config.base_path, e.message())
         }

@@ -58,5 +58,30 @@
     </div>
   </form>
 </section>
+
+<section class="panel-section">
+  <h2>备份恢复记录</h2>
+  {% if backup_logs %}
+  <table class="data-table">
+    <thead>
+      <tr><th>时间</th><th>类型</th><th>结果</th><th>大小</th><th>文件数</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      {% for l in backup_logs %}
+      <tr>
+        <td class="muted">{{ l.created_at }}</td>
+        <td>{% if l.kind == "export" %}导出{% else %}恢复{% endif %}</td>
+        <td>{% if l.status == "ok" %}<span class="badge badge-published">成功</span>{% else %}<span class="badge badge-draft">失败</span>{% endif %}</td>
+        <td class="muted">{% if l.size > 0 %}{{ l.size }} 字节{% else %}—{% endif %}</td>
+        <td class="muted">{% if l.files > 0 %}{{ l.files }}{% else %}—{% endif %}</td>
+        <td class="muted">{{ l.note }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">暂无备份/恢复记录</p>
+  {% endif %}
+</section>
 </div>
 {% endblock %}

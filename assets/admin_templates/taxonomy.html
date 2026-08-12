@@ -7,14 +7,15 @@
 <p class="error">{{ error_msg }}</p>
 {% endif %}
 
-<div class="panel taxonomy-panel">
-  <section class="taxonomy-section">
+<div class="panel">
+  <section class="panel-section">
     <h2>分类</h2>
+    <button class="taxonomy-add-row" id="cat-add" type="button" title="新建分类" aria-label="新建分类">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建分类
+    </button>
 
     <div class="taxonomy-grid">
-        <button class="taxonomy-add" id="cat-add" type="button" title="新建分类" aria-label="新建分类">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
         {% for c in categories %}
         <div class="taxonomy-card" data-id="{{ c.id }}">
           <span class="taxonomy-name-text" title="{{ c.name }}">{{ c.name }}{% if c.count > 0 %}<span class="tax-count">{{ c.count }}</span>{% endif %}</span>
@@ -46,15 +47,14 @@
     </div>
   </section>
 
-  <section class="taxonomy-section">
+  <section class="panel-section">
     <h2>标签</h2>
+    <button class="taxonomy-add-row" id="tag-add" type="button" title="新建标签" aria-label="新建标签">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建标签
+    </button>
 
     <ul class="tag-list">
-      <li class="tag-item tag-item-add">
-        <button class="taxonomy-add" id="tag-add" type="button" title="新建标签" aria-label="新建标签">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-      </li>
       {% for t in tags %}
       <li class="tag-item" data-id="{{ t.id }}">
         <span class="tag-name">{{ t.name }}{% if t.count > 0 %}<span class="tax-count">{{ t.count }}</span>{% endif %}</span>

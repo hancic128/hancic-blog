@@ -1,0 +1,62 @@
+{# 首页：更新日历 + 最近说说 + 最新文章（右侧目录） #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+
+  <main class="layout-main">
+    {# 1. 更新日历（近一年，GitHub Contribution 风格，hover 显示动态详情） #}
+    {% if calendar %}
+    <section class="heatmap-section" id="calendar">
+      <h3 class="section-title">更新日历 <small>近一年发布/更新动态</small></h3>
+      <div class="heatmap">
+        {% for week in calendar %}
+        <div class="heatmap-col">
+          {% for day in week %}
+          <span class="heat-cell l{{ day.level }}" data-tip="{{ day.tip }}"
+                aria-label="{{ day.tip }}"></span>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="heat-legend">
+        <span>少</span>
+        {% for i in [0,1,2,3,4] %}<span class="heat-cell l{{ i }}"></span>{% endfor %}
+        <span>多</span>
+      </div>
+    </section>
+    {% endif %}
+
+    {# 2. 最近说说（时间线，每条可折叠，含缩略图） #}
+    {% if moments %}
+    <section class="activity-section" id="moments">
+      <h3 class="section-title">最近说说</h3>
+      <div class="moment-timeline">
+        {% include "partials/moment_item.html" %}
+      </div>
+      <p class="more-link"><a href="{{ base_path }}/moments">更多说说 →</a></p>
+    </section>
+    {% endif %}
+
+    {# 3. 最新文章列表 #}
+    <section class="post-list" id="posts">
+      <h3 class="section-title">最新文章</h3>
+      {% include "partials/post_list.html" %}
+      {% if post_total > 5 %}
+      <p class="more-link"><a href="{{ base_path }}/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
+      {% endif %}
+    </section>
+  </main>
+
+  {# 右侧锚点导航 #}
+  <aside class="layout-side">
+    <div class="side-card">
+      <h4 class="side-title">本页导航</h4>
+      <ul class="side-toc">
+        <li><a href="#calendar">更新日历</a></li>
+        <li><a href="#moments">最近说说</a></li>
+        <li><a href="#posts">最新文章</a></li>
+      </ul>
+    </div>
+  </aside>
+
+</div>
+{% include "partials/footer.html" %}

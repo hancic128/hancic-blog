@@ -1,0 +1,17 @@
+{# 分类归档页：分类下标签云 + 文章分页列表 #}
+{% include "partials/header.html" %}
+<h1 class="archive-title">分类：<span class="archive-cat">{{ category.name }}</span></h1>
+{% if category_tags %}
+<section class="category-tags">
+  <div class="tag-cloud">
+    {% for t in category_tags %}
+    <a class="tag-badge" href="{{ base_path }}/tag/{{ t.slug }}">{{ t.name }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<section class="post-list">
+{% include "partials/post_list.html" %}
+</section>
+{% include "partials/pagination.html" %}
+{% include "partials/footer.html" %}

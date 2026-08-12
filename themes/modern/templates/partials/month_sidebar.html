@@ -1,0 +1,21 @@
+{# 右侧栏：按月份筛选时间线（只含有内容的月份，默认半年，可展开更多）
+   需要上下文：months（[{month}]）、current_month（Option<String>）、month_base（侧栏链接前缀） #}
+<aside class="layout-side">
+  <div class="side-card">
+    <h4 class="side-title">按月份</h4>
+    <ul class="side-months" id="side-months">
+      {% for m in months %}
+      <li>
+        {% if m.month == current_month %}
+        <a class="side-month-active" href="{{ month_base }}?month={{ m.month }}">{{ m.month }}</a>
+        {% else %}
+        <a href="{{ month_base }}?month={{ m.month }}">{{ m.month }}</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if months | length > 6 %}
+    <button class="archive-more" id="month-more-btn" type="button" aria-expanded="false">显示更多月份 ▾</button>
+    {% endif %}
+  </div>
+</aside>

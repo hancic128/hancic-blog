@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+{% block title %}API 接口使用说明{% endblock %}
+{% block content %}
+<h1>API 接口使用说明</h1>
+
+<div class="panel">
+  <section class="panel-section">
+  <h2>总览</h2>
+  <p class="muted">除 <code>/api/health</code> 外，所有接口都要求鉴权：携带
+    <code>Authorization: Bearer &lt;你的 Token&gt;</code> 请求头（也可直接用后台登录会话）。
+    失败统一返回 <code>401</code>；业务错误返回 <code>{error: {code, message}}</code>，
+    成功返回 <code>{data: ...}</code>。接口地址形如 <code>{{ api_base }}/api/posts</code>。</p>
+  <nav class="api-toc">
+    <h3>目录</h3>
+    <ul>
+      <li><a href="#auth">鉴权与错误格式</a></li>
+      <li><a href="#posts">文章：/api/posts</a></li>
+      <li><a href="#moments">说说：/api/moments</a></li>
+      <li><a href="#categories">分类：/api/categories</a></li>
+      <li><a href="#uploads">附件上传：/api/uploads</a></li>
+      <li><a href="#stats">统计：/api/stats/summary</a></li>
+      <li><a href="#backup">备份：/api/backup</a></li>
+      <li><a href="#health">健康检查：/api/health</a></li>
+    </ul>
+  </nav>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="auth">鉴权与错误格式</h2>
+  <p class="muted">所有请求头需携带：</p>
+  <pre><code>Authorization: Bearer hancic_xxxxxxxxxxxxxxxx</code></pre>
+  <p class="muted">请求体为 JSON（<code>Content-Type: application/json</code>），
+    上传接口除外（multipart）。错误响应示例：</p>
+  <pre><code>{"error": {"code": "unauthorized", "message": "未授权"}}</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="posts">文章：/api/posts</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/posts</code></td><td>文章列表（分页，可筛选）</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/posts</code></td><td>创建文章</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/posts/{id}</code></td><td>文章详情</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/posts/{id}</code></td><td>部分更新（缺失字段不变）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/posts/{id}</code></td><td>删除（204）</td></tr>
+    </tbody>
+  </table>
+  <p class="muted"><strong>列表查询参数</strong>：<code>page</code>（默认 1）、
+    <code>page_size</code>（默认 10，最大 100）、<code>status</code>（draft/published）、
+    <code>category</code>（分类 slug）、<code>tag</code>（标签 slug）。响应
+    <code>{data: {items: [...], total: N}}</code>。</p>
+  <p class="muted"><strong>创建请求体</strong>（title/content_md 必填）：</p>
+  <pre><code>{
+  "title": "新文章标题",
+  "content_md": "# 正文 Markdown",
+  "status": "draft",          // draft | published，默认 draft
+  "excerpt": "摘要（可选）",
+  "slug": "custom-slug",      // 可选，缺省自动生成
+  "category_id": 1,           // 可选，分类 id
+  "tags": ["标签1", "标签2"]  // 可选
+}</code></pre>
+  <p class="muted"><strong>更新</strong>（PATCH）：只传要改的字段；
+    <code>"category_id": null</code> 清空分类、<code>"excerpt": null</code> 清空摘要。</p>
+  <p class="muted">curl 示例：</p>
+  <pre><code>curl -X POST {{ api_base }}/api/posts \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"你好","content_md":"正文","status":"published"}'</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="moments">说说：/api/moments</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST</code></td><td><code>/api/moments</code></td><td>发布说说（201）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/moments/{id}</code></td><td>删除说说（204）</td></tr>
+    </tbody>
+  </table>
+  <p class="muted"><strong>发布请求体</strong>：<code>content</code> 必填（非空字符串），
+    <code>attachment_ids</code> 可选（附件 id 数组，需来自 /api/uploads）。</p>
+  <pre><code>curl -X POST {{ api_base }}/api/moments \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"content":"今天也是好天气","attachment_ids":[1,2]}'</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="categories">分类：/api/categories</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/categories</code></td><td>全量分类</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/categories</code></td><td>创建分类（201）</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/categories/{id}</code></td><td>更新（缺失字段沿用现值）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/categories/{id}</code></td><td>删除（204，关联文章置为未分类）</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">创建/更新请求体：<code>name</code> 必填（≤5 字），
+    <code>slug</code> 可选（缺省按名称生成），<code>sort_order</code> 可选（默认 0）；
+    slug 冲突返回 409。</p>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="uploads">附件上传：/api/uploads</h2>
+  <p class="muted">multipart 表单上传，字段名 <code>files</code>，支持多文件；
+    成功返回 <code>{data: [{id, path, orig_name, mime, size, kind}]}</code>。
+    返回的 <code>id</code> 可用于说说 <code>attachment_ids</code> 或文章正文引用
+    <code>path</code>。</p>
+  <pre><code>curl -X POST {{ api_base }}/api/uploads \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "files=@/path/to/image.png"</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="stats">统计：/api/stats/summary</h2>
+  <p class="muted">阅读汇总（总量 + 每日趋势）。可选查询参数
+    <code>from</code>/<code>to</code>（格式 <code>YYYY-MM-DD</code>，UTC 日期边界）。</p>
+  <pre><code>curl "{{ api_base }}/api/stats/summary?from=2026-08-01&to=2026-08-13" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="backup">备份：/api/backup</h2>
+  <p class="muted">全量备份 zip 下载（数据库 + 配置 + 上传 + 主题），
+    <code>Content-Type: application/zip</code>。适合 CI / 运维脚本定时拉取。</p>
+  <pre><code>curl -o backup.zip {{ api_base }}/api/backup -H "Authorization: Bearer $TOKEN"</code></pre>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="health">健康检查：/api/health</h2>
+  <p class="muted">存活探针，<strong>无需鉴权</strong>。返回
+    <code>{"data": {"status": "ok"}}</code>。</p>
+  </section>
+</div>
+{% endblock %}

@@ -9,6 +9,7 @@
 
 <p class="muted">当前主题：<strong>{{ current_theme }}</strong>。切换后前台模板与样式需重启服务才完全生效；预览可在不切换的情况下查看前台效果。</p>
 
+<div class="panel">
 <section class="panel-section">
   <h2>导入主题</h2>
   <p class="muted">上传主题 zip（内含 theme.toml + templates/ + static/），同名主题将覆盖旧版本；导入成功后需重启服务生效。</p>
@@ -27,6 +28,7 @@
     </div>
   </form>
 </section>
+</div>
 
 {% if themes %}
 <div class="theme-grid">

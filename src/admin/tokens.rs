@@ -78,6 +78,22 @@ pub async fn create(
     }
 }
 
+// ---------- 帮助页 ----------
+
+/// GET /admin/tokens/help：API 接口使用说明（各端点请求/响应与 curl 示例）。
+pub async fn help(
+    State(state): State<AppState>,
+    session: Session,
+    uri: OriginalUri,
+) -> Response {
+    if session::require_admin(&session).await.is_err() {
+        return super::redirect(&state.config.base_path, "/admin/login");
+    }
+    let (mut ctx, _csrf) = super::base_ctx(&state, &session, uri.path()).await;
+    ctx.insert("api_base", &state.config.base_path);
+    super::render_admin(&state, "api_help.html", &ctx)
+}
+
 // ---------- 明文展示（仅一次） ----------
 
 pub async fn created_page(

@@ -140,8 +140,7 @@ pub async fn password(
     if !old_ok {
         return render(&state, &session, uri.path(), None, "", "旧密码不正确").await;
     }
-    if new.chars().count() < auth::PASSWORD_MIN_LEN {
-        let msg = format!("新密码至少 {} 个字符", auth::PASSWORD_MIN_LEN);
+    if let Err(msg) = auth::validate_password_strength(&new) {
         return render(&state, &session, uri.path(), None, "", &msg).await;
     }
     if new_same_as_old {

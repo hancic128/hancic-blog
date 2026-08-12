@@ -78,6 +78,7 @@ pub fn router() -> Router<AppState> {
         .route("/stats", get(admin_index))   // 历史路由兼容：统计已合并进仪表盘
         .route("/stats/clear", post(stats::clear))
         .route("/tokens", get(tokens::list).post(tokens::create))
+        .route("/tokens/help", get(tokens::help))
         .route("/tokens/{id}/created", get(tokens::created_page))
         .route("/tokens/{id}/revoke", post(tokens::revoke))
         .route("/backup", get(backup::page))
@@ -120,6 +121,7 @@ pub fn build_tera() -> Tera {
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
         ("tokens.html", include_str!("../../assets/admin_templates/tokens.html")),
         ("tokens_created.html", include_str!("../../assets/admin_templates/tokens_created.html")),
+        ("api_help.html", include_str!("../../assets/admin_templates/api_help.html")),
         ("backup.html", include_str!("../../assets/admin_templates/backup.html")),
         ("migrate.html", include_str!("../../assets/admin_templates/migrate.html")),
     ])

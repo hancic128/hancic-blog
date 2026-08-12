@@ -48,19 +48,39 @@
   {% if password_error %}
   <p class="error">{{ password_error }}</p>
   {% endif %}
-  <form method="post" action="{{ base_path }}/admin/system/password">
+  <form method="post" action="{{ base_path }}/admin/system/password" id="pwd-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
       <label for="old-password">旧密码</label>
-      <input id="old-password" name="old_password" type="password" required>
+      <div class="pwd-wrap">
+        <input id="old-password" name="old_password" type="password" required autocomplete="current-password">
+        <button type="button" class="pwd-toggle" data-target="old-password" aria-label="显示密码" title="显示密码">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
     <div class="field">
       <label for="new-password">新密码</label>
-      <input id="new-password" name="new_password" type="password" required minlength="8">
+      <div class="pwd-wrap">
+        <input id="new-password" name="new_password" type="password" required minlength="8" autocomplete="new-password">
+        <button type="button" class="pwd-toggle" data-target="new-password" aria-label="显示密码" title="显示密码">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div class="pwd-strength" id="pwd-strength" hidden>
+        <div class="pwd-strength-bar"><i id="pwd-strength-fill"></i></div>
+        <span class="pwd-strength-label" id="pwd-strength-label"></span>
+      </div>
+      <p class="muted">密码长度 8–64 位，需同时包含字母和数字</p>
     </div>
     <div class="field">
       <label for="confirm-password">确认新密码</label>
-      <input id="confirm-password" name="confirm" type="password" required minlength="8">
+      <div class="pwd-wrap">
+        <input id="confirm-password" name="confirm" type="password" required minlength="8" autocomplete="new-password">
+        <button type="button" class="pwd-toggle" data-target="confirm-password" aria-label="显示密码" title="显示密码">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">修改密码</button>
@@ -68,4 +88,51 @@
   </form>
 </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 密码输入框明文切换（三个框共用） + 新密码强度实时指示
+(function () {
+  'use strict';
+  // 明文切换
+  document.querySelectorAll('.pwd-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.classList.toggle('active', show);
+      btn.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+      btn.setAttribute('title', show ? '隐藏密码' : '显示密码');
+      input.focus();
+    });
+  });
+  // 强度指示：长度/字母/数字/符号 计分
+  var np = document.getElementById('new-password');
+  var bar = document.getElementById('pwd-strength');
+  var fill = document.getElementById('pwd-strength-fill');
+  var label = document.getElementById('pwd-strength-label');
+  if (!np || !bar || !fill || !label) return;
+  np.addEventListener('input', function () {
+    var v = np.value;
+    if (!v) { bar.hidden = true; return; }
+    bar.hidden = false;
+    var score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[A-Za-z]/.test(v)) score++;
+    if (/\d/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    var cls = 'pwd-weak';
+    var txt = '弱';
+    if (score >= 5) { cls = 'pwd-strong'; txt = '强'; }
+    else if (score >= 3) { cls = 'pwd-mid'; txt = '中'; }
+    fill.className = cls;
+    fill.style.width = (score / 5 * 100) + '%';
+    label.textContent = '密码强度：' + txt;
+    label.className = 'pwd-strength-label ' + cls;
+  });
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,7 @@
+{% if pagination.total_pages > 1 %}
+<nav class="pagination">
+  {% if pagination.prev %}<a class="page-prev" href="?page={{ pagination.prev }}">← 上一页</a>{% endif %}
+  <span class="page-info">第 {{ pagination.current }} / {{ pagination.total_pages }} 页</span>
+  {% if pagination.next %}<a class="page-next" href="?page={{ pagination.next }}">下一页 →</a>{% endif %}
+</nav>
+{% endif %}
