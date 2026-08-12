@@ -13,6 +13,14 @@
       <option value="published"{% if filters.status == "published" %} selected{% endif %}>已发布</option>
     </select>
     </div>
+    <div class="cs" data-select="#f-type">
+      <button class="cs-btn" type="button" aria-label="类型筛选" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="f-type" name="type" aria-label="类型筛选" class="cs-hidden">
+      <option value="">全部类型</option>
+      <option value="post"{% if filters.type == "post" %} selected{% endif %}>文章</option>
+      <option value="page"{% if filters.type == "page" %} selected{% endif %}>页面</option>
+    </select>
+    </div>
     <div class="cs" data-select="#f-category">
       <button class="cs-btn" type="button" aria-label="分类筛选" aria-haspopup="listbox" aria-expanded="false"></button>
       <select id="f-category" name="category" aria-label="分类筛选" class="cs-hidden">
@@ -35,11 +43,12 @@
   <table class="data-table">
     <thead>
       <tr>
-        <th><a class="th-sort{% if filters.sort == 'title' %} active{% endif %}" href="?sort=title&amp;dir={% if filters.sort == 'title' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">标题{% if filters.sort == 'title' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'title' %} active{% endif %}" href="?sort=title&amp;dir={% if filters.sort == 'title' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">标题{% if filters.sort == 'title' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th>类型</th>
         <th>分类</th>
-        <th><a class="th-sort{% if filters.sort == 'status' %} active{% endif %}" href="?sort=status&amp;dir={% if filters.sort == 'status' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">状态{% if filters.sort == 'status' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
-        <th><a class="th-sort{% if filters.sort == 'views' %} active{% endif %}" href="?sort=views&amp;dir={% if filters.sort == 'views' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">阅读{% if filters.sort == 'views' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
-        <th><a class="th-sort{% if filters.sort == 'updated_at' %} active{% endif %}" href="?sort=updated_at&amp;dir={% if filters.sort == 'updated_at' and filters.dir == 'desc' %}asc{% else %}desc{% endif %}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">更新时间{% if filters.sort == 'updated_at' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'status' %} active{% endif %}" href="?sort=status&amp;dir={% if filters.sort == 'status' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">状态{% if filters.sort == 'status' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'views' %} active{% endif %}" href="?sort=views&amp;dir={% if filters.sort == 'views' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">阅读{% if filters.sort == 'views' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
+        <th><a class="th-sort{% if filters.sort == 'updated_at' %} active{% endif %}" href="?sort=updated_at&amp;dir={% if filters.sort == 'updated_at' and filters.dir == 'desc' %}asc{% else %}desc{% endif %}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">更新时间{% if filters.sort == 'updated_at' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>
         <th class="col-ops">操作</th>
       </tr>
     </thead>
@@ -48,8 +57,8 @@
       <tr>
         <td>
           <a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a>
-          {% if p.post_type == "page" %}<span class="badge badge-page">页面</span>{% endif %}
         </td>
+        <td>{% if p.post_type == "page" %}<span class="badge badge-page">页面</span>{% else %}<span class="badge badge-post">文章</span>{% endif %}</td>
         <td class="muted">{{ p.category }}</td>
         <td>{% if p.status == "published" %}<span class="badge badge-published">已发布</span>{% else %}<span class="badge badge-draft">草稿</span>{% endif %}</td>
         <td class="muted">{{ p.views }}</td>
@@ -78,11 +87,11 @@
 {% if total_pages > 1 %}
 <div class="pagination">
   {% if page > 1 %}
-  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">上一页</a>
+  <a class="btn btn-sm" href="?page={{ page - 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">上一页</a>
   {% endif %}
   <span class="muted">{{ page }} / {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">下一页</a>
+  <a class="btn btn-sm" href="?page={{ page + 1 }}&amp;sort={{ filters.sort }}&amp;dir={{ filters.dir }}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">下一页</a>
   {% endif %}
 </div>
 {% endif %}

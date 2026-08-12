@@ -10,6 +10,7 @@
 </head>
 <body>
 <header class="site-header">
+  <div class="site-header-inner">
   <a class="site-brand" href="{{ base_path }}/">
     {% if site.logo %}<img class="site-logo" src="{{ site.logo }}" alt="{{ site.name }} 标志">{% endif %}
     {{ site.name }}
@@ -59,5 +60,6 @@
   <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单">
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
   </button>
+  </div>
 </header>
 <main class="site-main">

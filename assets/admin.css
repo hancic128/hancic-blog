@@ -46,6 +46,7 @@
   --badge-published-color: #4ADE80;
   --badge-draft-color: #94A3B8;
   --badge-page-color: #60A5FA;
+  --badge-post-color: #A78BFA;
   --stat-tint: rgba(34, 197, 94, 0.10);
   color-scheme: dark;
 }
@@ -93,6 +94,7 @@
   --badge-published-color: #16A34A;
   --badge-draft-color: #64748B;
   --badge-page-color: #2563EB;
+  --badge-post-color: #7C3AED;
   --stat-tint: rgba(22, 163, 74, 0.07);
   color-scheme: light;
 }
@@ -1241,6 +1243,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .badge-published { background: var(--accent-soft); color: var(--badge-published-color); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
 .badge-draft { background: rgba(148, 163, 184, 0.10); color: var(--badge-draft-color); border: 1px solid color-mix(in srgb, var(--muted) 30%, transparent); }
 .badge-page { background: color-mix(in srgb, var(--badge-page-color) 12%, transparent); color: var(--badge-page-color); border: 1px solid color-mix(in srgb, var(--badge-page-color) 30%, transparent); }
+.badge-post { background: color-mix(in srgb, var(--badge-post-color) 12%, transparent); color: var(--badge-post-color); border: 1px solid color-mix(in srgb, var(--badge-post-color) 30%, transparent); }
 
 .th-sort { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .th-sort:hover { color: var(--accent); text-decoration: none; }
@@ -1504,35 +1507,9 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
-/* 类型 + 固定链接行：与 cat-tag-row 同款布局 */
-.type-slug-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.type-slug-row label {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--muted);
-}
-.type-field { min-width: 110px; }
+/* 类型下拉：与分类/标签同行（内容宽度，不撑满） */
+.type-field { flex: 0 0 auto; }
 .type-field .cs-btn { min-width: 110px; }
-.slug-field { min-width: 220px; }
-.slug-field input {
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14px;
-  min-width: 220px;
-}
-.slug-field input:read-only { color: var(--muted); background: var(--bg-soft); cursor: not-allowed; }
-.slug-field .muted { margin-top: 5px; font-size: 12.5px; }
 .cat-picker { position: relative; min-width: 150px; max-width: 200px; }
 .cat-picker .cat-input {
   width: 100%;
@@ -1672,6 +1649,34 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   margin: 0 6px;
   background: var(--border);
 }
+/* 全屏编辑：按钮在工具栏最右侧 */
+.md-toolbar-btn#md-fullscreen { margin-left: auto; }
+.md-toolbar-btn#md-fullscreen.active { color: var(--accent); background: var(--accent-soft); }
+.post-edit-panel.hancic-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  overflow: hidden;
+}
+.post-edit-panel.hancic-fullscreen form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* 全屏只显示正文编辑区：隐藏标题行与类型/分类/标签行 */
+.post-edit-panel.hancic-fullscreen .meta-row,
+.post-edit-panel.hancic-fullscreen .cat-tag-row { display: none; }
+.post-edit-panel.hancic-fullscreen .field:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.post-edit-panel.hancic-fullscreen .md-toolbar { border-radius: 0; flex: none; }
+.post-edit-panel.hancic-fullscreen #editor { flex: 1; overflow: auto; }
 
 /* ---- 标签建议面板（限高滚动，替代 datalist） ---- */
 .suggest-panel {

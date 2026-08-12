@@ -80,16 +80,18 @@ test("375px 发布带图文章", async ({ page }) => {
     timeout: 15_000,
   });
 
-  // 直接发布（新建即发布）
+  // 直接发布（新建即发布）：发布后自动返回列表
   const createRes = page.waitForResponse(
     (r) => r.request().method() === "POST" && /\/admin\/posts$/.test(r.request().url()),
   );
   await page.locator('button[data-action="published"]').click();
   await acceptConfirmDialog(page);
   await createRes;
-  await page.waitForURL("**/admin/posts/*/edit");
+  await page.waitForURL("**/admin/posts");
 
-  // 固定链接由系统生成：从编辑页 window._post 读取后访问前台
+  // 固定链接由系统生成：从列表进入编辑页读 slug 后访问前台
+  await page.locator(`a[href*="/edit"]`, { hasText: TITLE }).first().click();
+  await page.locator("#editor .ProseMirror").waitFor({ state: "visible" });
   const slug = await page.evaluate(() => (window as any)._post.slug);
   await page.goto(`/post/${slug}`);
   await expect(page.locator("article.post h1")).toHaveText(TITLE);

@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  <div class="type-slug-row">
+  <div class="cat-tag-row">
     <div class="type-field">
       <label for="post-type">类型</label>
       <div class="cs" data-select="#post-type">
@@ -34,14 +34,6 @@
         </select>
       </div>
     </div>
-    <div class="slug-field" id="slug-field"{% if post.post_type != "page" %} hidden{% endif %}>
-      <label for="post-slug">固定链接</label>
-      <input id="post-slug" name="slug" value="{{ post.slug }}" placeholder="如 about"{% if post.id %} readonly{% endif %}>
-      <p class="muted">页面访问地址 /page/{% if post.slug %}{{ post.slug }}{% else %}{{ '链接' }}{% endif %}</p>
-    </div>
-  </div>
-
-  <div class="cat-tag-row">
     <div class="cat-field">
       <label for="post-category">分类</label>
       <div class="cat-picker" id="cat-picker">
@@ -106,14 +98,14 @@
       <button class="md-toolbar-btn" id="md-insert-img" type="button" title="插入图片（上传/粘贴/拖拽）" aria-label="插入图片">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       </button>
-      <button class="md-toolbar-btn" id="md-insert-video" type="button" title="插入视频（上传，≤100MB）" aria-label="插入视频">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-      </button>
       <button class="md-toolbar-btn" id="md-insert-link" type="button" title="插入链接（先选中文字可加链接）" aria-label="插入链接">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       </button>
+      <span class="md-toolbar-sep" aria-hidden="true"></span>
+      <button class="md-toolbar-btn" id="md-fullscreen" type="button" title="全屏编辑" aria-label="全屏编辑">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
       <input id="md-file-input" type="file" accept="image/*" hidden>
-      <input id="md-video-input" type="file" accept="video/*" hidden>
     </div>
     <div id="editor" data-content="{% if post.id %}{{ post.content_md }}{% endif %}"></div>
   </div>

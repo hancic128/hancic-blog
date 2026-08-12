@@ -1125,14 +1125,13 @@
       initToolbar();
     });
 
-    // 工具栏：图片/视频文件上传插入、链接（hancicPrompt）、源码模式切换
+    // 工具栏：图片上传插入、链接（hancicPrompt）、全屏编辑
     function initToolbar() {
       var imgBtn = document.getElementById('md-insert-img');
-      var videoBtn = document.getElementById('md-insert-video');
       var linkBtn = document.getElementById('md-insert-link');
       var imgInput = document.getElementById('md-file-input');
-      var videoInput = document.getElementById('md-video-input');
-      var sourceTa = document.getElementById('editor-source');
+      var fullscreenBtn = document.getElementById('md-fullscreen');
+      var editPanel = document.querySelector('.post-edit-panel');
       if (imgBtn && imgInput) {
         imgBtn.addEventListener('click', function () { imgInput.click(); });
         imgInput.addEventListener('change', function () {
@@ -1143,16 +1142,6 @@
           imgInput.value = '';
         });
       }
-      if (videoBtn && videoInput) {
-        videoBtn.addEventListener('click', function () { videoInput.click(); });
-        videoInput.addEventListener('change', function () {
-          if (!videoInput.files.length) return;
-          uploadImages(Array.prototype.slice.call(videoInput.files)).then(function (atts) {
-            atts.forEach(function (a) { if (editor) editor.insertVideo('/uploads/' + a.path); });
-          });
-          videoInput.value = '';
-        });
-      }
       if (linkBtn) {
         linkBtn.addEventListener('click', function () {
           window.hancicPrompt('链接地址（http/https）', 'https://').then(function (url) {
@@ -1160,6 +1149,24 @@
             if (editor) editor.insertLink(null, url);
             editorEl.focus();
           });
+        });
+      }
+      // 全屏编辑：切换编辑面板全屏（Esc 退出）
+      if (fullscreenBtn && editPanel) {
+        function setFullscreen(on) {
+          editPanel.classList.toggle('hancic-fullscreen', on);
+          fullscreenBtn.classList.toggle('active', on);
+          fullscreenBtn.setAttribute('title', on ? '退出全屏' : '全屏编辑');
+          fullscreenBtn.setAttribute('aria-label', on ? '退出全屏' : '全屏编辑');
+          if (on && editor) editorEl.focus();
+        }
+        fullscreenBtn.addEventListener('click', function () {
+          setFullscreen(!editPanel.classList.contains('hancic-fullscreen'));
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && editPanel.classList.contains('hancic-fullscreen')) {
+            setFullscreen(false);
+          }
         });
       }
       // 标记命令按钮：H1/H2/H3、加粗、斜体、行内代码、引用、列表、有序列表、代码块、分割线
@@ -1453,17 +1460,6 @@
         btn.setAttribute('aria-expanded', 'false');
       }
     });
-  });
-})();
-
-// ---- 文章编辑器：类型切换时显示/隐藏固定链接输入（仅页面需要自定义链接）----
-(function () {
-  'use strict';
-  var postType = document.getElementById('post-type');
-  var slugField = document.getElementById('slug-field');
-  if (!postType || !slugField) return;
-  postType.addEventListener('change', function () {
-    slugField.hidden = postType.value !== 'page';
   });
 })();
 

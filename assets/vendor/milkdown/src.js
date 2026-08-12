@@ -33,49 +33,12 @@ import bash from "refractor/bash";
 import json from "refractor/json";
 import rust from "refractor/rust";
 import toml from "refractor/toml";
-import { $node, $view, $prose, $useKeymap } from "@milkdown/utils";
+import { $prose, $useKeymap } from "@milkdown/utils";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { setBlockType, toggleMark, wrapIn, lift } from "@milkdown/prose/commands";
 import { Fragment } from "@milkdown/prose/model";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
 
-// ---- 自定义 video 节点：所见即所得里渲染真实 <video> 播放器 ----
-// toMarkdown 输出 <video> HTML（前台 pulldown-cmark 直通渲染）；
-// parseMarkdown 把 markdown 中的 <video> HTML 识别为 video 节点。
-var videoSchema = $node("video", function () {
-  return {
-    atom: true,
-    group: "block",
-    attrs: { src: { default: "" }, title: { default: "" } },
-    parseDOM: [{
-      tag: "video",
-      getAttrs: function (dom) {
-        return { src: dom.getAttribute("src") || "", title: dom.getAttribute("title") || "" };
-      }
-    }],
-    toDOM: function (node) {
-      return ["video", { src: node.attrs.src, controls: "true", preload: "metadata" }];
-    },
-    parseMarkdown: {
-      // 严格匹配：仅真正的 <video> HTML 块（防空行/普通 html 被误判为 video）
-      match: function (node) {
-        return node.type === "html" && /^\s*<video[\s>]/i.test(node.value || "");
-      },
-      runner: function (state, node) {
-        var value = node.value || "";
-        var m = value.match(/src="([^"]+)"/);
-        state.addNode("video", { src: m ? m[1] : "", title: "" });
-      }
-    },
-    toMarkdown: {
-      match: function (node) { return node.type.name === "video"; },
-      runner: function (state, node) {
-        state.addNode("html", undefined,
-          '<video controls preload="metadata" src="' + node.attrs.src + '"></video>');
-      }
-    }
-  };
-});
 // ---- Typora 式源码提示：光标所在段落高亮 + 段首/行内浅色显示未渲染的 markdown 标记 ----
 // widget 不占文档位置（ProseMirror 限制），光标无法真正进入标记内部；
 // 近似实现：点击标记把光标定位到对应内容边界；光标位于块首时标记显示激活态。
@@ -310,25 +273,6 @@ var mdHint = $prose(function () {
   });
 });
 
-var videoView = $view(videoSchema, function () {
-  return function (node) {
-    var dom = document.createElement("video");
-    dom.setAttribute("controls", "true");
-    dom.setAttribute("preload", "metadata");
-    dom.src = node.attrs.src;
-    return {
-      dom: dom,
-      update: function (updated) {
-        if (updated.attrs.src !== node.attrs.src) {
-          dom.src = updated.attrs.src;
-        }
-        return true;
-      },
-      destroy: function () {}
-    };
-  };
-});
-
 // ---- mermaid 代码块：源码可编辑（默认 pre>code 视图），块下方实时渲染图预览 ----
 // 用 decorations 的 widget 在代码块节点后插入预览区——**不替换 code_block 视图**。
 // （此前尝试 props.nodeViews 覆盖 code_block，会导致代码块内 keydown 事件不触发
@@ -410,8 +354,6 @@ window.HancicEditor = {
           }
         });
       })
-      .use(videoSchema)
-      .use(videoView)
       .use(commonmark)
       .use(gfm)
       .use(mdHint)
@@ -433,19 +375,6 @@ window.HancicEditor = {
           { src: "/uploads/" + att.path, alt: att.orig_name || "image" },
           null
         );
-        view.dispatch(view.state.tr.replaceSelectionWith(node));
-      });
-    }
-
-    function insertVideo(url) {
-      editor.action(function (ctx) {
-        var view = ctx.get(editorViewCtx);
-        var videoNode = view.state.schema.nodes.video;
-        if (!videoNode) {
-          insertLink("视频", url); // 兜底：无 video 节点则插链接
-          return;
-        }
-        var node = videoNode.create({ src: url, title: "" });
         view.dispatch(view.state.tr.replaceSelectionWith(node));
       });
     }
@@ -606,7 +535,6 @@ window.HancicEditor = {
       getMarkdownAsync: getMarkdownAsync,
       command: commandApi,
       insertImage: insertImage,
-      insertVideo: insertVideo,
       insertLink: insertLink,
       setContent: setContent,
       destroy: function () {

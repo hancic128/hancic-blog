@@ -61,6 +61,11 @@ pub async fn list(
         _ => None,
     };
     let category_slug = query.get("category").filter(|s| !s.is_empty()).cloned();
+    let post_type = match query.get("type").map(String::as_str).unwrap_or("") {
+        "post" => Some(PostType::Post),
+        "page" => Some(PostType::Page),
+        _ => None,
+    };
     let q = query
         .get("q")
         .map(String::as_str)
@@ -80,7 +85,7 @@ pub async fn list(
             &state.db,
             posts::PostListOptions {
                 status,
-                post_type: None, // 后台列表显示全部类型（文章 + 页面，模板区分）
+                post_type,
                 category_slug: category_slug.clone(),
                 tag_slug: None,
                 month: None,
@@ -98,7 +103,7 @@ pub async fn list(
             }
         }
     } else {
-        match list_by_keyword(&state.db, status, category_slug.as_deref(), &q, admin_sort(&query), page).await {
+        match list_by_keyword(&state.db, status, post_type, category_slug.as_deref(), &q, admin_sort(&query), page).await {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("后台文章关键词查询失败: {e:?}");
@@ -122,6 +127,7 @@ pub async fn list(
         "filters",
         &json!({
             "status": query.get("status").map(String::as_str).unwrap_or(""),
+            "type": query.get("type").map(String::as_str).unwrap_or(""),
             "category": category_slug.unwrap_or_default(),
             "q": q,
             "sort": query.get("sort").map(String::as_str).unwrap_or(""),
@@ -153,10 +159,11 @@ fn post_list_value(items: &[Post], cat_names: &HashMap<i64, String>) -> Value {
         .collect::<Vec<_>>())
 }
 
-/// 标题关键词 + 状态/分类组合查询（排序与 `list_posts` 一致）。
+/// 标题关键词 + 类型/状态/分类组合查询（排序与 `list_posts` 一致）。
 async fn list_by_keyword(
     db: &Db,
     status: Option<PostStatus>,
+    post_type: Option<PostType>,
     category_slug: Option<&str>,
     q: &str,
     sort: Option<posts::PostSort>,
@@ -167,6 +174,10 @@ async fn list_by_keyword(
     if let Some(st) = status {
         where_sql.push_str(" AND status = ?");
         binds.push(st.to_str().to_string());
+    }
+    if let Some(ty) = post_type {
+        where_sql.push_str(" AND post_type = ?");
+        binds.push(ty.to_str().to_string());
     }
     if let Some(cat) = category_slug {
         where_sql.push_str(
@@ -225,9 +236,9 @@ async fn render_new(state: &AppState, session: &Session, path: &str, error_tip: 
     super::render_admin(state, "post_edit.html", &ctx)
 }
 
-/// 新建文章正文的 Markdown 语法模板（与编辑器 milkdown commonmark 支持范围对齐：
-/// 标题/段落/加粗/斜体/行内代码/链接/引用/无序·有序列表/代码块/分割线；
-/// 任务列表、表格、删除线、HTML 视频块 milkdown 不支持，不列入模板）。
+/// 新建文章正文的 Markdown 语法模板（与编辑器 milkdown commonmark/gfm 支持范围对齐：
+/// 标题/段落/加粗/斜体/行内代码/链接/引用/无序·有序列表/代码块/分割线/表格；
+/// 严格遵循 Markdown 标准，不引入自定义标记；任务列表、删除线 milkdown 不支持，不列入模板）。
 const NEW_POST_TEMPLATE: &str = "\
 # 一级标题\n\
 \n\
@@ -250,8 +261,7 @@ fn main() { println!(\"Hello\"); }\n\
 \n\
 ---\n\
 \n\
-图片：点击工具栏「插入图片」上传，或直接粘贴 / 拖拽到编辑区。\n\
-视频：点击工具栏「插入视频」上传（≤100MB）。\n\
+图片：点击工具栏「插入图片」上传，或直接粘贴 / 拖拽到编辑区。
 ";
 
 /// 新建页的空文章 JSON：id=0 时 `window._post` 无 id，自动保存不生效。
@@ -394,22 +404,24 @@ pub async fn create(
         title,
         content_md: form.get("content_md").cloned().unwrap_or_default(),
         excerpt: optional_field(form.get("excerpt")),
-        // 文章：自动生成 8 位短 uuid（unique_slug 兜底冲突）；
-        // 页面：允许自定义固定链接（如 about），留空则同样自动生成
-        slug: Some(if parse_post_type(form.get("post_type").map(String::as_str).unwrap_or(""))
-            == PostType::Page
-        {
-            optional_field(form.get("slug")).unwrap_or_else(short_slug)
-        } else {
-            short_slug()
-        }),
+        // 固定链接由系统自动生成（8 位短 uuid，unique_slug 兜底冲突）
+        slug: Some(short_slug()),
         status: parse_status(form.get("status").map(String::as_str).unwrap_or("")),
         post_type: parse_post_type(form.get("post_type").map(String::as_str).unwrap_or("")),
         category_id: parse_id(form.get("category_id")),
         tags: parse_tags(form.get("tags")),
     };
+    // 发布后自动返回列表；存草稿留在编辑页继续编辑
+    let is_published = input.status == PostStatus::Published;
     match posts::create_post(&state.db, input).await {
-        Ok(p) => Ok(super::redirect(&state.config.base_path, &format!("/admin/posts/{}/edit", p.id))),
+        Ok(p) => {
+            let loc = if is_published {
+                "/admin/posts".to_string()
+            } else {
+                format!("/admin/posts/{}/edit", p.id)
+            };
+            Ok(super::redirect(&state.config.base_path, &loc))
+        }
         Err(e) => {
             tracing::error!("创建文章失败: {e:?}");
             Ok(render_new(&state, &session, "/admin/posts/new", "保存失败，请重试").await)
@@ -447,8 +459,15 @@ pub async fn update(
         },
         tags: Some(parse_tags(form.get("tags"))),
     };
+    // 发布后自动返回列表；存草稿留在编辑页继续编辑
+    let is_published = input.status == Some(PostStatus::Published);
     let p = posts::update_post(&state.db, id, input).await?;
-    Ok(super::redirect(&state.config.base_path, &format!("/admin/posts/{}/edit", p.id)))
+    let loc = if is_published {
+        "/admin/posts".to_string()
+    } else {
+        format!("/admin/posts/{}/edit", p.id)
+    };
+    Ok(super::redirect(&state.config.base_path, &loc))
 }
 
 // ---------- 删除 ----------

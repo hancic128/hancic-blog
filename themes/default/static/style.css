@@ -110,7 +110,15 @@ button, a, [role="button"], label { cursor: pointer; }
 
 /* ---------- 布局 ---------- */
 
+/* header 固定在顶部：全宽背景，内部内容按内容宽度居中 */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: var(--bg);
+  padding: 0;
+}
+.site-header-inner {
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 1.5rem 1.25rem;
@@ -123,7 +131,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .site-main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 3rem 1.25rem 4rem;
+  padding: 1.5rem 1.25rem 4rem;
 }
 
 .site-footer {
