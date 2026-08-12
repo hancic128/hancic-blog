@@ -21,6 +21,7 @@
       <li><a href="#stats">统计：/api/stats/summary</a></li>
       <li><a href="#backup">备份：/api/backup</a></li>
       <li><a href="#health">健康检查：/api/health</a></li>
+      <li><a href="#mcp">MCP 集成（AI 工具）</a></li>
     </ul>
   </nav>
   </section>
@@ -130,6 +131,50 @@
   <h2 id="health">健康检查：/api/health</h2>
   <p class="muted">存活探针，<strong>无需鉴权</strong>。返回
     <code>{"data": {"status": "ok"}}</code>。</p>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="mcp">MCP 集成（AI 工具）</h2>
+  <p class="muted">本博客附带一个 <strong>MCP server</strong>（项目 <code>mcp/</code> 目录，
+    Python + FastMCP 实现），把上述 REST 接口包装为 15 个 MCP 工具，供
+    <strong>Claude Code / Codex / Kimi Code</strong> 等 AI 客户端直接调用——
+    让 AI 能查文章、发文章、写说说、管理分类、上传附件、下载备份，无需手写 HTTP 请求。</p>
+
+  <p class="muted"><strong>准备</strong>：安装依赖并确认环境变量：</p>
+  <pre><code>cd mcp &amp;&amp; python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
+# 环境变量
+HANCIC_API_TOKEN=本页生成的 Token
+HANCIC_BASE_URL=https://hancic.site   # 反向代理场景填代理后的公开地址（含子路径）</code></pre>
+
+  <p class="muted"><strong>接入 Claude Code</strong>：</p>
+  <pre><code>claude mcp add hancic -- \
+  env HANCIC_API_TOKEN=你的token HANCIC_BASE_URL=https://hancic.site \
+  python /path/to/hancic-blog/mcp/hancic_mcp.py</code></pre>
+
+  <p class="muted"><strong>接入 Codex / Kimi Code</strong>：在客户端 MCP 配置（或项目级
+    <code>.mcp.json</code>）注册同一命令：</p>
+  <pre><code>{
+  "mcpServers": {
+    "hancic": {
+      "command": "python",
+      "args": ["/path/to/hancic-blog/mcp/hancic_mcp.py"],
+      "env": {
+        "HANCIC_API_TOKEN": "你的token",
+        "HANCIC_BASE_URL": "https://hancic.site"
+      }
+    }
+  }
+}</code></pre>
+
+  <p class="muted"><strong>工具清单</strong>：读（<code>list_posts</code> /
+    <code>get_post</code> / <code>list_categories</code> / <code>get_stats</code> /
+    <code>get_backup</code> / <code>get_health</code>）；写（<code>create_post</code> /
+    <code>update_post</code> / <code>delete_post</code> / <code>create_moment</code> /
+    <code>delete_moment</code> / <code>create_category</code> / <code>update_category</code> /
+    <code>delete_category</code> / <code>upload_attachment</code>）。</p>
+
+  <p class="muted"><strong>注意</strong>：token 具备写权限（可删除内容、下载全量备份）。
+    给 AI 工具使用时请妥善保管；MCP server 详细说明见仓库 <code>mcp/README.md</code>。</p>
   </section>
 </div>
 {% endblock %}

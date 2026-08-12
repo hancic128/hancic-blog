@@ -99,7 +99,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
                         .unwrap_or("link");
                     let ty = if ty == "categories" {
                         "pages"
-                    } else if !item.get("type").is_some() && ty == "link" && label == "文章" {
+                    } else if item.get("type").is_none() && ty == "link" && label == "文章" {
                         "articles"
                     } else {
                         ty

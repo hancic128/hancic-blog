@@ -140,8 +140,8 @@ pub async fn password(
     if !old_ok {
         return render(&state, &session, uri.path(), None, "", "旧密码不正确").await;
     }
-    if let Err(msg) = auth::validate_password_strength(&new) {
-        return render(&state, &session, uri.path(), None, "", &msg).await;
+    if let Err(msg) = auth::validate_password_strength(new) {
+        return render(&state, &session, uri.path(), None, "", msg.as_str()).await;
     }
     if new_same_as_old {
         return render(&state, &session, uri.path(), None, "", "新密码不能与旧密码相同").await;

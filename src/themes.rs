@@ -161,7 +161,7 @@ pub fn install(themes_dir: &Path, zip_bytes: &[u8]) -> Result<ThemeMeta, String>
             let _ = std::fs::remove_dir_all(&dest);
             return Err(format!("主题模板无效: {e}"));
         }
-        Ok(load_meta(themes_dir, &name)?)
+        load_meta(themes_dir, &name)
     })();
     if result.is_err() {
         cleanup(&tmp);

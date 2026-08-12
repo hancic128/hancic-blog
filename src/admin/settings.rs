@@ -40,7 +40,7 @@ pub async fn page(State(state): State<AppState>, session: Session, uri: Original
     }
     let saved = uri
         .query()
-        .map_or(false, |q| q.split('&').any(|kv| kv == "saved=1"));
+        .is_some_and(|q| q.split('&').any(|kv| kv == "saved=1"));
     render(&state, &session, uri.path(), None, "", saved).await
 }
 
