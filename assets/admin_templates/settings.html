@@ -44,7 +44,6 @@
       <div class="kv-editor" id="friend-editor" data-target="friend_links" data-format="friend"></div>
       <button type="button" class="kv-add" data-add="friend">+ 添加友情链接</button>
       <input type="hidden" id="friend_links" name="friend_links" value="{{ form.friend_links }}">
-      <p class="muted">每项为「名称 + 链接」，显示在页脚，可拖拽调整顺序</p>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
@@ -61,7 +60,7 @@
       <div class="kv-editor" id="nav-editor" data-target="site_nav" data-format="nav"></div>
       <button type="button" class="kv-add" data-add="nav">+ 添加导航项</button>
       <input type="hidden" id="site_nav" name="site_nav" value="{{ form.site_nav }}">
-      <p class="muted">每项为「类型 + 名称」；首页/文章/说说路径自动预设，页面类型展开独立页下拉，链接类型需填自定义路径；可拖拽调整顺序</p>
+      <p class="muted">首页/文章/说说固定，可改名称与拖拽排序；新增仅支持「页面」（下拉列出独立页）或「链接」（填自定义路径）</p>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存导航</button>
@@ -71,36 +70,36 @@
 
   <section class="panel-section">
   <h2>联系方式卡片</h2>
-  <p class="muted">前台右下角悬浮联系方式卡片：社交链接 + 邮箱 + 二维码，可整体开关</p>
+  <p class="muted">前台右下角悬浮联系方式卡片：社交链接 + 邮箱，可整体开关</p>
   <form method="post" action="{{ base_path }}/admin/settings/save">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="field">
-      <label for="contact-enabled">悬浮卡片</label>
-      <div class="cs" data-select="#contact-enabled">
-      <button class="cs-btn" type="button" aria-label="悬浮卡片开关" aria-haspopup="listbox" aria-expanded="false"></button>
-      <select id="contact-enabled" name="contact_enabled" class="cs-hidden">
-        <option value="1"{% if form.contact_enabled == "1" %} selected{% endif %}>启用</option>
-        <option value="0"{% if form.contact_enabled != "1" %} selected{% endif %}>禁用</option>
-      </select>
-    </div>
+    <div class="field-row">
+      <div class="field field-inline field-cs-auto">
+        <label for="contact-enabled">悬浮卡片</label>
+        <div class="cs" data-select="#contact-enabled">
+          <button class="cs-btn" type="button" aria-label="悬浮卡片开关" aria-haspopup="listbox" aria-expanded="false"></button>
+          <select id="contact-enabled" name="contact_enabled" class="cs-hidden">
+            <option value="1"{% if form.contact_enabled == "1" %} selected{% endif %}>启用</option>
+            <option value="0"{% if form.contact_enabled != "1" %} selected{% endif %}>禁用</option>
+          </select>
+        </div>
+      </div>
+      <div class="field field-inline">
+        <label for="contact-email">联系邮箱</label>
+        <input id="contact-email" name="contact_email" type="email" value="{{ form.contact_email }}" placeholder="you@example.com" maxlength="100">
+      </div>
     </div>
     <div class="field">
       <label for="site-social">社交链接</label>
       <div class="kv-editor" id="social-editor" data-target="site_social" data-format="social"></div>
       <button type="button" class="kv-add" data-add="social">+ 添加社交链接</button>
       <input type="hidden" id="site_social" name="site_social" value="{{ form.site_social }}">
-      <p class="muted">每项为「平台名 + 链接」，如 github → https://github.com/xxx</p>
     </div>
     <div class="field">
       <label for="social-logos">社交图标</label>
       <div class="kv-editor" id="social-logos-editor" data-target="social_logos" data-format="logo"></div>
       <button type="button" class="kv-add" data-add="social-logos">+ 添加图标</button>
       <input type="hidden" id="social_logos" name="social_logos" value="{{ form.social_logos }}">
-      <p class="muted">每项为「平台名 + 图片」，如 微信/抖音/小红书（上传或从附件库选择），前台圆形展示</p>
-    </div>
-    <div class="field">
-      <label for="contact-email">联系邮箱</label>
-      <input id="contact-email" name="contact_email" type="email" value="{{ form.contact_email }}" placeholder="you@example.com" maxlength="100">
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
@@ -111,6 +110,19 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// 全部已发布文章（含独立页），供导航「页面」类型搜索选择
+window.__ALL_POSTS__ = {{ all_posts_json | safe }};
+</script>
+{% if saved %}
+<script>
+// 保存成功：重定向回设置页时弹轻提示（3 个表单共用）
+(function () {
+  'use strict';
+  if (window.hancicToast) window.hancicToast('保存成功');
+})();
+</script>
+{% endif %}
 <script>
 // 站点 Logo：上传 / 从附件库选择 / 清除（复用公共图片选择器 hancicPickImage）
 (function () {

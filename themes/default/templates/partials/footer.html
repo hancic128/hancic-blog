@@ -18,21 +18,35 @@
 </button>
 <div class="contact-panel" id="contact-panel" hidden>
   <h4 class="contact-title">联系方式</h4>
-  {% if site.social %}
-  <div class="contact-socials">
-    {% for s in site.social %}
-    <a class="contact-item" href="{{ s.url }}" target="_blank" rel="noopener nofollow">
-      {% if s.logo %}<img class="contact-logo" src="{{ s.logo }}" alt="{{ s.key }} 图标" loading="lazy">{% else %}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>{% endif %}
-      <span>{{ s.key }}</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
   {% if site.contact.email %}
   <a class="contact-item" href="mailto:{{ site.contact.email }}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
     <span>{{ site.contact.email }}</span>
   </a>
+  {% endif %}
+  {% if site.social_links %}
+  <div class="contact-socials">
+    {% for s in site.social_links %}
+    <a class="contact-item" href="{{ s.url }}" target="_blank" rel="noopener nofollow">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      <span>{{ s.key }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if site.social_qrs %}
+  <div class="contact-socials">
+    {% for s in site.social_qrs %}
+    {% if s.url %}
+    <a class="contact-item contact-item-qr" href="{{ s.url }}" target="_blank" rel="noopener nofollow">
+    {% else %}
+    <span class="contact-item contact-item-qr" tabindex="0">
+    {% endif %}
+      <span>{{ s.key }}</span>
+      <span class="contact-qr-pop"><img class="contact-logo-img" src="{{ s.logo }}" alt="{{ s.key }} 二维码" loading="lazy"></span>
+    {% if s.url %}</a>{% else %}</span>{% endif %}
+    {% endfor %}
+  </div>
   {% endif %}
 </div>
 {% endif %}

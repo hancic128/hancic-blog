@@ -128,24 +128,43 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
         .iter()
         .map(|p| json!({ "slug": p.slug, "title": p.title }))
         .collect();
-    // 社交链接数组化：`[{key, url, logo}]`，logo 来自 social_logos（{平台: 图片URL}），
-    // 模板直接遍历渲染（含联系方式卡片圆形图标）。
+    // 社交条目数组化：有 logo 的进「二维码组」（social_qrs，hover 显示大图），
+    // 无 logo 的进「链接组」（social_links，文字链接跳转）。顺序与后台拖拽排序一致。
     let social_raw = parse_json_array(s.get("site_social").map(String::as_str).unwrap_or("{}"));
     let social_logos = parse_json_array(s.get("social_logos").map(String::as_str).unwrap_or("{}"));
-    let social: Vec<Value> = social_raw
-        .as_object()
-        .map(|obj| {
-            obj.iter()
-                .map(|(k, v)| {
-                    json!({
-                        "key": k,
-                        "url": v.as_str().unwrap_or_default(),
-                        "logo": social_logos.get(k).and_then(Value::as_str).unwrap_or_default(),
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut social_links: Vec<Value> = Vec::new();
+    let mut social_qrs: Vec<Value> = Vec::new();
+    if let Some(obj) = social_raw.as_object() {
+        for (k, v) in obj {
+            let logo = social_logos.get(k).and_then(Value::as_str).unwrap_or_default();
+            let item = json!({
+                "key": k,
+                "url": v.as_str().unwrap_or_default(),
+                "logo": logo,
+            });
+            if logo.is_empty() {
+                social_links.push(item);
+            } else {
+                social_qrs.push(item);
+            }
+        }
+    }
+    // 仅配置了社交图标/二维码（未填对应链接）的平台也展示在二维码组
+    if let Some(logos) = social_logos.as_object() {
+        for (k, v) in logos {
+            let exists = social_links
+                .iter()
+                .chain(social_qrs.iter())
+                .any(|item| item["key"] == k.as_str());
+            if !exists {
+                social_qrs.push(json!({
+                    "key": k,
+                    "url": "",
+                    "logo": v.as_str().unwrap_or_default(),
+                }));
+            }
+        }
+    }
     ctx.insert(
         "site",
         &json!({
@@ -153,7 +172,8 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
             "nav": nav,
             "pages": pages_value,
-            "social": social,
+            "social_links": social_links,
+            "social_qrs": social_qrs,
             "logo": s.get("site_logo").map(String::as_str).unwrap_or(""),
             "active_theme": active_theme,
             "mode": s.get("theme_mode").map(String::as_str).unwrap_or("auto"),

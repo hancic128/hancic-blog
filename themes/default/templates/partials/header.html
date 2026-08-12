@@ -16,12 +16,23 @@
   </a>
   <nav class="site-nav" id="site-nav">
     {% for item in site.nav %}
-      {% if item.type == "pages" %}
+      {% if item.type == "pages" and item.url %}
+      <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+      {% elif item.type == "pages" %}
       <div class="nav-dropdown">
         <a href="{{ base_path }}/page/{% if site.pages %}{{ site.pages[0].slug }}{% endif %}">{{ item.label }}</a>
         {% if site.pages %}
         <div class="dropdown-menu">
           {% for p in site.pages %}<a href="{{ base_path }}/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% elif item.type == "articles" %}
+      <div class="nav-dropdown">
+        <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+        {% if site.categories %}
+        <div class="dropdown-menu">
+          {% for c in site.categories %}<a href="{{ base_path }}/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
         </div>
         {% endif %}
       </div>

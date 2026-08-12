@@ -422,33 +422,124 @@
     wrap.appendChild(clearBtn);
     return wrap;
   }
+  // 页面类型导航：搜索选择具体文章（下拉列出全部已发布文章，支持关键词过滤）
+  // 文章数据懒读取 window.__ALL_POSTS__（admin.js 先于模板数据脚本执行）
+  function kvBuildPagePick(currentUrl, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'kv-page-pick';
+    function allPosts() { return window.__ALL_POSTS__ || []; }
+    function pathOf(p) { return (p.type === 'page' ? '/page/' : '/post/') + p.slug; }
+    function findTitle(url) {
+      var posts = allPosts();
+      for (var i = 0; i < posts.length; i++) {
+        if (pathOf(posts[i]) === url) return posts[i].title;
+      }
+      return '';
+    }
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kv-page-btn';
+    btn.textContent = currentUrl ? (findTitle(currentUrl) || '已选文章') : '搜索选择文章…';
+    btn.setAttribute('aria-haspopup', 'listbox');
+    btn.setAttribute('aria-expanded', 'false');
+    var panel = document.createElement('div');
+    panel.className = 'kv-page-panel';
+    panel.hidden = true;
+    var search = document.createElement('input');
+    search.className = 'kv-page-search';
+    search.placeholder = '输入关键词搜索…';
+    search.setAttribute('aria-label', '搜索文章');
+    var list = document.createElement('ul');
+    list.className = 'kv-page-list';
+    function render(filter) {
+      list.textContent = '';
+      var posts = allPosts();
+      var matched = 0;
+      posts.forEach(function (p) {
+        if (filter && p.title.indexOf(filter) === -1 && p.slug.indexOf(filter) === -1) return;
+        matched++;
+        var li = document.createElement('li');
+        li.textContent = p.title;
+        li.setAttribute('role', 'option');
+        li.addEventListener('click', function () {
+          onChange(pathOf(p), p.title);
+          panel.hidden = true;
+          btn.setAttribute('aria-expanded', 'false');
+        });
+        list.appendChild(li);
+      });
+      if (!matched) {
+        var empty = document.createElement('li');
+        empty.className = 'kv-page-empty';
+        empty.textContent = posts.length ? '无匹配文章' : '暂无已发布文章';
+        list.appendChild(empty);
+      }
+    }
+    render('');
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willShow = panel.hidden;
+      document.querySelectorAll('.kv-page-panel').forEach(function (x) { x.hidden = true; });
+      panel.hidden = !willShow;
+      btn.setAttribute('aria-expanded', String(!willShow));
+      if (willShow) { search.value = ''; render(''); search.focus(); }
+    });
+    search.addEventListener('input', function () { render(search.value.trim()); });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    });
+    panel.appendChild(search);
+    panel.appendChild(list);
+    wrap.appendChild(btn);
+    wrap.appendChild(panel);
+    return wrap;
+  }
   function kvBuildRow(ed, format, keyVal, urlVal, typeVal) {
     var row = document.createElement('div');
     row.className = 'kv-row';
-    if (format === 'nav' || format === 'friend') {
-      var drag = document.createElement('span');
-      drag.className = 'kv-drag';
-      drag.title = '拖拽排序';
-      drag.setAttribute('aria-label', '拖拽排序');
-      drag.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>';
-      row.appendChild(drag);
-    }
+    // 内置导航项（首页/文章/说说）：固定存在、类型锁定、不可删除，仅可改名与排序
+    var builtin = format === 'nav' && ['home', 'articles', 'moments'].indexOf(typeVal) !== -1;
+    // 所有列表型编辑器均支持拖拽排序（导航/友情链接/社交链接/社交图标）
+    var drag = document.createElement('span');
+    drag.className = 'kv-drag';
+    drag.title = '拖拽排序';
+    drag.setAttribute('aria-label', '拖拽排序');
+    drag.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>';
+    row.appendChild(drag);
     if (format === 'nav') {
       var typeSel = document.createElement('select');
       typeSel.className = 'kv-type';
       typeSel.setAttribute('aria-label', '导航类型');
       KV_TYPES.forEach(function (t) {
-        var opt = document.createElement('option');
-        opt.value = t[0];
-        opt.textContent = t[1];
-        opt.selected = typeVal === t[0];
-        typeSel.appendChild(opt);
+        // 内置项仅展示自身类型；其他行只能选「页面」或「链接」
+        if (builtin ? t[0] === typeVal : (t[0] === 'pages' || t[0] === 'link')) {
+          var opt = document.createElement('option');
+          opt.value = t[0];
+          opt.textContent = t[1];
+          opt.selected = (t[0] === typeVal) || (!typeVal && t[0] === 'link');
+          typeSel.appendChild(opt);
+        }
       });
+      if (builtin) typeSel.disabled = true;
       row.appendChild(typeSel);
     }
+    var keyPlaceholders = {
+      nav: '如 关于，菜单栏显示的名称',
+      friend: '如 Hancic-blog官网',
+      social: '如 Github/CSDN/掘金等',
+      logo: '如 微信/抖音/小红书等'
+    };
+    // 内置导航项名称按类型提示（首页/文章/说说）
+    var navKeyPh = {
+      home: '如 首页，菜单栏显示的名称',
+      articles: '如 文章，菜单栏显示的名称',
+      moments: '如 说说，菜单栏显示的名称',
+      pages: '如 留言板，菜单栏显示的名称',
+      link: '如 关于，菜单栏显示的名称'
+    };
     var key = document.createElement('input');
     key.className = 'kv-key';
-    key.placeholder = format === 'social' || format === 'logo' ? '平台名，如 github / 微信' : '名称，如 首页';
+    key.placeholder = format === 'nav' ? (navKeyPh[typeVal] || navKeyPh.link) : (keyPlaceholders[format] || '名称');
     key.setAttribute('aria-label', key.placeholder);
     key.value = keyVal || '';
     row.appendChild(key);
@@ -463,10 +554,28 @@
       var media = kvBuildMediaPicker(row, urlVal || '', function (v) { urlHidden.value = v; });
       row.appendChild(urlHidden);
       row.appendChild(media);
+    } else if (format === 'nav' && typeVal === 'pages') {
+      // 页面类型：搜索选择具体文章（隐藏 url 存 /post|page/slug）
+      var urlHidden2 = document.createElement('input');
+      urlHidden2.type = 'hidden';
+      urlHidden2.className = 'kv-url';
+      urlHidden2.value = urlVal || '';
+      url = urlHidden2;
+      var pick = kvBuildPagePick(urlVal || '', function (u, title) {
+        urlHidden2.value = u;
+        pick.querySelector('.kv-page-btn').textContent = title;
+      });
+      row.appendChild(urlHidden2);
+      row.appendChild(pick);
     } else {
       url = document.createElement('input');
       url.className = 'kv-url';
-      url.placeholder = format === 'social' ? '链接，如 https://github.com/xxx' : '路径，如 /archives';
+      var urlPlaceholders = {
+        nav: '如 https://hancic-blog.site',
+        friend: '如 https://hancic-blog.org',
+        social: '链接，如 https://github.com/xxx'
+      };
+      url.placeholder = urlPlaceholders[format] || '';
       url.setAttribute('aria-label', url.placeholder);
       url.value = urlVal || '';
       if (format === 'nav' && typeVal !== 'link') {
@@ -475,20 +584,22 @@
       }
       row.appendChild(url);
     }
-    if (format === 'nav') {
+    if (format === 'nav' && !builtin) {
       typeSel.addEventListener('change', function () {
-        var t = typeSel.value;
-        url.style.display = t === 'link' ? '' : 'none';
-        if (t !== 'link') url.value = kvTypeDefaultUrl(t);
+        // 类型切换后重建该行（link→文本输入；pages→搜索选择；内置→预设路径）
+        var newRow = kvBuildRow(ed, format, key.value.trim(), url.value.trim(), typeSel.value);
+        row.replaceWith(newRow);
       });
     }
-    var del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'kv-del';
-    del.setAttribute('aria-label', '删除这一行');
-    del.textContent = '✕';
-    del.addEventListener('click', function () { row.remove(); });
-    row.appendChild(del);
+    if (!builtin) {
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'kv-del';
+      del.setAttribute('aria-label', '删除这一行');
+      del.textContent = '✕';
+      del.addEventListener('click', function () { row.remove(); });
+      row.appendChild(del);
+    }
     return row;
   }
   // 行拖拽排序（nav/friend）：按住手柄 → ghost 跟手 → 松手落位
@@ -573,18 +684,44 @@
     pairs.forEach(function (p) {
       ed.appendChild(kvBuildRow(ed, format, p[0], p[1], p[2]));
     });
-    if (!ed.querySelector('.kv-row')) {
-      ed.appendChild(kvBuildRow(ed, format, '', '', format === 'nav' ? 'home' : ''));
+    if (format === 'nav') {
+      // 固定内置三项：首页/文章/说说始终存在（可改名、可排序、不可删）
+      var seen = {};
+      ed.querySelectorAll('.kv-row').forEach(function (row) {
+        var t = row.querySelector('.kv-type');
+        if (t) seen[t.value] = true;
+      });
+      KV_TYPES.slice(0, 3).forEach(function (b) {
+        if (!seen[b[0]]) ed.appendChild(kvBuildRow(ed, format, b[1], b[2], b[0]));
+      });
+    } else if (!ed.querySelector('.kv-row')) {
+      ed.appendChild(kvBuildRow(ed, format, '', '', ''));
     }
     var add = ed.parentNode.querySelector('.kv-add');
+    // 存在空行（名称/平台名为空）时禁用添加按钮，避免堆出多行空行
+    function kvUpdateAdd() {
+      if (!add) return;
+      var empty = false;
+      ed.querySelectorAll('.kv-row').forEach(function (row) {
+        var k = row.querySelector('.kv-key');
+        if (!k || !k.value.trim()) empty = true;
+      });
+      add.disabled = empty;
+    }
+    ed.addEventListener('input', kvUpdateAdd);
+    ed.addEventListener('click', function (e) {
+      if (e.target.closest('.kv-del')) kvUpdateAdd();
+    });
+    kvUpdateAdd();
     if (add) {
       add.addEventListener('click', function () {
-        ed.appendChild(kvBuildRow(ed, format, '', '', format === 'nav' ? 'home' : ''));
+        // 新增导航项只能选「页面」或「链接」（内置三项固定不可新增）
+        ed.appendChild(kvBuildRow(ed, format, '', '', format === 'nav' ? 'link' : ''));
+        kvUpdateAdd();
       });
     }
-    if (format === 'nav' || format === 'friend') {
-      kvEnableSort(ed);
-    }
+    // 所有格式均支持拖拽排序
+    kvEnableSort(ed);
     ed._sync = function () {
       var items = [];
       ed.querySelectorAll('.kv-row').forEach(function (row) {
@@ -593,7 +730,8 @@
         var u = (row.querySelector('.kv-url') || { value: '' }).value.trim();
         if (format === 'nav') {
           var t = row.querySelector('.kv-type').value;
-          u = t === 'link' ? u : kvTypeDefaultUrl(t);
+          // 链接/页面保留用户填写/选择的路径；内置类型走预设路径
+          u = t === 'link' || t === 'pages' ? u : kvTypeDefaultUrl(t);
           items.push([k, u, t]);
         } else {
           items.push([k, u]);

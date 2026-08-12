@@ -384,7 +384,7 @@
   const fab = document.getElementById("contact-fab");
   const panel = document.getElementById("contact-panel");
   if (!fab || !panel) return;
-  const hasContent = panel.querySelector(".contact-item") || panel.querySelector(".contact-qr");
+  const hasContent = panel.querySelector(".contact-item");
   if (!hasContent) return; // 未配置任何联系方式：保持 hidden 不展示
   fab.hidden = false;
   const close = () => {

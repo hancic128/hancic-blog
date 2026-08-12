@@ -8,11 +8,12 @@
 //! 保存逻辑：`settings::set` 逐项写库，前台 `site_context` 每次请求重读
 //! settings 表，保存后即时生效（T7）。
 
-use crate::services::settings;
+use crate::models::PostStatus;
+use crate::services::{posts, settings};
 use crate::{session, AppState};
 use axum::extract::{Form, OriginalUri, State};
 use axum::response::Response;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use tower_sessions::Session;
 
@@ -37,7 +38,10 @@ pub async fn page(State(state): State<AppState>, session: Session, uri: Original
     if session::require_admin(&session).await.is_err() {
         return super::redirect(&state.config.base_path, "/admin/login");
     }
-    render(&state, &session, uri.path(), None, "").await
+    let saved = uri
+        .query()
+        .map_or(false, |q| q.split('&').any(|kv| kv == "saved=1"));
+    render(&state, &session, uri.path(), None, "", saved).await
 }
 
 // ---------- 保存站点信息 ----------
@@ -61,6 +65,7 @@ pub async fn save(
             uri.path(),
             Some(&form),
             "安全校验失败，请刷新页面后重试",
+            false,
         )
         .await;
     }
@@ -68,7 +73,7 @@ pub async fn save(
     let errors = validate(&form);
     if !errors.is_empty() {
         let msg = errors.join("；");
-        return render(&state, &session, uri.path(), Some(&form), &msg).await;
+        return render(&state, &session, uri.path(), Some(&form), &msg, false).await;
     }
     // 逐项写库（仅更新表单中出现的字段——设置页拆为多个独立表单，
     // 各自提交自己的字段，缺失键保持库中原值，避免误清空）
@@ -82,12 +87,14 @@ pub async fn save(
                     uri.path(),
                     Some(&form),
                     "保存失败，请重试",
+                    false,
                 )
                 .await;
             }
         }
     }
-    super::redirect(&state.config.base_path, "/admin/settings")
+    // 成功：跳回设置页并带 saved 标记，页面弹「保存成功」提示
+    super::redirect(&state.config.base_path, "/admin/settings?saved=1")
 }
 
 // ---------- 渲染 ----------
@@ -95,13 +102,15 @@ pub async fn save(
 /// 渲染设置页。
 ///
 /// `submitted` 为 Some 时用它回填站点信息表单（校验失败保留已填值），
-/// None 时从 settings 表读取当前值；`settings_error` 展示在站点信息区块。
+/// None 时从 settings 表读取当前值；`settings_error` 展示在站点信息区块；
+/// `saved` 为 true 时（重定向带 ?saved=1）页面弹「保存成功」轻提示。
 async fn render(
     state: &AppState,
     session: &Session,
     path: &str,
     submitted: Option<&HashMap<String, String>>,
     settings_error: &str,
+    saved: bool,
 ) -> Response {
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     let values: HashMap<String, String> = match submitted {
@@ -120,6 +129,28 @@ async fn render(
     };
     ctx.insert("form", &values);
     ctx.insert("settings_error", settings_error);
+    ctx.insert("saved", &saved);
+    // 全部已发布文章（含独立页），供导航「页面」类型搜索选择具体文章
+    let (all_posts, _) = posts::list_posts(
+        &state.db,
+        posts::PostListOptions {
+            status: Some(PostStatus::Published),
+            post_type: None,
+            category_slug: None,
+            tag_slug: None,
+            month: None,
+            sort: None,
+            page: 1,
+            page_size: 1000,
+        },
+    )
+    .await
+    .unwrap_or_default();
+    let all_posts_json = serde_json::to_string(&all_posts.iter().map(|p| {
+        json!({ "slug": p.slug, "title": p.title, "type": p.post_type.to_str() })
+    }).collect::<Vec<_>>())
+    .unwrap_or_else(|_| "[]".into());
+    ctx.insert("all_posts_json", &all_posts_json);
     super::render_admin(state, "settings.html", &ctx)
 }
 

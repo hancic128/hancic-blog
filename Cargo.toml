@@ -16,7 +16,7 @@ pulldown-cmark = { version = "0.13.4", default-features = false, features = ["ht
 rand = "0.10.2"
 reqwest = { version = "0.13.4", features = ["json", "form", "cookies", "multipart"] }
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 sha2 = "0.11.0"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio", "time", "chrono"] }
 subtle = "2.6.1"

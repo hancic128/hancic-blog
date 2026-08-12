@@ -463,6 +463,10 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 
 .field { display: block; margin-bottom: 14px; color: var(--muted); }
 .field label { display: block; margin-bottom: 5px; font-size: 13.5px; font-weight: 500; }
+/* 标签与输入框同一行（如联系邮箱） */
+.field-inline { display: flex; align-items: center; gap: 12px; }
+.field-inline label { margin-bottom: 0; flex: 0 0 auto; white-space: nowrap; }
+.field-inline input { flex: 1; }
 .field input {
   display: block;
   width: 100%;
@@ -1102,15 +1106,17 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   padding: 8px 10px;
   cursor: grabbing;
 }
-/* 社交图标：图片缩略 + 选择按钮 */
+/* 社交图标：图片缩略 + 选择按钮（完整展示不裁剪，二维码需保持可扫描） */
 .kv-media { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 60%; }
 .kv-media-thumb {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
   border: 1px solid var(--border);
-  background: var(--bg-soft);
+  background: #fff;
+  padding: 2px;
+  box-sizing: border-box;
 }
 .kv-media-thumb[hidden] { display: none; }
 .kv-media-clear {
@@ -1123,6 +1129,69 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 }
 .kv-media-clear:hover { color: var(--danger); }
 .picker-head { margin-bottom: 8px; }
+/* 页面类型导航：搜索选择文章下拉 */
+.kv-page-pick { position: relative; flex: 1 1 60%; min-width: 0; }
+.kv-page-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kv-page-btn:hover, .kv-page-btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.kv-page-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 90;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-hover);
+  padding: 6px;
+}
+.kv-page-panel[hidden] { display: none; }
+.kv-page-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+.kv-page-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.kv-page-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.kv-page-list li {
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kv-page-list li:hover { background: var(--accent-soft); color: var(--accent); }
+.kv-page-list .kv-page-empty { color: var(--muted); cursor: default; }
+.kv-page-list .kv-page-empty:hover { background: none; color: var(--muted); }
 .kv-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .kv-del {
   flex-shrink: 0;
@@ -1150,6 +1219,8 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .kv-add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.kv-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.kv-add:disabled:hover { color: var(--muted); border-color: var(--border); background: transparent; }
 @media (max-width: 480px) {
   .kv-row { flex-wrap: wrap; }
   .kv-row .kv-key, .kv-row .kv-url { flex: 1 1 100%; }
@@ -1371,6 +1442,10 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .cs-hidden, select.cs-hidden { display: none; }
 .field .cs { width: 100%; }
 .field .cs .cs-btn { width: 100%; }
+/* 悬浮卡片：下拉与标签、联系邮箱同一行紧凑布局（不占满 field 宽度） */
+.field-row .field-inline.field-cs-auto { flex: 0 0 auto; min-width: 0; }
+.field-row .field-inline.field-cs-auto .cs { width: auto; }
+.field-row .field-inline.field-cs-auto .cs .cs-btn { width: auto; min-width: 96px; }
 @media (prefers-reduced-motion: reduce) { .cs-btn { transition: none; } }
 
 /* ---- 数据统计页 ---- */
