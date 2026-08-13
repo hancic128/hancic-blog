@@ -220,7 +220,8 @@ a:hover { text-decoration: underline; }
 .accent-wrap { position: relative; }
 .accent-panel {
   position: absolute;
-  top: calc(100% + 6px);
+  /* 侧栏按钮位于底部：向上弹出，避免超出视口出现竖直滚动条 */
+  bottom: calc(100% + 6px);
   left: 0;
   z-index: 70;
   display: flex;
