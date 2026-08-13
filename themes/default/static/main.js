@@ -93,11 +93,27 @@
   var navToggle = document.getElementById("nav-toggle");
   var siteNav = document.getElementById("site-nav");
   if (navToggle && siteNav) {
+    // 移动端（≤768px）导航项带子菜单时：点击父项仅展开/收起子菜单，不跳转
+    var isMobileNav = function () {
+      return window.matchMedia("(max-width: 768px)").matches;
+    };
     navToggle.addEventListener("click", function () {
       siteNav.classList.toggle("open");
     });
-    // 点击导航链接后收起菜单
-    siteNav.addEventListener("click", function () {
+    // 点击导航链接后收起菜单（父级子菜单项除外，见下）
+    siteNav.addEventListener("click", function (e) {
+      var link = e.target.closest("a");
+      if (!link) return;
+      var parent = link.parentElement;
+      var isDropParent = parent && parent.classList.contains("nav-dropdown");
+      if (isDropParent && isMobileNav()) {
+        e.preventDefault();
+        var wasOpen = parent.classList.contains("open");
+        var openDrops = siteNav.querySelectorAll(".nav-dropdown.open");
+        for (var i = 0; i < openDrops.length; i++) openDrops[i].classList.remove("open");
+        if (!wasOpen) parent.classList.add("open");
+        return;
+      }
       siteNav.classList.remove("open");
     });
   }
