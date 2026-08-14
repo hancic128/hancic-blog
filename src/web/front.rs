@@ -804,26 +804,31 @@ async fn listing_ctx(
     Ok(ctx)
 }
 
-/// 前台列表排序：`?sort=updated_at|published_at`，默认按更新时间倒序。
+/// 前台列表排序：`?sort=updated_at|published_at|views`，默认按更新时间倒序。
 fn list_sort(query: &HashMap<String, String>) -> posts::PostSort {
     let field = match query.get("sort").map(String::as_str) {
         Some("published_at") => "published_at",
+        Some("views") => "views",
         _ => "updated_at",
     };
     posts::PostSort { field, asc: false }
 }
 
-/// 列表页文章 JSON：标题/日期/excerpt/阅读量/链接。
+/// 列表页文章 JSON：标题/日期/excerpt/阅读量/字数/预计阅读时长/链接。
 async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value> {
     let mut list = Vec::with_capacity(items.len());
     for p in items {
         let tags = posts::list_tags_of_post(db, p.id).await?;
+        let (html, _) = crate::markdown::render_with_toc(&p.content_md);
+        let word_count = html_word_count(&html);
         list.push(json!({
             "slug": p.slug,
             "title": p.title,
             "excerpt": p.excerpt,
             "published_at": p.published_at.map(|d| d.to_rfc3339()),
             "views": p.views,
+            "word_count": word_count,
+            "read_minutes": word_count.div_ceil(300).max(1),
             "url": post_url(base, p),
             "tags": tags.iter().map(|t| json!({ "slug": t.slug, "name": t.name })).collect::<Vec<_>>(),
         }));

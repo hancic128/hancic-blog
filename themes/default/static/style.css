@@ -585,7 +585,7 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .moment-grid.single { grid-template-columns: 1fr; }
 .moment-grid.many { grid-template-columns: repeat(3, 1fr); }
 
-.moment-media { display: block; line-height: 0; }
+.moment-media { display: block; line-height: 0; color: inherit; text-decoration: none; }
 
 .moment-media img,
 .moment-media video {
