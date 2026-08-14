@@ -947,6 +947,17 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   }
   .admin-toggle { display: block; }
   .admin-content { padding: 16px; }
+
+  /* 表格：窄屏允许横向滚动，避免整页溢出裁剪 */
+  .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* 编辑页：标题栏操作按钮换行排列，按钮自适应宽度 */
+  .meta-row .title-actions { flex-wrap: wrap; }
+  .meta-row .title-actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; }
+
+  /* 编辑器工具栏：横向滚动，保留单行可访问全部按钮 */
+  .md-toolbar { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .md-toolbar-btn { flex: none; }
 }
 
 /* ---- 附件库：卡片网格 + 上传拖拽区 ---- */
