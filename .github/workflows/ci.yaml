@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 concurrency:
@@ -71,9 +72,9 @@ jobs:
         run: cd e2e && npx playwright test
 
   docker:
-    # TODO: test 稳定后恢复 `needs: test`（当前为加速部署临时移除，test 仍并行执行作回归检查）
+    # 仅在打 tag（v*）时构建镜像并部署上海主机；push main 只跑 test 作回归检查
     # needs: test
-    if: github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
