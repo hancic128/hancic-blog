@@ -998,6 +998,8 @@ html { scroll-behavior: smooth; }
 
 /* ===== 侧栏：专栏列表导航 ===== */
 .side-columns { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.side-columns li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .side-columns a { color: var(--muted); text-decoration: none; font-size: .9rem; line-height: 1.5; }
 .side-columns a:hover { color: var(--accent); }
 .side-columns .side-column-active a { color: var(--accent); font-weight: 600; }
+.side-column-count { color: var(--muted); font-size: .78rem; flex-shrink: 0; }
