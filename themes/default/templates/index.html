@@ -25,6 +25,19 @@
     </section>
     {% endif %}
 
+    {# 最热专栏（文章数最多，仅 1 个） #}
+    {% if hot_column %}
+    <section class="hot-column-section">
+      <h3 class="section-title">最热专栏</h3>
+      <a class="hot-column-card" href="{{ base_path }}/column/{{ hot_column.slug }}">
+        <span class="hot-column-name">{{ hot_column.name }}</span>
+        {% if hot_column.description %}<span class="hot-column-desc">{{ hot_column.description }}</span>{% endif %}
+        <span class="hot-column-count">{{ hot_column.count }} 篇文章 →</span>
+      </a>
+      <p class="more-link"><a href="{{ base_path }}/columns">更多专栏 →</a></p>
+    </section>
+    {% endif %}
+
     {# 2. 最近说说（时间线，每条可折叠，含缩略图） #}
     {% if moments %}
     <section class="activity-section" id="moments">

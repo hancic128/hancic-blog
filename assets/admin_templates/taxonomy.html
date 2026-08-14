@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}分类标签{% endblock %}
 {% block content %}
-<h1>分类标签</h1>
+<h1>分类 · 标签</h1>
 
 {% if error_msg %}
 <p class="error">{{ error_msg }}</p>
@@ -70,6 +70,8 @@
       {% endfor %}
     </ul>
   </section>
+
+
 </div>
 {% endblock %}
 
@@ -80,11 +82,12 @@
   var base = "{{ base_path }}";
   var csrf = "{{ csrf }}";
 
-  function submitNew(action, kind) {
-    window.hancicPrompt('新建' + kind + '（最多 5 个字）', '').then(function (name) {
+  function submitNew(action, kind, maxLen) {
+    var limit = maxLen || 5;
+    window.hancicPrompt('新建' + kind + '（最多 ' + limit + ' 个字）', '').then(function (name) {
       if (!name) return;
-      if (name.length > 5) {
-        window.hancicToast(kind + '名称最多 5 个字', 'error');
+      if (name.length > limit) {
+        window.hancicToast(kind + '名称最多 ' + limit + ' 个字', 'error');
         return;
       }
       window.hancicFetch(base + action, {

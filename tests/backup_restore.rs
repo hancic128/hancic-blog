@@ -13,7 +13,7 @@ async fn export_then_restore_roundtrip() {
     posts::create_post(&pool, posts::NewPost {
         title: "备份文章".into(), content_md: "内容".into(), excerpt: None, slug: None,
         status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-        category_id: None, tags: vec!["backup".into()],
+        category_id: None, column_id: None, tags: vec!["backup".into()],
     }).await.unwrap();
     moments::create_moment(&pool, "备份说说", &[]).await.unwrap();
 
@@ -129,7 +129,7 @@ async fn restore_rejects_invalid_zip() {
     posts::create_post(&pool, posts::NewPost {
         title: "保留文章".into(), content_md: "x".into(), excerpt: None, slug: None,
         status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-        category_id: None, tags: vec![],
+        category_id: None, column_id: None, tags: vec![],
     }).await.unwrap();
     let (addr, client) = start_server_with_cfg(cfg).await;
     let base = format!("http://{addr}");
@@ -190,7 +190,7 @@ async fn restore_rejects_corrupt_db() {
     posts::create_post(&pool, posts::NewPost {
         title: "保留文章".into(), content_md: "x".into(), excerpt: None, slug: None,
         status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-        category_id: None, tags: vec![],
+        category_id: None, column_id: None, tags: vec![],
     }).await.unwrap();
 
     // 合法 zip 骨架 + 内容非法的 hancic.db
@@ -231,7 +231,7 @@ async fn restore_rejects_backslash_traversal() {
     posts::create_post(&pool, posts::NewPost {
         title: "保留文章".into(), content_md: "x".into(), excerpt: None, slug: None,
         status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-        category_id: None, tags: vec![],
+        category_id: None, column_id: None, tags: vec![],
     }).await.unwrap();
 
     // 恶意 zip：合法骨架（过格式校验）+ 反斜杠逃逸条目（zip 8 写入端原样存名）

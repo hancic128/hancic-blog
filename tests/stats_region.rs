@@ -44,6 +44,7 @@ async fn record_view_and_query_summary() {
         status: PostStatus::Published,
         post_type: PostType::Post,
         category_id: None,
+        column_id: None,
         tags: vec![],
     })
     .await
@@ -107,6 +108,7 @@ async fn post_page_http_records_view() {
         status: PostStatus::Published,
         post_type: PostType::Post,
         category_id: None,
+        column_id: None,
         tags: vec![],
     })
     .await

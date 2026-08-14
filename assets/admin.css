@@ -1956,3 +1956,132 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   line-height: 1.6;
 }
 .panel pre code { background: none; padding: 0; color: var(--text); }
+
+/* 编辑页专栏选择（原生 select，与分类选择器同宽） */
+.cat-field .col-select {
+  width: 100%;
+  min-width: 150px;
+  max-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+.cat-field .col-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* 专栏编辑：描述输入独占一行（分类编辑无此字段不受影响） */
+.taxonomy-edit .taxonomy-desc {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.taxonomy-edit .taxonomy-desc:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ===== 专栏管理页 v3：表头按钮 + 内嵌文章列表 ===== */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-head h2 { margin: 0; }
+
+/* 专栏管理页：文章排序条 */
+.sort-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; font-size: 13px; }
+.sort-label { color: var(--muted); margin-right: 2px; }
+.sort-link {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.6;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.sort-link:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+.sort-link.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+
+.col-admin-list { display: flex; flex-direction: column; gap: 24px; }
+.col-admin-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.col-admin-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.col-admin-info { display: flex; align-items: baseline; justify-content: flex-start; text-align: left; gap: 10px; flex: 1 1 240px; min-width: 0; flex-wrap: wrap; }
+.col-admin-name-text { font-weight: 600; font-size: 15px; color: var(--text); }
+.col-admin-desc-text { color: var(--muted); font-size: 13px; }
+.col-admin-count { font-size: 12px; }
+.col-admin-actions { display: flex; align-items: center; gap: 8px; }
+
+.col-posts { display: flex; flex-direction: column; }
+.col-post-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, var(--muted) 28%);
+}
+.col-post-row:last-child { border-bottom: none; }
+.col-post-head { padding-bottom: 4px; }
+.col-post-head span { font-size: 11px; font-weight: 400; color: var(--muted); }
+.col-post-cell-title { flex: 1; min-width: 0; }
+.col-post-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+.col-post-title:hover { color: var(--accent); }
+.col-time { flex: none; width: 130px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.col-ops { flex: none; margin-left: auto; text-align: right; }
+
+.col-posts-more { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+.col-posts-more a { color: var(--accent); text-decoration: none; }
+.col-posts-more a:hover { text-decoration: underline; }
+
+.col-posts-empty { color: var(--muted); font-size: 13px; padding: 4px 0; }
+
+/* 卡片底部：选择文章 + 加入按钮（下拉支持关键词搜索，加宽） */
+.col-add-row { display: flex; align-items: center; gap: 10px; }
+.col-add-cs { flex: 1 1 280px; min-width: 0; }
+.col-add-cs .cs-btn { width: 100%; min-width: 280px; }
+.col-remove { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: transparent; }
+.col-remove:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); border-color: var(--danger); color: var(--danger); }
+
+/* 自定义下拉：可搜索模式 */
+.cs-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.cs-search:focus { outline: none; border-color: var(--accent); }
+.cs-option.hidden { display: none; }
+
+/* 专栏卡片与内部表格确保撑满容器宽度（按钮贴右缘的前提） */
+.col-admin-list, .col-admin-item { width: 100%; box-sizing: border-box; }

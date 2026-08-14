@@ -31,6 +31,7 @@ pub mod system;
 pub mod posts;
 pub mod settings;
 pub mod stats;
+pub mod columns;
 pub mod taxonomy;
 pub mod themes;
 pub mod tokens;
@@ -65,6 +66,12 @@ pub fn router() -> Router<AppState> {
         .route("/taxonomy/categories/{id}/delete", post(taxonomy::delete_category))
         .route("/taxonomy/tags", post(taxonomy::create_tag))
         .route("/taxonomy/tags/{id}/delete", post(taxonomy::delete_tag))
+        .route("/columns", get(columns::list).post(columns::create))
+        .route("/columns/{id}", get(columns::detail))
+        .route("/columns/{id}/update", post(columns::update))
+        .route("/columns/{id}/delete", post(columns::delete))
+        .route("/columns/{id}/posts/add", post(columns::add_post))
+        .route("/columns/{id}/posts/remove", post(columns::remove_post))
         .route("/settings", get(settings::page))
         .route("/settings/save", post(settings::save))
         .route("/system", get(system::page))
@@ -116,6 +123,8 @@ pub fn build_tera() -> Tera {
         ("moments.html", include_str!("../../assets/admin_templates/moments.html")),
         ("attachments.html", include_str!("../../assets/admin_templates/attachments.html")),
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
+        ("columns.html", include_str!("../../assets/admin_templates/columns.html")),
+        ("column_posts.html", include_str!("../../assets/admin_templates/column_posts.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
         ("system.html", include_str!("../../assets/admin_templates/system.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
@@ -185,12 +194,13 @@ struct NavItem {
 /// 侧边栏 9 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
     // (url, label, group)：内容管理 / 系统
-    let items: [(&str, &str, &str); 10] = [
+    let items: [(&str, &str, &str); 11] = [
         ("/admin", "仪表盘", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
         ("/admin/attachments", "附件库", "content"),
         ("/admin/taxonomy", "分类标签", "content"),
+        ("/admin/columns", "专栏管理", "content"),
         ("/admin/settings", "站点设置", "system"),
         ("/admin/themes", "主题管理", "system"),
         ("/admin/tokens", "API Token", "system"),
@@ -443,6 +453,7 @@ async fn fill_dashboard(
             post_type: Some(PostType::Post),
             category_slug: None,
             tag_slug: None,
+            column_slug: None,
             month: None,
             sort: None,
             page: 1,

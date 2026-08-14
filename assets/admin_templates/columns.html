@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+{% block title %}专栏管理{% endblock %}
+{% block content %}
+<h1>专栏管理</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+<div class="panel">
+  <section class="panel-section">
+    <h2>专栏列表</h2>
+    <button class="taxonomy-add-row" id="col-create" type="button" title="新建专栏" aria-label="新建专栏">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建专栏
+    </button>
+
+    {% if columns %}
+    <div class="sort-bar" role="group" aria-label="文章排序">
+      <span class="sort-label">文章排序：</span>
+      <a class="sort-link{% if current_sort == 'updated_at' %} active{% endif %}" href="?sort=updated_at">更新时间</a>
+      <a class="sort-link{% if current_sort == 'created_at' %} active{% endif %}" href="?sort=created_at">创建时间</a>
+      <a class="sort-link{% if current_sort == 'title' %} active{% endif %}" href="?sort=title">标题</a>
+    </div>
+    <div class="col-admin-list">
+      {% for c in columns %}
+      <div class="col-admin-item" data-id="{{ c.id }}" data-name="{{ c.name }}" data-desc="{{ c.description }}">
+        <header class="col-admin-head">
+          <div class="col-admin-info">
+            <span class="col-admin-name-text">{{ c.name }}</span>
+            <span class="col-admin-desc-text">{% if c.description %}{{ c.description }}{% endif %}</span>
+            <span class="muted col-admin-count">{{ c.count }} 篇</span>
+          </div>
+          <div class="col-admin-actions">
+            <button class="icon-btn" type="button" data-act="edit" title="编辑名称/描述" aria-label="编辑">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <form class="inline-form" method="post" action="{{ base_path }}/admin/columns/{{ c.id }}/delete" data-confirm="确认删除该专栏？关联文章将变为无专栏。">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <button class="icon-btn icon-btn-danger" type="submit" title="删除" aria-label="删除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </form>
+          </div>
+        </header>
+
+        {% if c.in_posts %}
+        <div class="col-posts">
+          <div class="col-post-row col-post-head">
+            <span class="col-post-cell-title">文章</span>
+            <span class="col-time">创建时间</span>
+            <span class="col-time">更新时间</span>
+            <span class="col-ops">操作</span>
+          </div>
+          {% for p in c.in_posts %}
+          <div class="col-post-row">
+            <a class="col-post-title" href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a>
+            <span class="col-time">{{ p.created_at }}</span>
+            <span class="col-time">{{ p.updated_at }}</span>
+            <span class="col-ops">
+              <button class="btn btn-sm col-remove" type="button" data-id="{{ p.id }}" title="移出专栏" aria-label="移出专栏">移出</button>
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        {% if c.in_total > c.in_posts | length %}
+        <p class="col-posts-more">共 {{ c.in_total }} 篇，仅显示最近 {{ c.in_posts | length }} 篇 · <a href="{{ base_path }}/admin/columns/{{ c.id }}">查看全部 →</a></p>
+        {% endif %}
+        {% else %}
+        <p class="col-posts-empty">暂无文章</p>
+        {% endif %}
+
+        <div class="col-add-row">
+          <div class="cs col-add-cs" data-select="#col-add-{{ c.id }}" data-search>
+            <button class="cs-btn" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+            <select id="col-add-{{ c.id }}" class="cs-hidden" aria-label="选择文章">
+              <option value="">选择文章…</option>
+              {% for p in c.addable %}
+              <option value="{{ p.id }}">{{ p.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-sm col-add-btn" type="button" data-id="{{ c.id }}">加入</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">暂无专栏，点击右上角「新建专栏」创建</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var base = "{{ base_path }}";
+  var csrf = "{{ csrf }}";
+
+  function openModal(html) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal-box">' + html + '</div>';
+    document.body.appendChild(overlay);
+    overlay.hidden = false;
+    function close() { overlay.remove(); }
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape' && document.body.contains(overlay)) { close(); document.removeEventListener('keydown', esc); }
+    });
+    return { overlay: overlay, close: close };
+  }
+
+  function post(action, data) {
+    var body = new URLSearchParams(data);
+    body.set('csrf', csrf);
+    return window.hancicFetch(base + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+  }
+
+  // 名称/描述表单（新建与编辑共用）：描述为多行输入框
+  function fieldModal(title, id, nameVal, descVal, onSave) {
+    var m = openModal(
+      '<h3 class="modal-title">' + title + '</h3>' +
+      '<div class="modal-msg modal-msg-left">' +
+      '  <label class="modal-label">名称（≤8字）<input class="modal-input" id="cf-name" maxlength="8"></label>' +
+      '  <label class="modal-label">描述（≤50字）<textarea class="modal-textarea" id="cf-desc" maxlength="50" rows="3"></textarea></label>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+      '  <button class="btn" type="button" data-x>取消</button>' +
+      '  <button class="btn btn-primary" type="button" data-save>保存</button>' +
+      '</div>'
+    );
+    m.overlay.querySelector('#cf-name').value = nameVal;
+    m.overlay.querySelector('#cf-desc').value = descVal;
+    m.overlay.querySelector('#cf-name').focus();
+    m.overlay.querySelector('[data-x]').addEventListener('click', m.close);
+    m.overlay.querySelector('[data-save]').addEventListener('click', function () {
+      var name = m.overlay.querySelector('#cf-name').value.trim();
+      var desc = m.overlay.querySelector('#cf-desc').value.trim();
+      if (!name) { window.hancicToast('专栏名称不能为空', 'error'); return; }
+      if (name.length > 8) { window.hancicToast('专栏名称最多 8 个字', 'error'); return; }
+      if (desc.length > 50) { window.hancicToast('专栏描述最多 50 个字', 'error'); return; }
+      onSave(name, desc, m);
+    });
+    return m;
+  }
+
+  // ---- 新建 ----
+  document.getElementById('col-create').addEventListener('click', function () {
+    fieldModal('新建专栏', null, '', '', function (name, desc, m) {
+      post('/admin/columns', { name: name, description: desc }).then(function (res) {
+        if (!res.ok) { window.hancicToast('创建失败，请重试', 'error'); return; }
+        m.close();
+        window.location.reload();
+      }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+    });
+  });
+
+  // ---- 编辑（改名称/描述） ----
+  document.querySelectorAll('[data-act="edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var item = btn.closest('.col-admin-item');
+      fieldModal('编辑专栏', null, item.getAttribute('data-name'), item.getAttribute('data-desc'), function (name, desc, m) {
+        post('/admin/columns/' + item.getAttribute('data-id') + '/update', { name: name, description: desc })
+          .then(function (res) {
+            if (!res.ok) { window.hancicToast('保存失败，请重试', 'error'); return; }
+            m.close();
+            window.location.reload();
+          }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+      });
+    });
+  });
+
+  // ---- 移出文章（确认对话框） ----
+  document.querySelectorAll('.col-remove').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-id');
+      var colId = btn.closest('.col-admin-item').getAttribute('data-id');
+      window.hancicConfirm('确认将该文章移出专栏？文章本身不受影响。').then(function (ok) {
+        if (!ok) return;
+        post('/admin/columns/' + colId + '/posts/remove', { post_id: id }).then(function (res) {
+          if (!res.ok) { window.hancicToast('移出失败，请重试', 'error'); return; }
+          window.location.reload();
+        }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+      });
+    });
+  });
+
+  // ---- 加入文章（cs 下拉已初始化，读 select 值） ----
+  document.querySelectorAll('.col-add-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var colId = btn.getAttribute('data-id');
+      var sel = document.querySelector('#col-add-' + colId);
+      if (!sel || !sel.value) { window.hancicToast('请先选择文章', 'error'); return; }
+      post('/admin/columns/' + colId + '/posts/add', { post_id: sel.value }).then(function (res) {
+        if (!res.ok) { window.hancicToast('加入失败，请重试', 'error'); return; }
+        window.location.reload();
+      }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+    });
+  });
+})();
+</script>
+{% endblock %}

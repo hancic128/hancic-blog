@@ -48,6 +48,15 @@
         <div class="suggest-panel" id="cat-suggest-panel" hidden></div>
       </div>
     </div>
+    <div class="cat-field">
+      <label for="post-column">专栏</label>
+      <select id="post-column" name="column_id" class="col-select" aria-label="选择专栏">
+        <option value="">无专栏</option>
+        {% for c in columns %}
+        <option value="{{ c.id }}"{% if post.column_id == c.id %} selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <div class="tag-field">
       <label for="post-tags">标签</label>
       <div class="tag-editor" id="tag-editor">

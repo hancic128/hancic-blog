@@ -42,6 +42,8 @@ pub fn routes() -> Router<AppState> {
         .route("/page/{slug}", get(page_page))
         .route("/category/{slug}", get(category_page))
         .route("/tag/{slug}", get(tag_page))
+        .route("/column/{slug}", get(column_page))
+        .route("/columns", get(columns_page))
         .route("/about", get(about_page))
         .route("/moments", get(moments_page))
         .route("/search", get(search_page))
@@ -81,8 +83,10 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     let mut ctx = Context::new();
     ctx.insert("base_path", base);
     let categories = taxonomy::list_categories(db).await?;
+    let columns = crate::services::columns::list_columns(db).await?;
     // 导航归一化：每项 `{type, label, url}`。类型：home/首页、articles/文章、
-    // moments/说说、pages/页面（下拉列出独立页）、link/链接（自定义）。
+    // moments/说说、pages/页面（下拉列出独立页）、column/专栏（下拉列出全部专栏）、
+    // link/链接（自定义）。
     // 兼容旧数据：无 type 字段的名称为「文章」项 → articles；type=categories → pages
     // （旧「分类下拉」被「页面下拉」取代）。
     let nav_raw = parse_json_array(s.get("site_nav").map(String::as_str).unwrap_or("[]"));
@@ -117,6 +121,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             post_type: Some(PostType::Page),
             category_slug: None,
             tag_slug: None,
+            column_slug: None,
             month: None,
             sort: None,
             page: 1,
@@ -184,6 +189,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
                 "email": s.get("contact_email").map(String::as_str).unwrap_or(""),
             }),
             "categories": categories.iter().map(|c| json!({ "slug": c.slug, "name": c.name })).collect::<Vec<_>>(),
+            "columns": columns.iter().map(|c| json!({ "slug": c.slug, "name": c.name })).collect::<Vec<_>>(),
         }),
     );
     Ok(ctx)
@@ -216,6 +222,26 @@ async fn index(
         // 更新日历（近 53 周，含发布/更新/说说详情）与最近说说（5 条）
         let calendar = posts::activity_calendar(&state.db, 371).await?;
         let (moments, _total) = moments::list_moments(&state.db, None, false, None, 1, 5).await?;
+        // 最热专栏：文章数最多的专栏，最多取 3 个（按文章数降序）
+        let hot_columns = {
+            let cols = crate::services::columns::list_columns(&state.db).await?;
+            let counts = crate::services::columns::count_columns_posts(&state.db).await?;
+            let mut v: Vec<serde_json::Value> = cols
+                .iter()
+                .filter(|c| counts.get(&c.id).copied().unwrap_or(0) > 0)
+                .map(|c| {
+                    json!({
+                        "slug": c.slug,
+                        "name": c.name,
+                        "description": c.description,
+                        "count": counts.get(&c.id).copied().unwrap_or(0),
+                    })
+                })
+                .collect();
+            v.sort_by_key(|x| std::cmp::Reverse(x["count"].as_i64().unwrap_or(0)));
+            v.truncate(3);
+            v
+        };
         // 最近文章（首页仅展示 5 篇，完整列表走 /archives）
         let (items, total) = posts::list_posts(
             &state.db,
@@ -224,6 +250,7 @@ async fn index(
                 post_type: Some(PostType::Post),
                 category_slug: None,
                 tag_slug: None,
+                column_slug: None,
                 month: None,
                 sort: Some(list_sort(&query)),
                 page: 1,
@@ -233,6 +260,7 @@ async fn index(
         .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("calendar", &calendar_matrix(&calendar));
+        ctx.insert("hot_columns", &hot_columns);
         // 首页最近说说与说说页同构（moment + attachments），模板可渲染图片/视频附件
         ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &moments).await?);
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
@@ -255,7 +283,7 @@ async fn archives_page(
     let month = query.get("month").filter(|m| !m.is_empty()).cloned();
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let mut ctx = listing_ctx(&state.db, &state.config.base_path, page, None, None, month.clone(), list_sort(&query), preview.clone()).await?;
+        let mut ctx = listing_ctx(&state.db, &state.config.base_path, page, None, None, None, month.clone(), list_sort(&query), preview.clone()).await?;
         let tags = taxonomy::list_tags(&state.db).await?;
         let months = posts::month_list(&state.db).await?;
         ctx.insert(
@@ -296,11 +324,18 @@ async fn post_page(
         let (prev, next) = posts::adjacent_posts(&state.db, &post).await?;
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
+        let column = column_of(&state.db, post.column_id).await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("post", &post_value(&post));
         ctx.insert(
             "category",
             &category
+                .map(|c| json!({ "slug": c.slug, "name": c.name }))
+                .unwrap_or(json!(null)),
+        );
+        ctx.insert(
+            "column",
+            &column
                 .map(|c| json!({ "slug": c.slug, "name": c.name }))
                 .unwrap_or(json!(null)),
         );
@@ -483,7 +518,7 @@ async fn category_page(
             .await?
             .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;
         let mut ctx =
-            listing_ctx(&state.db, &state.config.base_path, page_param(&query), Some(slug), None, None, list_sort(&query), preview.clone()).await?;
+            listing_ctx(&state.db, &state.config.base_path, page_param(&query), Some(slug), None, None, None, list_sort(&query), preview.clone()).await?;
         ctx.insert(
             "category",
             &json!({ "slug": category.slug, "name": category.name }),
@@ -502,6 +537,94 @@ async fn category_page(
     .await;
     match out {
         Ok(ctx) => render(&state, "category.html", &ctx, preview.as_deref()).await,
+        Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 专栏归档页：该专栏下文章分页列表（复用 listing_ctx，含排序条）。
+async fn column_page(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let preview = resolve_preview(&state, &query);
+    let out = async {
+        let column = crate::services::columns::get_column_by_slug(&state.db, &slug)
+            .await?
+            .ok_or_else(|| AppError::NotFound("专栏不存在".into()))?;
+        let mut ctx = listing_ctx(
+            &state.db,
+            &state.config.base_path,
+            page_param(&query),
+            None,
+            None,
+            Some(slug),
+            None,
+            list_sort(&query),
+            preview.clone(),
+        )
+        .await?;
+        ctx.insert(
+            "column",
+            &json!({ "slug": column.slug, "name": column.name }),
+        );
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "column.html", &ctx, preview.as_deref()).await,
+        Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 专栏卡片总览页：每个专栏一张卡片（名称+描述+该专栏文章链接列表）。
+const COLUMN_CARD_POSTS: i64 = 10;
+
+async fn columns_page(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let preview = resolve_preview(&state, &query);
+    let base = state.config.base_path.clone();
+    let out = async {
+        let mut ctx = site_context(&state.db, &base, preview.clone()).await?;
+        let columns = crate::services::columns::list_columns(&state.db).await?;
+        let mut cards = Vec::with_capacity(columns.len());
+        for c in &columns {
+            let (items, total) = posts::list_posts(
+                &state.db,
+                posts::PostListOptions {
+                    status: Some(PostStatus::Published),
+                    post_type: Some(PostType::Post),
+                    category_slug: None,
+                    tag_slug: None,
+                    column_slug: Some(c.slug.clone()),
+                    month: None,
+                    sort: Some(posts::PostSort { field: "updated_at", asc: false }),
+                    page: 1,
+                    page_size: COLUMN_CARD_POSTS,
+                },
+            )
+            .await?;
+            cards.push(json!({
+                "slug": c.slug,
+                "name": c.name,
+                "description": c.description,
+                "total": total,
+                "posts": items.iter().map(|p| json!({
+                    "title": p.title,
+                    "url": post_url(&base, p),
+                    "published_at": p.published_at.map(|d| d.to_rfc3339()),
+                })).collect::<Vec<_>>(),
+            }));
+        }
+        ctx.insert("columns", &json!(cards));
+        ctx.insert("has_columns", &!columns.is_empty());
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "column_list.html", &ctx, preview.as_deref()).await,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -525,6 +648,7 @@ async fn tag_page(
             page_param(&query),
             None,
             Some(slug.clone()),
+            None,
             month.clone(),
             list_sort(&query),
             preview.clone(),
@@ -641,7 +765,7 @@ fn page_param(query: &HashMap<String, String>) -> i64 {
 }
 
 /// 文章流列表上下文（首页/分类/标签共用）：注入 posts + pagination。
-/// 文章流列表上下文（分类/标签/归档共用）：注入 posts + 排序切换 + pagination。
+/// 文章流列表上下文（分类/标签/专栏/归档共用）：注入 posts + 排序切换 + pagination。
 #[allow(clippy::too_many_arguments)]
 async fn listing_ctx(
     db: &Db,
@@ -649,6 +773,7 @@ async fn listing_ctx(
     page: i64,
     category_slug: Option<String>,
     tag_slug: Option<String>,
+    column_slug: Option<String>,
     month: Option<String>,
     sort: posts::PostSort,
     preview: Option<String>,
@@ -660,6 +785,7 @@ async fn listing_ctx(
             post_type: Some(PostType::Post),
             category_slug,
             tag_slug,
+            column_slug,
             month,
             sort: Some(sort),
             page,
@@ -673,14 +799,15 @@ async fn listing_ctx(
     // 列表页排序切换（post_list.html 条件渲染；index 不注入）
     ctx.insert("sort_ctl", &true);
     ctx.insert("current_sort", &sort.field);
+    // 列表总数（专栏页标题等处展示）
+    ctx.insert("post_total", &total);
     Ok(ctx)
 }
 
-/// 前台列表排序：`?sort=updated_at|published_at|created_at`，默认按更新时间倒序。
+/// 前台列表排序：`?sort=updated_at|published_at`，默认按更新时间倒序。
 fn list_sort(query: &HashMap<String, String>) -> posts::PostSort {
     let field = match query.get("sort").map(String::as_str) {
         Some("published_at") => "published_at",
-        Some("created_at") => "created_at",
         _ => "updated_at",
     };
     posts::PostSort { field, asc: false }
@@ -902,6 +1029,17 @@ fn html_word_count(html: &str) -> usize {
 async fn category_of(db: &Db, id: Option<i64>) -> AppResult<Option<crate::models::Category>> {
     match id {
         Some(id) => Ok(taxonomy::list_categories(db)
+            .await?
+            .into_iter()
+            .find(|c| c.id == id)),
+        None => Ok(None),
+    }
+}
+
+/// 文章所属专栏（按 id 查找）。
+async fn column_of(db: &Db, id: Option<i64>) -> AppResult<Option<crate::models::Column>> {
+    match id {
+        Some(id) => Ok(crate::services::columns::list_columns(db)
             .await?
             .into_iter()
             .find(|c| c.id == id)),

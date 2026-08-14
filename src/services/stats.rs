@@ -234,6 +234,7 @@ impl From<PostStatRow> for Post {
             updated_at: r.updated_at,
             views: r.views,
             category_id: r.category_id,
+            column_id: None,
         }
     }
 }

@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block title %}专栏文章管理{% endblock %}
+{% block content %}
+<h1><a class="back-link" href="{{ base_path }}/admin/columns">← 专栏管理</a> · {{ column.name }}</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+<div class="panel">
+  <section class="panel-section">
+    <h2>专栏信息</h2>
+    <p class="muted">{% if column.description %}{{ column.description }}{% else %}暂无描述{% endif %}</p>
+  </section>
+
+  <section class="panel-section">
+    <h2>专栏文章（{{ in_posts | length }} 篇）</h2>
+    {% if in_posts %}
+    <table class="data-table">
+      <thead>
+        <tr><th>标题</th><th class="col-ops">操作</th></tr>
+      </thead>
+      <tbody>
+        {% for p in in_posts %}
+        <tr>
+          <td><a href="{{ p.url }}">{{ p.title }}</a></td>
+          <td class="col-ops">
+            <form class="inline-form" method="post" action="{{ base_path }}/admin/columns/{{ column.id }}/posts/remove" data-confirm="确认将该文章移出专栏？文章本身不受影响。">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="post_id" value="{{ p.id }}">
+              <button class="btn btn-sm" type="submit">移出</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">该专栏还没有文章</p>
+    {% endif %}
+  </section>
+
+  <section class="panel-section">
+    <h2>添加文章</h2>
+    {% if addable_posts %}
+    <form method="post" action="{{ base_path }}/admin/columns/{{ column.id }}/posts/add" class="column-add-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="field">
+        <div class="cs column-add-cs" data-select="#cp-add-select">
+          <button class="cs-btn" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+          <select id="cp-add-select" name="post_id" class="cs-hidden" aria-label="选择文章" required>
+            <option value="">请选择要加入专栏的文章…</option>
+            {% for p in addable_posts %}
+            <option value="{{ p.id }}">{{ p.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">加入专栏</button>
+      </div>
+    </form>
+    {% else %}
+    <p class="empty">没有可添加的文章（全部已发布文章都已在某个专栏或本专栏）</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

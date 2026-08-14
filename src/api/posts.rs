@@ -56,6 +56,7 @@ pub async fn list(
             post_type: Some(PostType::Post),
             category_slug: query.get("category").filter(|s| !s.is_empty()).cloned(),
             tag_slug: query.get("tag").filter(|s| !s.is_empty()).cloned(),
+            column_slug: None,
             month: None,
             sort: None,
             page,
@@ -132,6 +133,7 @@ async fn parse_new_post(state: &AppState, body: &Value) -> Result<service::NewPo
         status,
         post_type: PostType::Post,
         category_id,
+        column_id: None, // 专栏由后台编辑页维护，API 暂不暴露
         tags,
     })
 }
@@ -181,6 +183,7 @@ async fn parse_update_post(
         status,
         post_type: None,
         category_id,
+        column_id: None, // 专栏由后台编辑页维护，API 暂不暴露
         tags,
     })
 }

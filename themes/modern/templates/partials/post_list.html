@@ -3,7 +3,6 @@
   <span class="sort-label">排序：</span>
   <a class="sort-link{% if current_sort == 'updated_at' %} active{% endif %}" data-sort="updated_at" href="#">更新时间</a>
   <a class="sort-link{% if current_sort == 'published_at' %} active{% endif %}" data-sort="published_at" href="#">发布时间</a>
-  <a class="sort-link{% if current_sort == 'created_at' %} active{% endif %}" data-sort="created_at" href="#">创建时间</a>
 </div>
 {% endif %}
 {% for post in posts %}

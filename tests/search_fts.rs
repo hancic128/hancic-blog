@@ -21,6 +21,7 @@ async fn create_published_post(pool: &db::Db, title: &str, content: &str) {
             status: PostStatus::Published,
             post_type: PostType::Post,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )
@@ -107,6 +108,7 @@ async fn search_excludes_drafts() {
             status: PostStatus::Draft,
             post_type: PostType::Post,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )
@@ -171,6 +173,7 @@ async fn search_excludes_pages() {
             status: PostStatus::Published,
             post_type: PostType::Page,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )

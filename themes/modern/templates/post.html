@@ -8,6 +8,7 @@
         <div class="meta">
           {% if post.published_at %}<time datetime="{{ post.published_at }}">{{ post.published_at | date }}</time>{% endif %}
           {% if category %}<a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
+          {% if column %}<a href="{{ base_path }}/column/{{ column.slug }}">{{ column.name }}</a>{% endif %}
           {% for tag in tags %}<a href="{{ base_path }}/tag/{{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}
           <span>{{ post.views }} 阅读</span>
           {% if word_count %}<span>{{ word_count }} 字 · 约 {{ read_minutes }} 分钟</span>{% endif %}
@@ -34,6 +35,7 @@
       </ul>
     </div>
     {% endif %}
+    {% include "partials/side_columns.html" %}
   </aside>
 </div>
 {% include "partials/footer.html" %}

@@ -109,6 +109,7 @@ pub struct Post {
     pub updated_at: DateTime<Utc>,
     pub views: i64,
     pub category_id: Option<i64>,
+    pub column_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,6 +125,15 @@ pub struct Category {
     pub slug: String,
     pub name: String,
     pub sort_order: i64,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct Column {
+    pub id: i64,
+    pub slug: String,
+    pub name: String,
+    pub sort_order: i64,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]

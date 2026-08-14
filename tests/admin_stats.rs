@@ -31,6 +31,7 @@ async fn stats_overview_region_detail_and_clear() {
             status: PostStatus::Published,
             post_type: PostType::Post,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )
@@ -46,6 +47,7 @@ async fn stats_overview_region_detail_and_clear() {
             status: PostStatus::Published,
             post_type: PostType::Post,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )

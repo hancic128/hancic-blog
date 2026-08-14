@@ -425,23 +425,25 @@
 // 标签过多折叠：超过 MAX 个隐藏并追加 "+N" 展开按钮
 (function initTagFold() {
   const MAX = 5;
-  const fold = (container, links) => {
-    if (links.length <= MAX) return;
-    for (let i = MAX; i < links.length; i++) links[i].style.display = "none";
+  const TAG_CLOUD_MAX = 15;
+  const fold = (container, links, limit) => {
+    if (links.length <= limit) return;
+    for (let i = limit; i < links.length; i++) links[i].style.display = "none";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tag-more";
-    btn.textContent = "+" + (links.length - MAX);
+    btn.textContent = "+" + (links.length - limit);
     btn.setAttribute("aria-expanded", "false");
     container.appendChild(btn);
     btn.addEventListener("click", () => {
       const expanded = btn.getAttribute("aria-expanded") === "true";
-      for (let i = MAX; i < links.length; i++) links[i].style.display = expanded ? "none" : "";
+      for (let i = limit; i < links.length; i++) links[i].style.display = expanded ? "none" : "";
       btn.setAttribute("aria-expanded", expanded ? "false" : "true");
-      btn.textContent = expanded ? "+" + (links.length - MAX) : "收起";
+      btn.textContent = expanded ? "+" + (links.length - limit) : "收起";
     });
   };
-  document.querySelectorAll(".post-tags").forEach((box) => fold(box, box.querySelectorAll(".tag-link")));
+  document.querySelectorAll(".post-tags").forEach((box) => fold(box, box.querySelectorAll(".tag-link"), MAX));
   const meta = document.querySelector(".post-header .meta");
-  if (meta) fold(meta, meta.querySelectorAll('a[href^="/tag/"]'));
+  if (meta) fold(meta, meta.querySelectorAll('a[href^="/tag/"]'), MAX);
+  document.querySelectorAll(".tag-cloud").forEach((box) => fold(box, box.querySelectorAll(".tag-badge"), TAG_CLOUD_MAX));
 })();

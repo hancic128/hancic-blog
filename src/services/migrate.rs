@@ -292,6 +292,7 @@ pub async fn import_halo_zip(
                 status: PostStatus::Published,
                 post_type,
                 category_id,
+                column_id: None,
                 tags: fm.tags.clone(),
             },
         )
@@ -347,6 +348,7 @@ pub async fn import_halo_zip(
                     status: None,
                     post_type: None,
                     category_id: None,
+                    column_id: None,
                     tags: None,
                 },
             )

@@ -7,6 +7,16 @@ pub type Db = SqlitePool;
 
 const MIGRATION_001: &str = include_str!("../migrations/001_init.sql");
 
+/// 专栏表（幂等，重复执行无副作用）。
+const MIGRATION_002: &str = r#"
+CREATE TABLE IF NOT EXISTS columns (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+"#;
+
 pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     std::fs::create_dir_all(data_dir)
         .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?;
@@ -20,8 +30,44 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
         .max_connections(10)
         .connect_with(opts).await?;
     sqlx::raw_sql(MIGRATION_001).execute(&pool).await?;
+    sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
+    ensure_column_id(&pool).await?;
+    ensure_column_description(&pool).await?;
     seed_default_settings(&pool).await?;
     Ok(pool)
+}
+
+/// columns 表加 `description` 列（幂等：专栏卡片总览页展示用）。
+async fn ensure_column_description(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('columns') WHERE name = 'description'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE columns ADD COLUMN description TEXT NOT NULL DEFAULT ''")
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+/// posts 表加 `column_id`（幂等：已有列则跳过；SQLite ADD COLUMN 支持带
+/// REFERENCES 的 NULL 列，删除专栏时关联文章自动置空）。
+async fn ensure_column_id(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('posts') WHERE name = 'column_id'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql(
+            "ALTER TABLE posts ADD COLUMN column_id INTEGER REFERENCES columns(id) ON DELETE SET NULL",
+        )
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
 }
 
 async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {

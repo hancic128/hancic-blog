@@ -27,6 +27,7 @@ async fn create_published_post(
             status: PostStatus::Published,
             post_type: PostType::Post,
             category_id,
+            column_id: None,
             tags,
         },
     )
@@ -106,6 +107,7 @@ async fn homepage_excludes_pages() {
             status: PostStatus::Published,
             post_type: PostType::Page,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )
@@ -131,6 +133,7 @@ async fn about_page_renders_page_type() {
             status: PostStatus::Published,
             post_type: PostType::Page,
             category_id: None,
+            column_id: None,
             tags: vec![],
         },
     )
@@ -139,7 +142,9 @@ async fn about_page_renders_page_type() {
 
     let (status, html) = get_html(&app, "/about").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(html.contains("关于本站"));
+    // 页面类型不再显示标题（page.html 已移除 h1），正文正常渲染
+    assert!(!html.contains("关于本站"), "页面标题不应显示");
+    assert!(html.contains("站点介绍"));
     assert!(html.contains("<h2"));
 }
 
@@ -150,7 +155,7 @@ async fn homepage_has_heatmap_activity_and_more_link() {
         posts::create_post(&pool, NewPost {
             title: format!("聚合页文章{i}"), content_md: "内容".into(), excerpt: None, slug: None,
             status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-            category_id: None, tags: vec!["标签甲".into()],
+            category_id: None, column_id: None, tags: vec!["标签甲".into()],
         }).await.unwrap();
     }
     hancic::services::moments::create_moment(&pool, "首页说说一条", &[]).await.unwrap();
@@ -170,7 +175,7 @@ async fn archives_page_lists_all_posts() {
         posts::create_post(&pool, NewPost {
             title: t.into(), content_md: "x".into(), excerpt: None, slug: None,
             status: PostStatus::Published, post_type: hancic::models::PostType::Post,
-            category_id: None, tags: vec![],
+            category_id: None, column_id: None, tags: vec![],
         }).await.unwrap();
     }
     let res = app.oneshot(Request::builder().uri("/archives").body(Body::empty()).unwrap()).await.unwrap();

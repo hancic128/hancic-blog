@@ -231,3 +231,4 @@ fn tags_value(tags: &[Tag], counts: &HashMap<i64, i64>) -> Value {
         .map(|t| json!({ "id": t.id, "slug": t.slug, "name": t.name, "count": counts.get(&t.id).copied().unwrap_or(0) }))
         .collect::<Vec<_>>())
 }
+

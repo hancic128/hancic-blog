@@ -1,0 +1,14 @@
+{# 右侧栏：专栏列表导航。需要上下文：site.columns（[{slug,name}]）；
+   可选 column（当前专栏 slug，用于高亮当前项） #}
+{% if site.columns %}
+<div class="side-card">
+  <h4 class="side-title">专栏</h4>
+  <ul class="side-columns">
+    {% for c in site.columns %}
+    <li class="{% if column and column.slug == c.slug %}side-column-active{% endif %}">
+      <a href="{{ base_path }}/column/{{ c.slug }}">{{ c.name }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

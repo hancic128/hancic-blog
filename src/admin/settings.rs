@@ -8,7 +8,7 @@
 //! 保存逻辑：`settings::set` 逐项写库，前台 `site_context` 每次请求重读
 //! settings 表，保存后即时生效（T7）。
 
-use crate::models::PostStatus;
+use crate::models::{PostStatus, PostType};
 use crate::services::{posts, settings};
 use crate::{session, AppState};
 use axum::extract::{Form, OriginalUri, State};
@@ -130,14 +130,15 @@ async fn render(
     ctx.insert("form", &values);
     ctx.insert("settings_error", settings_error);
     ctx.insert("saved", &saved);
-    // 全部已发布文章（含独立页），供导航「页面」类型搜索选择具体文章
+    // 全部已发布独立页（type=page），供导航「页面」类型搜索选择
     let (all_posts, _) = posts::list_posts(
         &state.db,
         posts::PostListOptions {
             status: Some(PostStatus::Published),
-            post_type: None,
+            post_type: Some(PostType::Page),
             category_slug: None,
             tag_slug: None,
+            column_slug: None,
             month: None,
             sort: None,
             page: 1,
@@ -202,8 +203,8 @@ fn validate(form: &HashMap<String, String>) -> Vec<String> {
 }
 
 /// 校验导航 JSON：必须为数组，每项含非空 label，type 合法
-/// （home/articles/moments/pages/link，缺省 link）；仅 link 类型必须填 url
-/// （首页/文章/说说路径由类型预设，页面为下拉入口无需路径）。
+/// （home/articles/moments/pages/column/link，缺省 link）；仅 link 类型必须填 url
+/// （首页/文章/说说路径由类型预设，页面/专栏为下拉入口无需路径）。
 fn validate_nav(s: &str) -> Option<String> {
     let v: Value = match serde_json::from_str(s) {
         Ok(v) => v,
@@ -212,7 +213,7 @@ fn validate_nav(s: &str) -> Option<String> {
     let Some(arr) = v.as_array() else {
         return Some("导航必须为 JSON 数组".into());
     };
-    const TYPES: [&str; 5] = ["home", "articles", "moments", "pages", "link"];
+    const TYPES: [&str; 6] = ["home", "articles", "moments", "pages", "column", "link"];
     for (i, item) in arr.iter().enumerate() {
         let label = item.get("label").and_then(Value::as_str).unwrap_or("").trim();
         let url = item.get("url").and_then(Value::as_str).unwrap_or("").trim();

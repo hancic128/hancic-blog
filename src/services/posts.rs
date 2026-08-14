@@ -23,13 +23,14 @@ pub struct NewPost {
     pub status: PostStatus,
     pub post_type: PostType,
     pub category_id: Option<i64>,
+    pub column_id: Option<i64>,
     /// 标签名列表
     pub tags: Vec<String>,
 }
 
 pub struct UpdatePost {
     /// None = 不变；slug/tags 特殊：Some(_) 即替换；
-    /// excerpt/category_id 为 `Option<Option<T>>`：Some(Some(v)) = 设值、Some(None) = 显式清空、None = 不变
+    /// excerpt/category_id/column_id 为 `Option<Option<T>>`：Some(Some(v)) = 设值、Some(None) = 显式清空、None = 不变
     pub title: Option<String>,
     pub content_md: Option<String>,
     pub excerpt: Option<Option<String>>,
@@ -37,6 +38,7 @@ pub struct UpdatePost {
     pub status: Option<PostStatus>,
     pub post_type: Option<PostType>,
     pub category_id: Option<Option<i64>>,
+    pub column_id: Option<Option<i64>>,
     pub tags: Option<Vec<String>>,
 }
 
@@ -46,6 +48,8 @@ pub struct PostListOptions {
     pub post_type: Option<PostType>,
     pub category_slug: Option<String>,
     pub tag_slug: Option<String>,
+    /// 专栏筛选："slug"（按 posts.column_id 关联 columns.slug）
+    pub column_slug: Option<String>,
     /// 月份筛选："YYYY-MM"（按 published_at 前缀）
     pub month: Option<String>,
     /// 排序（字段白名单）；None = 默认时间倒序
@@ -95,6 +99,7 @@ pub(crate) struct PostRow {
     updated_at: DateTime<Utc>,
     views: i64,
     category_id: Option<i64>,
+    column_id: Option<i64>,
 }
 
 impl From<PostRow> for Post {
@@ -112,13 +117,14 @@ impl From<PostRow> for Post {
             updated_at: r.updated_at,
             views: r.views,
             category_id: r.category_id,
+            column_id: r.column_id,
         }
     }
 }
 
 /// `pub(crate)`：后台文章管理复用。
 pub(crate) const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
-    published_at, created_at, updated_at, views, category_id";
+    published_at, created_at, updated_at, views, category_id, column_id";
 
 pub async fn slugify(input: &str) -> String {
     let s = input.trim().to_lowercase();
@@ -175,8 +181,8 @@ pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
         None
     };
     let id = sqlx::query(
-        "INSERT INTO posts(slug,title,content_md,excerpt,status,post_type,published_at,category_id)
-         VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO posts(slug,title,content_md,excerpt,status,post_type,published_at,category_id,column_id)
+         VALUES (?,?,?,?,?,?,?,?,?)",
     )
     .bind(&slug)
     .bind(&input.title)
@@ -186,6 +192,7 @@ pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
     .bind(post_type)
     .bind(published_at.map(|d| d.to_rfc3339_opts(SecondsFormat::Nanos, true)))
     .bind(input.category_id)
+    .bind(input.column_id)
     .execute(db)
     .await?
     .last_insert_rowid();
@@ -235,6 +242,11 @@ fn build_list_where(opts: &PostListOptions) -> String {
              WHERE pt.post_id = posts.id AND t.slug = ?)",
         );
     }
+    if opts.column_slug.is_some() {
+        sql.push_str(
+            " AND EXISTS (SELECT 1 FROM columns c WHERE c.id = posts.column_id AND c.slug = ?)",
+        );
+    }
     if opts.month.is_some() {
         sql.push_str(" AND substr(published_at, 1, 7) = ?");
     }
@@ -260,6 +272,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     if let Some(month) = opts.month.as_deref() {
         count_q = count_q.bind(month);
     }
+    if let Some(column) = opts.column_slug.as_deref() {
+        count_q = count_q.bind(column);
+    }
     let total: i64 = count_q.fetch_one(db).await?.get(0);
 
     let item_sql = format!(
@@ -281,6 +296,9 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     }
     if let Some(month) = opts.month.as_deref() {
         q = q.bind(month);
+    }
+    if let Some(column) = opts.column_slug.as_deref() {
+        q = q.bind(column);
     }
     q = q.bind(opts.page_size).bind((opts.page - 1) * opts.page_size);
     let rows = q.fetch_all(db).await?;
@@ -449,6 +467,14 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
         sets.push("category_id = ?");
         // Some(None) = 显式清空分类（SET NULL）
         match category_id {
+            Some(id) => values.push(BindVal::Int(id)),
+            None => values.push(BindVal::Null),
+        }
+    }
+    if let Some(column_id) = input.column_id {
+        sets.push("column_id = ?");
+        // Some(None) = 显式清空专栏（SET NULL）
+        match column_id {
             Some(id) => values.push(BindVal::Int(id)),
             None => values.push(BindVal::Null),
         }

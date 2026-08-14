@@ -368,6 +368,7 @@
 
   function initTagFold() {
     var MAX = 5;
+    var TAG_CLOUD_MAX = 15;
     // 列表页标签区
     var tagBoxes = document.querySelectorAll(".post-tags");
     for (var i = 0; i < tagBoxes.length; i++) {
@@ -378,6 +379,11 @@
     if (meta) {
       var tagLinks = meta.querySelectorAll('a[href^="/tag/"]');
       foldTagLinks(meta, tagLinks, MAX);
+    }
+    // 归档/分类页顶部标签云（标签多，折叠阈值放宽）
+    var clouds = document.querySelectorAll(".tag-cloud");
+    for (var j = 0; j < clouds.length; j++) {
+      foldTagLinks(clouds[j], clouds[j].querySelectorAll(".tag-badge"), TAG_CLOUD_MAX);
     }
   }
 

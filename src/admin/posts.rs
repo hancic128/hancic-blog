@@ -61,10 +61,11 @@ pub async fn list(
         _ => None,
     };
     let category_slug = query.get("category").filter(|s| !s.is_empty()).cloned();
+    // 列表默认只显示文章（post），页面通过「全部类型」查看；type=all 显示全部
     let post_type = match query.get("type").map(String::as_str).unwrap_or("") {
-        "post" => Some(PostType::Post),
         "page" => Some(PostType::Page),
-        _ => None,
+        "post" | "" => Some(PostType::Post),
+        _ => None, // all 或未知值：显示全部
     };
     let q = query
         .get("q")
@@ -88,6 +89,7 @@ pub async fn list(
                 post_type,
                 category_slug: category_slug.clone(),
                 tag_slug: None,
+                column_slug: None,
                 month: None,
                 sort: admin_sort(&query),
                 page,
@@ -224,10 +226,14 @@ pub async fn new_page(
 /// 新建页上下文（创建失败回显用）。
 async fn render_new(state: &AppState, session: &Session, path: &str, error_tip: &str) -> Response {
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
+    let columns = crate::services::columns::list_columns(&state.db)
+        .await
+        .unwrap_or_default();
     let tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     ctx.insert("post", &empty_post_value());
     ctx.insert("categories", &categories_value(&categories));
+    ctx.insert("columns", &columns_value(&columns));
     ctx.insert("all_tags", &tags_value(&tags));
     ctx.insert("error_tip", error_tip);
     // 新建页正文模板：覆盖编辑器支持的全部 Markdown 标记与样式。
@@ -276,6 +282,7 @@ fn empty_post_value() -> Value {
         "excerpt": "",
         "tags": "",
         "category_id": 0,
+        "column_id": 0,
     })
 }
 
@@ -316,10 +323,14 @@ async fn render_edit(
         .await
         .unwrap_or_default();
     let categories = taxonomy::list_categories(&state.db).await.unwrap_or_default();
+    let columns = crate::services::columns::list_columns(&state.db)
+        .await
+        .unwrap_or_default();
     let all_tags = taxonomy::list_tags(&state.db).await.unwrap_or_default();
     let (mut ctx, _csrf) = super::base_ctx(state, session, path).await;
     ctx.insert("post", &post_edit_value(&post, &tags, submitted));
     ctx.insert("categories", &categories_value(&categories));
+    ctx.insert("columns", &columns_value(&columns));
     ctx.insert("all_tags", &tags_value(&all_tags));
     ctx.insert("error_tip", error_tip);
     Ok(super::render_admin(state, "post_edit.html", &ctx))
@@ -355,6 +366,7 @@ fn post_edit_value(
             .collect::<Vec<_>>()
             .join(", "),
         "category_id": p.category_id.unwrap_or(0),
+        "column_id": p.column_id.unwrap_or(0),
     });
     if let Some(f) = submitted {
         if let Some(t) = f.get("title") {
@@ -383,6 +395,11 @@ fn post_edit_value(
                 v["category_id"] = json!(id);
             }
         }
+        if let Some(t) = f.get("column_id") {
+            if let Ok(id) = t.trim().parse::<i64>() {
+                v["column_id"] = json!(id);
+            }
+        }
     }
     v
 }
@@ -409,6 +426,7 @@ pub async fn create(
         status: parse_status(form.get("status").map(String::as_str).unwrap_or("")),
         post_type: parse_post_type(form.get("post_type").map(String::as_str).unwrap_or("")),
         category_id: parse_id(form.get("category_id")),
+        column_id: parse_id(form.get("column_id")),
         tags: parse_tags(form.get("tags")),
     };
     // 发布后自动返回列表；存草稿留在编辑页继续编辑
@@ -456,6 +474,11 @@ pub async fn update(
         category_id: match form.get("category_id").map(String::as_str).unwrap_or("").trim() {
             "" => Some(None),
             _ => parse_id(form.get("category_id")).map(Some),
+        },
+        // 专栏同分类：空串清空、合法 id 设值
+        column_id: match form.get("column_id").map(String::as_str).unwrap_or("").trim() {
+            "" => Some(None),
+            _ => parse_id(form.get("column_id")).map(Some),
         },
         tags: Some(parse_tags(form.get("tags"))),
     };
@@ -522,6 +545,7 @@ pub async fn autosave(
             status: None,
             post_type: None,
             category_id: None,
+            column_id: None,
             tags: None,
         },
     )
@@ -572,6 +596,13 @@ fn parse_tags(v: Option<&String>) -> Vec<String> {
 
 fn categories_value(cats: &[Category]) -> Value {
     json!(cats
+        .iter()
+        .map(|c| json!({ "id": c.id, "slug": c.slug, "name": c.name }))
+        .collect::<Vec<_>>())
+}
+
+fn columns_value(cols: &[crate::models::Column]) -> Value {
+    json!(cols
         .iter()
         .map(|c| json!({ "id": c.id, "slug": c.slug, "name": c.name }))
         .collect::<Vec<_>>())

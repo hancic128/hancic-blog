@@ -37,6 +37,8 @@
         </div>
         {% endif %}
       </div>
+      {% elif item.type == "column" %}
+      <a href="{{ base_path }}{% if item.url %}{{ item.url }}{% else %}/columns{% endif %}">{{ item.label }}</a>
       {% else %}
       <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
       {% endif %}

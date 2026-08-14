@@ -315,6 +315,7 @@
     '/admin/moments': '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
     '/admin/attachments': '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
     '/admin/taxonomy': '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+    '/admin/columns': '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
     '/admin/settings': '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
     '/admin/themes': '<path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-2a3 3 0 0 0-3 3c0 1.5 1 3 3 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="11" cy="7.5" r="1"/><circle cx="15.5" cy="9.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/>',
     '/admin/stats': '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
@@ -377,6 +378,7 @@
     ['home', '首页', '/'],
     ['articles', '文章', '/archives'],
     ['moments', '说说', '/moments'],
+    ['column', '专栏', '/columns'],
     ['pages', '页面', ''],
     ['link', '链接', '']
   ];
@@ -505,7 +507,7 @@
     var row = document.createElement('div');
     row.className = 'kv-row';
     // 内置导航项（首页/文章/说说）：固定存在、类型锁定、不可删除，仅可改名与排序
-    var builtin = format === 'nav' && ['home', 'articles', 'moments'].indexOf(typeVal) !== -1;
+    var builtin = format === 'nav' && ['home', 'articles', 'moments', 'column'].indexOf(typeVal) !== -1;
     // 所有列表型编辑器均支持拖拽排序（导航/友情链接/社交链接/社交图标）
     var drag = document.createElement('span');
     drag.className = 'kv-drag';
@@ -1413,6 +1415,21 @@
       if (opt.selected) li.classList.add('selected');
       menu.appendChild(li);
     });
+    // data-search 启用关键词搜索：菜单顶部插入搜索框，输入时过滤选项
+    if (wrap.hasAttribute('data-search')) {
+      var search = document.createElement('input');
+      search.type = 'text';
+      search.className = 'cs-search';
+      search.placeholder = '搜索…';
+      search.setAttribute('aria-label', '搜索选项');
+      search.addEventListener('input', function () {
+        var q = search.value.trim().toLowerCase();
+        Array.prototype.forEach.call(menu.querySelectorAll('.cs-option'), function (li) {
+          li.classList.toggle('hidden', !!q && li.textContent.toLowerCase().indexOf(q) === -1);
+        });
+      });
+      menu.insertBefore(search, menu.firstChild);
+    }
     wrap.appendChild(menu);
     return menu;
   }

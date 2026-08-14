@@ -137,6 +137,7 @@ async fn taxonomy_admin_flow() {
             status: PostStatus::Draft,
             post_type: PostType::Post,
             category_id: Some(cat.id),
+            column_id: None,
             tags: vec!["Rust".into()],
         },
     )
