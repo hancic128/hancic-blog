@@ -187,7 +187,19 @@ curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/cate
 - 创建必填 `name`；`slug` 缺省由名称生成；重复 slug → 409
 - 删除分类时关联文章的 `category_id` 自动置空（文章不删）
 
-## 7. 统计
+## 7. 标签（Tags）
+
+```bash
+# 列表（含各标签已发布文章数）
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/tags
+# 删除（关联文章不受影响，级联清理文章-标签关联）
+curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/tags/1
+```
+
+- 标签的创建/改名复用文章编辑的 `tags` 数组（同名自动建标签/复用）；本组端点只读与删
+- 删除不可恢复；常用于清理无文章的残留标签
+
+## 8. 统计
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \

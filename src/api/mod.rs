@@ -11,6 +11,7 @@ pub mod categories;
 pub mod moments;
 pub mod posts;
 pub mod stats;
+pub mod tags;
 pub mod uploads;
 
 use crate::error::AppError;
@@ -35,6 +36,8 @@ pub fn router() -> Router<AppState> {
             "/categories/{id}",
             patch(categories::update).delete(categories::delete),
         )
+        .route("/tags", get(tags::list))
+        .route("/tags/{id}", delete(tags::delete))
         .route("/stats/summary", get(stats::summary))
         .route("/backup", get(backup::backup))
 }

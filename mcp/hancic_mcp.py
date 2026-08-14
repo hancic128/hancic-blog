@@ -201,6 +201,18 @@ def delete_category(category_id: int) -> dict:
     return {"ok": True, "category_id": category_id}
 
 
+@mcp.tool(description="全量标签列表（含各标签已发布文章数）")
+def list_tags() -> list:
+    return _request("GET", "/tags")
+
+
+@mcp.tool(description="删除标签（关联文章不受影响，不可恢复）")
+def delete_tag(tag_id: int) -> dict:
+    _request("DELETE", f"/tags/{tag_id}")
+    return {"ok": True, "tag_id": tag_id}
+    return {"ok": True, "category_id": category_id}
+
+
 @mcp.tool(description="上传附件（multipart，字段名 files）；返回附件 id/path，可用于说说 attachment_ids 或文章引用")
 def upload_attachment(file_path: str) -> dict:
     if not os.path.isfile(file_path):
