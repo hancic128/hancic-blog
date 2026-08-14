@@ -71,6 +71,7 @@ pub(crate) fn order_by_clause(sort: Option<PostSort>) -> String {
         "views" => "views",
         "updated_at" => "updated_at",
         "published_at" => "published_at",
+        "created_at" => "created_at",
         "status" => "status",
         _ => return "ORDER BY published_at DESC, id DESC".to_string(),
     };

@@ -107,6 +107,7 @@
       </button>
       <input id="md-file-input" type="file" accept="image/*" hidden>
     </div>
+    <div id="editor-loading" class="editor-loading" hidden>正在加载编辑器…</div>
     <div id="editor" data-content="{% if post.id %}{{ post.content_md }}{% endif %}"></div>
   </div>
 </form>
@@ -114,8 +115,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ base_path }}/static/vendor/milkdown/milkdown.min.js"></script>
-<script src="{{ base_path }}/static/vendor/mermaid/mermaid.min.js"></script>
+<script src="{{ base_path }}/static/vendor/milkdown/milkdown.min.js" defer></script>
+<script src="{{ base_path }}/static/vendor/mermaid/mermaid.min.js" defer></script>
 <script>
 window._post = { id: {{ post.id }}, slug: "{{ post.slug }}", csrf: "{{ csrf }}" };
 {% if not post.id %}window._newPostTemplate = {{ new_post_template | safe }};

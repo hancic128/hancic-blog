@@ -100,7 +100,7 @@ fn attachment_value(base: &str, a: &Attachment) -> Value {
     json!({
         "id": a.id,
         "kind": a.kind.to_str(),
-        "orig_name": a.orig_name,
+        "orig_name": crate::util::percent_decode(&a.orig_name),
         "url": format!("{base}/uploads/{}", a.path),
     })
 }

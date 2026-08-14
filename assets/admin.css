@@ -1566,6 +1566,21 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .tag-field .tag-editor { margin-top: 0; }
 
 /* ---- 文章编辑页：milkdown WYSIWYG 编辑器 ---- */
+/* 编辑器加载占位：milkdown bundle 解析 + setContent 期间显示 */
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  background: #FFFFFF;
+}
+.editor-loading[hidden] { display: none; }
+
 #editor {
   /* 编辑区固定白色背景（Typora 式浅色编辑区），内部 token 重定义为浅色，
      后台明暗切换不影响编辑器内容配色 */

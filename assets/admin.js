@@ -422,13 +422,13 @@
     wrap.appendChild(clearBtn);
     return wrap;
   }
-  // 页面类型导航：搜索选择具体文章（下拉列出全部已发布文章，支持关键词过滤）
-  // 文章数据懒读取 window.__ALL_POSTS__（admin.js 先于模板数据脚本执行）
+  // 页面类型导航：搜索选择具体页面（下拉只列出 type=page 的独立页，支持关键词过滤）
+  // 数据懒读取 window.__ALL_POSTS__（admin.js 先于模板数据脚本执行；后端已只注入页面类型）
   function kvBuildPagePick(currentUrl, onChange) {
     var wrap = document.createElement('div');
     wrap.className = 'kv-page-pick';
-    function allPosts() { return window.__ALL_POSTS__ || []; }
-    function pathOf(p) { return (p.type === 'page' ? '/page/' : '/post/') + p.slug; }
+    function allPosts() { return (window.__ALL_POSTS__ || []).filter(function (p) { return p.type === 'page'; }); }
+    function pathOf(p) { return '/page/' + p.slug; }
     function findTitle(url) {
       var posts = allPosts();
       for (var i = 0; i < posts.length; i++) {
@@ -439,7 +439,14 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'kv-page-btn';
-    btn.textContent = currentUrl ? (findTitle(currentUrl) || '已选文章') : '搜索选择文章…';
+    function refreshBtn() {
+      // 已选页面：显示标题；找不到匹配（如旧数据存了 /post/ 路径）时回退显示路径本身
+      btn.textContent = currentUrl ? (findTitle(currentUrl) || currentUrl) : '搜索选择页面…';
+    }
+    refreshBtn();
+    // window.__ALL_POSTS__ 在模板 scripts 块赋值（晚于 admin.js 初始化），
+    // 等解析完再重算一次，确保已选页面的标题正确回显
+    setTimeout(refreshBtn, 0);
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
     var panel = document.createElement('div');
@@ -448,7 +455,7 @@
     var search = document.createElement('input');
     search.className = 'kv-page-search';
     search.placeholder = '输入关键词搜索…';
-    search.setAttribute('aria-label', '搜索文章');
+    search.setAttribute('aria-label', '搜索页面');
     var list = document.createElement('ul');
     list.className = 'kv-page-list';
     function render(filter) {
@@ -471,7 +478,7 @@
       if (!matched) {
         var empty = document.createElement('li');
         empty.className = 'kv-page-empty';
-        empty.textContent = posts.length ? '无匹配文章' : '暂无已发布文章';
+        empty.textContent = posts.length ? '无匹配页面' : '暂无页面';
         list.appendChild(empty);
       }
     }
@@ -948,6 +955,9 @@
     var lastSaved = null;
     // 新建页（_post 无 id）：无服务端 autosave，改走本地草稿（I1）
     var isNewPost = !window._post || !window._post.id;
+    // 大文档 setContent 初始化慢：加载期间显示占位，实例创建后移除
+    var loadingEl = document.getElementById('editor-loading');
+    if (loadingEl) loadingEl.hidden = false;
 
     // 图片上传：files → POST /api/uploads（hancicFetch 自动带 CSRF 头）。
     // 返回 [{path, orig_name}]，由 milkdown bundle 以 Markdown 图片语法插入光标处；
@@ -1116,6 +1126,7 @@
       onUpload: uploadImages
     }).then(function (inst) {
       editor = inst;
+      if (loadingEl) loadingEl.remove();
       // 首次同步 lastSaved，避免初始化即触发“内容变化”
       lastSaved = initial;
       // 已保存文章（有 id）进入编辑页时清掉新建页草稿，防止误恢复（I1）

@@ -10,6 +10,7 @@
           {% if category %}<a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
           {% for tag in tags %}<a href="{{ base_path }}/tag/{{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}
           <span>{{ post.views }} 阅读</span>
+          {% if word_count %}<span>{{ word_count }} 字 · 约 {{ read_minutes }} 分钟</span>{% endif %}
         </div>
       </header>
       {{ content_html | safe }}

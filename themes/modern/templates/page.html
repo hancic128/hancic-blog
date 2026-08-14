@@ -1,7 +1,23 @@
-{# 独立页（post_type=page） #}
+{# 独立页（post_type=page）：不显示页面标题，右侧目录导航（内容长时便于跳转） #}
 {% include "partials/header.html" %}
-<article class="page">
-  <h1>{{ page.title }}</h1>
-  {{ page.content_md | markdown | safe }}
-</article>
+<div class="layout-two-col">
+  <main class="layout-main">
+    <article class="page">
+      {{ content_html | safe }}
+    </article>
+  </main>
+
+  <aside class="layout-side">
+    {% if toc %}
+    <div class="side-card">
+      <h4 class="side-title">目录</h4>
+      <ul class="side-toc toc-list">
+        {% for item in toc %}
+        <li class="toc-l{{ item.level }}"><a href="#{{ item.id }}">{{ item.text }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </aside>
+</div>
 {% include "partials/footer.html" %}

@@ -315,6 +315,76 @@
   if (document.readyState !== "loading") {
     initScrollReveal();
   }
+
+  /* ---------- 列表页排序切换：基于当前 URL 保留其余参数，仅替换 sort ---------- */
+
+  function initSortBar() {
+    var bars = document.querySelectorAll(".sort-bar");
+    if (bars.length === 0) return;
+    for (var i = 0; i < bars.length; i++) {
+      var links = bars[i].querySelectorAll(".sort-link");
+      for (var j = 0; j < links.length; j++) {
+        (function (a) {
+          a.addEventListener("click", function (e) {
+            e.preventDefault();
+            var params = new URLSearchParams(window.location.search);
+            params.set("sort", a.getAttribute("data-sort"));
+            params.delete("page");
+            var qs = params.toString();
+            window.location.href = window.location.pathname + (qs ? "?" + qs : "");
+          });
+        })(links[j]);
+      }
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initSortBar);
+  if (document.readyState !== "loading") {
+    initSortBar();
+  }
+
+  /* ---------- 标签过多折叠：超过 MAX 个时隐藏并追加 "+N" 展开按钮 ---------- */
+
+  function foldTagLinks(container, links, max) {
+    if (links.length <= max) return;
+    for (var i = max; i < links.length; i++) {
+      links[i].style.display = "none";
+    }
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tag-more";
+    btn.textContent = "+" + (links.length - max);
+    btn.setAttribute("aria-expanded", "false");
+    container.appendChild(btn);
+    btn.addEventListener("click", function () {
+      var expanded = this.getAttribute("aria-expanded") === "true";
+      for (var i = max; i < links.length; i++) {
+        links[i].style.display = expanded ? "none" : "";
+      }
+      this.setAttribute("aria-expanded", expanded ? "false" : "true");
+      this.textContent = expanded ? "+" + (links.length - max) : "收起";
+    });
+  }
+
+  function initTagFold() {
+    var MAX = 5;
+    // 列表页标签区
+    var tagBoxes = document.querySelectorAll(".post-tags");
+    for (var i = 0; i < tagBoxes.length; i++) {
+      foldTagLinks(tagBoxes[i], tagBoxes[i].querySelectorAll(".tag-link"), MAX);
+    }
+    // 文章页 meta 标签（#tag/ 链接）
+    var meta = document.querySelector(".post-header .meta");
+    if (meta) {
+      var tagLinks = meta.querySelectorAll('a[href^="/tag/"]');
+      foldTagLinks(meta, tagLinks, MAX);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initTagFold);
+  if (document.readyState !== "loading") {
+    initTagFold();
+  }
 })();
 
 // 更新日历 tooltip：body 级悬浮层（避免被热力图滚动容器裁剪），跟随鼠标

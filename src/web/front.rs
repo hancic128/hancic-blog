@@ -225,7 +225,7 @@ async fn index(
                 category_slug: None,
                 tag_slug: None,
                 month: None,
-                sort: None,
+                sort: Some(list_sort(&query)),
                 page: 1,
                 page_size: 5,
             },
@@ -255,7 +255,7 @@ async fn archives_page(
     let month = query.get("month").filter(|m| !m.is_empty()).cloned();
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let mut ctx = listing_ctx(&state.db, &state.config.base_path, page, None, None, month.clone(), preview.clone()).await?;
+        let mut ctx = listing_ctx(&state.db, &state.config.base_path, page, None, None, month.clone(), list_sort(&query), preview.clone()).await?;
         let tags = taxonomy::list_tags(&state.db).await?;
         let months = posts::month_list(&state.db).await?;
         ctx.insert(
@@ -324,6 +324,10 @@ async fn post_page(
                 .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
                 .collect::<Vec<_>>()),
         );
+        // 字数统计 + 预计阅读时长（300 字/分钟，最少 1 分钟）
+        let word_count = html_word_count(&content_html);
+        ctx.insert("word_count", &word_count);
+        ctx.insert("read_minutes", &word_count.div_ceil(300).max(1));
         record_view_once(&state, &post, &headers).await;
         Ok::<_, AppError>(ctx)
     }
@@ -386,6 +390,16 @@ async fn page_page(
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
+        // 页面正文（带标题锚点）+ 目录，供右侧栏导航（内容长时便于跳转）
+        let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
+        ctx.insert("content_html", &content_html);
+        ctx.insert(
+            "toc",
+            &json!(toc
+                .iter()
+                .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
+                .collect::<Vec<_>>()),
+        );
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -408,6 +422,15 @@ async fn about_page(
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page));
+        let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
+        ctx.insert("content_html", &content_html);
+        ctx.insert(
+            "toc",
+            &json!(toc
+                .iter()
+                .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
+                .collect::<Vec<_>>()),
+        );
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -460,7 +483,7 @@ async fn category_page(
             .await?
             .ok_or_else(|| AppError::NotFound("分类不存在".into()))?;
         let mut ctx =
-            listing_ctx(&state.db, &state.config.base_path, page_param(&query), Some(slug), None, None, preview.clone()).await?;
+            listing_ctx(&state.db, &state.config.base_path, page_param(&query), Some(slug), None, None, list_sort(&query), preview.clone()).await?;
         ctx.insert(
             "category",
             &json!({ "slug": category.slug, "name": category.name }),
@@ -503,6 +526,7 @@ async fn tag_page(
             None,
             Some(slug.clone()),
             month.clone(),
+            list_sort(&query),
             preview.clone(),
         )
         .await?;
@@ -617,6 +641,8 @@ fn page_param(query: &HashMap<String, String>) -> i64 {
 }
 
 /// 文章流列表上下文（首页/分类/标签共用）：注入 posts + pagination。
+/// 文章流列表上下文（分类/标签/归档共用）：注入 posts + 排序切换 + pagination。
+#[allow(clippy::too_many_arguments)]
 async fn listing_ctx(
     db: &Db,
     base: &str,
@@ -624,6 +650,7 @@ async fn listing_ctx(
     category_slug: Option<String>,
     tag_slug: Option<String>,
     month: Option<String>,
+    sort: posts::PostSort,
     preview: Option<String>,
 ) -> AppResult<Context> {
     let (items, total) = posts::list_posts(
@@ -634,7 +661,7 @@ async fn listing_ctx(
             category_slug,
             tag_slug,
             month,
-            sort: None,
+            sort: Some(sort),
             page,
             page_size: PAGE_SIZE,
         },
@@ -643,7 +670,20 @@ async fn listing_ctx(
     let mut ctx = site_context(db, base, preview).await?;
     ctx.insert("posts", &post_list_value(db, base, &items).await?);
     ctx.insert("pagination", &pagination_value(page, total));
+    // 列表页排序切换（post_list.html 条件渲染；index 不注入）
+    ctx.insert("sort_ctl", &true);
+    ctx.insert("current_sort", &sort.field);
     Ok(ctx)
+}
+
+/// 前台列表排序：`?sort=updated_at|published_at|created_at`，默认按更新时间倒序。
+fn list_sort(query: &HashMap<String, String>) -> posts::PostSort {
+    let field = match query.get("sort").map(String::as_str) {
+        Some("published_at") => "published_at",
+        Some("created_at") => "created_at",
+        _ => "updated_at",
+    };
+    posts::PostSort { field, asc: false }
 }
 
 /// 列表页文章 JSON：标题/日期/excerpt/阅读量/链接。
@@ -810,7 +850,7 @@ fn attachment_value(base: &str, att: &crate::models::Attachment) -> Value {
     json!({
         "id": att.id,
         "kind": att.kind.to_str(),
-        "orig_name": att.orig_name,
+        "orig_name": crate::util::percent_decode(&att.orig_name),
         "mime": att.mime,
         "size": att.size,
         "url": format!("{base}/uploads/{}", att.path),
@@ -841,6 +881,21 @@ fn urlencode_q(s: &str) -> String {
         }
     }
     out
+}
+
+/// 统计渲染后 HTML 的非空白字符数（去标签），用于阅读字数/时长估算。
+fn html_word_count(html: &str) -> usize {
+    let mut count = 0usize;
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag && !c.is_whitespace() => count += 1,
+            _ => {}
+        }
+    }
+    count
 }
 
 /// 文章所属分类（按 id 查找）。

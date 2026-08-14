@@ -403,3 +403,45 @@
     if (e.key === "Escape" && !panel.hidden) close();
   });
 })();
+
+// 列表页排序切换：保留当前 URL 其余参数，仅替换 sort
+(function initSortBar() {
+  const bars = document.querySelectorAll(".sort-bar");
+  if (!bars.length) return;
+  bars.forEach((bar) => {
+    bar.querySelectorAll(".sort-link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const params = new URLSearchParams(window.location.search);
+        params.set("sort", a.getAttribute("data-sort"));
+        params.delete("page");
+        const qs = params.toString();
+        window.location.href = window.location.pathname + (qs ? "?" + qs : "");
+      });
+    });
+  });
+})();
+
+// 标签过多折叠：超过 MAX 个隐藏并追加 "+N" 展开按钮
+(function initTagFold() {
+  const MAX = 5;
+  const fold = (container, links) => {
+    if (links.length <= MAX) return;
+    for (let i = MAX; i < links.length; i++) links[i].style.display = "none";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tag-more";
+    btn.textContent = "+" + (links.length - MAX);
+    btn.setAttribute("aria-expanded", "false");
+    container.appendChild(btn);
+    btn.addEventListener("click", () => {
+      const expanded = btn.getAttribute("aria-expanded") === "true";
+      for (let i = MAX; i < links.length; i++) links[i].style.display = expanded ? "none" : "";
+      btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+      btn.textContent = expanded ? "+" + (links.length - MAX) : "收起";
+    });
+  };
+  document.querySelectorAll(".post-tags").forEach((box) => fold(box, box.querySelectorAll(".tag-link")));
+  const meta = document.querySelector(".post-header .meta");
+  if (meta) fold(meta, meta.querySelectorAll('a[href^="/tag/"]'));
+})();

@@ -50,7 +50,7 @@ pub async fn api_list(
         .map(|a| json!({
             "id": a.id,
             "url": format!("{base}/uploads/{}", a.path),
-            "name": a.orig_name,
+            "name": crate::util::percent_decode(&a.orig_name),
         }))
         .collect::<Vec<_>>()))
     .into_response()
@@ -107,7 +107,7 @@ fn attachment_list_value(base: &str, items: &[crate::models::Attachment]) -> Val
         .map(|a| json!({
             "id": a.id,
             "kind": a.kind.to_str(),
-            "orig_name": a.orig_name,
+            "orig_name": crate::util::percent_decode(&a.orig_name),
             "mime": a.mime,
             "size": human_size(a.size),
             "url": format!("{base}/uploads/{}", a.path),
