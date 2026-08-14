@@ -99,13 +99,14 @@
 
 {% block scripts %}
 <script>
-// 说说发布框：选文件 → POST /api/uploads（hancicFetch 自动带 CSRF 头）
-// → 拿 attachment id 追加隐藏字段 + 缩略图预览。拖拽上传留 T24 E2E。
+// 说说发布框：按钮选文件 / 拖拽 / 粘贴图片 → POST /api/uploads（hancicFetch 自动带 CSRF 头）
+// → 拿 attachment id 追加隐藏字段 + 缩略图预览。
 (function () {
   'use strict';
   var form = document.getElementById('moment-form');
   var fileInput = document.getElementById('moment-file');
   var uploadBtn = document.getElementById('moment-upload-btn');
+  var textarea = document.getElementById('moment-content');
   var picks = document.getElementById('moment-picks');
   if (!form || !fileInput || !uploadBtn || !picks) return;
 
@@ -114,8 +115,41 @@
   uploadBtn.addEventListener('click', function () { fileInput.click(); });
 
   fileInput.addEventListener('change', function () {
-    var files = Array.prototype.slice.call(fileInput.files || []);
-    if (!files.length) return;
+    uploadFiles(Array.prototype.slice.call(fileInput.files || []));
+  });
+
+  // 拖拽上传：整个发布表单区域都可投放（文件拖入即上传）
+  ['dragenter', 'dragover'].forEach(function (type) {
+    form.addEventListener(type, function (e) {
+      if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1) {
+        e.preventDefault();
+        form.classList.add('moment-dragover');
+      }
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (type) {
+    form.addEventListener(type, function (e) {
+      form.classList.remove('moment-dragover');
+    });
+  });
+  form.addEventListener('drop', function (e) {
+    e.preventDefault();
+    uploadFiles(Array.prototype.slice.call(e.dataTransfer.files || []));
+  });
+
+  // 粘贴上传：在文本区直接 Ctrl+V 图片即上传
+  if (textarea) {
+    textarea.addEventListener('paste', function (e) {
+      var files = e.clipboardData && e.clipboardData.files;
+      if (files && files.length) {
+        e.preventDefault();
+        uploadFiles(Array.prototype.slice.call(files));
+      }
+    });
+  }
+
+  function uploadFiles(files) {
+    if (!files || !files.length) return;
     var data = new FormData();
     files.forEach(function (f) { data.append('files', f); });
     window.hancicFetch('/api/uploads', { method: 'POST', body: data })
@@ -159,7 +193,7 @@
         window.hancicToast(err && err.message ? err.message : '上传失败，请重试', 'error');
         fileInput.value = '';
       });
-  });
+  }
 
   function syncHidden() {
     var old = form.querySelector('input[name="attachment_ids"]');

@@ -877,6 +877,10 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .moment-pick.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
 /* 发布框操作行：文字按钮组（紧跟输入框，附件缩略图在其下方） */
 .moment-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+/* 拖拽文件悬停发布框时的高亮提示 */
+.moment-dragover #moment-content,
+.moment-dragover .moment-actions { border-color: var(--accent); }
+.moment-dragover #moment-content { box-shadow: 0 0 0 3px var(--accent-glow); }
 /* 附件预览 lightbox */
 .admin-lightbox {
   position: fixed;
