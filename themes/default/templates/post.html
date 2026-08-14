@@ -6,7 +6,8 @@
       <header class="post-header">
         <h1>{{ post.title }}</h1>
         <div class="meta">
-          {% if post.published_at %}<time datetime="{{ post.published_at }}">{{ post.published_at | date }}</time>{% endif %}
+          {% if post.published_at %}<time datetime="{{ post.published_at }}">发布于 {{ post.published_at | date }}</time>{% endif %}
+          {% if post.updated_at %}<time datetime="{{ post.updated_at }}" title="更新时间">更新于 {{ post.updated_at | date }}</time>{% endif %}
           {% if category %}<a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
           {% if column %}<a href="{{ base_path }}/column/{{ column.slug }}">{{ column.name }}</a>{% endif %}
           {% for tag in tags %}<a href="{{ base_path }}/tag/{{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}

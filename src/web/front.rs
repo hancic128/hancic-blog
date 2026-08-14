@@ -859,6 +859,7 @@ fn post_value(p: &Post) -> Value {
         "content_md": p.content_md,
         "excerpt": p.excerpt,
         "published_at": p.published_at.map(|d| d.to_rfc3339()),
+        "updated_at": p.updated_at.to_rfc3339(),
         "views": p.views,
     })
 }
