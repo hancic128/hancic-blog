@@ -13,8 +13,8 @@
             {% if word_count %}<span>{{ word_count }} 字 · 约 {{ read_minutes }} 分钟</span>{% endif %}
           </div>
           <div class="meta-line">
-            {% if category %}<a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
-            {% if column %}<a href="{{ base_path }}/column/{{ column.slug }}">{{ column.name }}</a>{% endif %}
+            {% if category %}<span>分类：</span><a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
+            {% if column %}<span>专栏：</span><a href="{{ base_path }}/column/{{ column.slug }}">{{ column.name }}</a>{% endif %}
             {% for tag in tags %}<a href="{{ base_path }}/tag/{{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}
           </div>
         </div>
