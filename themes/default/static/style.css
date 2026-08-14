@@ -241,6 +241,10 @@ button, a, [role="button"], label { cursor: pointer; }
   overflow-wrap: break-word;
 }
 
+/* 文章详情页 meta：时间 / 分类专栏标签 / 统计 各占一行 */
+.post-header .meta { flex-direction: column; gap: .4rem; }
+.post-header .meta-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; }
+
 .meta a { color: var(--muted); text-decoration: none; transition: color 200ms ease; }
 .meta a:hover { color: var(--accent); }
 

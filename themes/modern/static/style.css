@@ -363,6 +363,9 @@ button, a, [role="button"], label { cursor: pointer; }
 .post-list-item h2 a { color: var(--fg); text-decoration: none; }
 .post-list-item h2 a:hover { color: var(--accent); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; font-size: .82rem; color: var(--muted); }
+/* 文章详情页 meta：时间 / 分类专栏标签 / 统计 各占一行 */
+.post-header .meta { flex-direction: column; align-items: flex-start; gap: .35rem; }
+.post-header .meta-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; }
 .meta a { color: var(--muted); text-decoration: none; }
 .meta a:hover { color: var(--accent); }
 .excerpt { margin: .7rem 0 0; font-size: .94rem; color: var(--muted); line-height: 1.75; }
