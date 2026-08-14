@@ -826,6 +826,7 @@ async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value
             "title": p.title,
             "excerpt": p.excerpt,
             "published_at": p.published_at.map(|d| d.to_rfc3339()),
+            "updated_at": p.updated_at.to_rfc3339(),
             "views": p.views,
             "word_count": word_count,
             "read_minutes": word_count.div_ceil(300).max(1),
