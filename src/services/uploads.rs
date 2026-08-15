@@ -207,12 +207,13 @@ pub fn compress_image(
     Ok(out.into_inner())
 }
 
-/// 分页列出附件（kind=None 全量），支持按时间升降序。
+/// 分页列出附件（kind=None 全量），支持按时间升降序与文件名关键词（q）。
 /// 返回（列表, 总数），供后台附件库卡片网格使用。
 pub async fn list_attachments(
     db: &Db,
     kind: Option<AttachmentKind>,
     asc: bool,
+    q: Option<&str>,
     page: i64,
     page_size: i64,
 ) -> Result<(Vec<Attachment>, i64), AppError> {
@@ -222,6 +223,15 @@ pub async fn list_attachments(
     if let Some(k) = kind {
         where_sql.push_str(" WHERE kind = ?");
         binds.push(k.to_str().to_string());
+    }
+    let q = q.map(str::trim).filter(|s| !s.is_empty());
+    if let Some(kw) = q {
+        if kind.is_some() {
+            where_sql.push_str(" AND orig_name LIKE ?");
+        } else {
+            where_sql.push_str(" WHERE orig_name LIKE ?");
+        }
+        binds.push(format!("%{kw}%"));
     }
 
     let count_sql = format!("SELECT COUNT(*) FROM attachments{where_sql}");

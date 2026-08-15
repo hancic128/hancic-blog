@@ -1718,6 +1718,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   inset: 0;
   z-index: 300;
   margin: 0;
+  padding: 0;
   border-radius: 0;
   border: none;
   overflow: hidden;
@@ -1727,7 +1728,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   display: flex;
   flex-direction: column;
 }
-/* 全屏只显示正文编辑区：隐藏标题行与类型/分类/标签行 */
+/* 全屏只显示正文编辑区：隐藏标题行/类型/分类/标签行，以及正文 field 的 label 与容器装饰 */
 .post-edit-panel.hancic-fullscreen .meta-row,
 .post-edit-panel.hancic-fullscreen .cat-tag-row { display: none; }
 .post-edit-panel.hancic-fullscreen .field:last-child {
@@ -1735,9 +1736,36 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   min-height: 0;
   display: flex;
   flex-direction: column;
+  margin: 0;
 }
+.post-edit-panel.hancic-fullscreen .field:last-child > label { display: none; }
 .post-edit-panel.hancic-fullscreen .md-toolbar { border-radius: 0; flex: none; }
 .post-edit-panel.hancic-fullscreen #editor { flex: 1; overflow: auto; }
+
+/* 全屏工具栏：默认隐藏（浮于顶部），鼠标移到顶部区域显示，可固定常驻 */
+.post-edit-panel.hancic-fullscreen .md-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px;
+}
+.post-edit-panel.hancic-fullscreen.md-toolbar-visible .md-toolbar,
+.post-edit-panel.hancic-fullscreen.md-toolbar-pinned .md-toolbar {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+/* 工具栏固定常驻时，编辑区下移留出工具栏高度，避免被悬浮工具栏遮盖 */
+.post-edit-panel.hancic-fullscreen.md-toolbar-pinned #editor { padding-top: 46px; }
+.post-edit-panel.hancic-fullscreen #md-pin-toolbar.active { color: var(--accent); background: var(--accent-soft); }
 
 /* ---- 标签建议面板（限高滚动，替代 datalist） ---- */
 .suggest-panel {
@@ -1779,6 +1807,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 /* ---- 对话框：prompt 输入框 ---- */
 .modal-input {
   width: 100%;
+  box-sizing: border-box;
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -1787,6 +1816,26 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   font-size: 14px;
 }
 .modal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.modal-input::placeholder { color: var(--muted); }
+
+/* 对话框：标签 + 多行输入（专栏名称/描述） */
+.modal-label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+.modal-label input, .modal-label textarea { margin-top: 6px; }
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+.modal-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.modal-textarea::placeholder { color: var(--muted); }
 
 /* ---- Typora 式源码提示：光标段落高亮 + 未渲染标记浅色显示 ---- */
 #editor .hancic-md-active { background: var(--accent-soft); border-radius: 6px; }

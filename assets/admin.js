@@ -1164,23 +1164,64 @@
           });
         });
       }
-      // 全屏编辑：切换编辑面板全屏（Esc 退出）
+      // 全屏编辑：编辑区全屏，顶部工具栏默认隐藏（悬停顶部显示），可固定常驻（Esc 退出）
       if (fullscreenBtn && editPanel) {
+        var toolbarEl = editPanel.querySelector('.md-toolbar');
+        var pinBtn = document.getElementById('md-pin-toolbar');
+        var pinned = false;
+
+        function setPinned(p) {
+          pinned = p;
+          editPanel.classList.toggle('md-toolbar-pinned', p);
+          if (pinBtn) {
+            pinBtn.classList.toggle('active', p);
+            pinBtn.setAttribute('title', p ? '取消固定工具栏' : '固定工具栏');
+            pinBtn.setAttribute('aria-label', p ? '取消固定工具栏' : '固定工具栏');
+          }
+        }
+        function showToolbar() { if (!pinned) editPanel.classList.add('md-toolbar-visible'); }
+        function hideToolbar() { if (!pinned) editPanel.classList.remove('md-toolbar-visible'); }
+        function onMove(e) {
+          var rect = editPanel.getBoundingClientRect();
+          if (e.clientY - rect.top < 72) showToolbar(); else hideToolbar();
+        }
+        function onEnter() { showToolbar(); }
+        function onLeave() { hideToolbar(); }
+        function onEscape(e) {
+          if (e.key === 'Escape' && editPanel.classList.contains('hancic-fullscreen')) {
+            setFullscreen(false);
+          }
+        }
+
         function setFullscreen(on) {
           editPanel.classList.toggle('hancic-fullscreen', on);
           fullscreenBtn.classList.toggle('active', on);
           fullscreenBtn.setAttribute('title', on ? '退出全屏' : '全屏编辑');
           fullscreenBtn.setAttribute('aria-label', on ? '退出全屏' : '全屏编辑');
+          if (on) {
+            if (pinBtn) pinBtn.hidden = false;
+            setPinned(false);
+            editPanel.addEventListener('mousemove', onMove);
+            editPanel.addEventListener('mouseenter', onEnter);
+            editPanel.addEventListener('mouseleave', onLeave);
+            document.addEventListener('keydown', onEscape);
+          } else {
+            if (pinBtn) pinBtn.hidden = true;
+            setPinned(false);
+            editPanel.removeEventListener('mousemove', onMove);
+            editPanel.removeEventListener('mouseenter', onEnter);
+            editPanel.removeEventListener('mouseleave', onLeave);
+            document.removeEventListener('keydown', onEscape);
+            hideToolbar();
+          }
           if (on && editor) editorEl.focus();
         }
         fullscreenBtn.addEventListener('click', function () {
           setFullscreen(!editPanel.classList.contains('hancic-fullscreen'));
         });
-        document.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape' && editPanel.classList.contains('hancic-fullscreen')) {
-            setFullscreen(false);
-          }
-        });
+        if (pinBtn) {
+          pinBtn.addEventListener('click', function () { setPinned(!pinned); });
+        }
       }
       // 标记命令按钮：H1/H2/H3、加粗、斜体、行内代码、引用、列表、有序列表、代码块、分割线
       function bindCmd(id, fn) {

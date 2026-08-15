@@ -150,22 +150,6 @@
   <p class="empty">期间无地区数据</p>
   {% endif %}
   </section>
-
-  <section class="panel-section">
-  <h2>最近草稿</h2>
-  {% if drafts %}
-  <ul class="draft-list">
-    {% for d in drafts %}
-    <li class="draft-item">
-      <a class="draft-title" href="{{ base_path }}/admin/posts/{{ d.id }}/edit">{{ d.title }}</a>
-      <span class="draft-meta">{{ d.updated_at }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="empty">暂无草稿</p>
-  {% endif %}
-  </section>
 </div>
 {% endblock %}
 

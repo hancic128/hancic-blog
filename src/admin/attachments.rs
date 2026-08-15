@@ -37,7 +37,7 @@ pub async fn api_list(
         "file" => Some(AttachmentKind::File),
         _ => None,
     };
-    let (items, _) = match uploads::list_attachments(&state.db, kind, false, 1, 200).await {
+    let (items, _) = match uploads::list_attachments(&state.db, kind, false, None, 1, 200).await {
         Ok(v) => v,
         Err(e) => {
             tracing::error!("附件 JSON 列表查询失败: {e:?}");
@@ -72,12 +72,13 @@ pub async fn list(
         _ => None,
     };
     let asc = query.get("order").map(String::as_str).unwrap_or("desc") == "asc";
+    let q = query.get("q").map(String::as_str);
     let page = query
         .get("page")
         .and_then(|p| p.parse::<i64>().ok())
         .filter(|&p| p > 0)
         .unwrap_or(1);
-    let (items, total) = match uploads::list_attachments(&state.db, kind, asc, page, PAGE_SIZE).await {
+    let (items, total) = match uploads::list_attachments(&state.db, kind, asc, q, page, PAGE_SIZE).await {
         Ok(v) => v,
         Err(e) => {
             tracing::error!("后台附件列表查询失败: {e:?}");
@@ -95,6 +96,7 @@ pub async fn list(
         &json!({
             "kind": kind.map(|k| k.to_str()).unwrap_or(""),
             "order": if asc { "asc" } else { "desc" },
+            "q": q.map(|s| s.to_string()).unwrap_or_default(),
         }),
     );
     super::render_admin(&state, "attachments.html", &ctx)

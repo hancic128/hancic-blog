@@ -6,8 +6,7 @@
 //! 自动转义（M22：输出用户内容一律 `{{ }}`，脚本/HTML 不落地在模板里）。
 
 use crate::error::AppError;
-use crate::models::{PostStatus, PostType};
-use crate::services::{posts as posts_service, settings as settings_service, stats as stats_service};
+use crate::services::{settings as settings_service, stats as stats_service};
 use crate::AppState;
 use crate::{auth, session};
 use axum::Router;
@@ -36,8 +35,6 @@ pub mod taxonomy;
 pub mod themes;
 pub mod tokens;
 
-/// 仪表盘最近草稿条数。
-const DASHBOARD_DRAFT_LIMIT: i64 = 5;
 /// 后台时间显示时区偏移（Asia/Shanghai，UTC+8；T17 允许配置时区后再调整）。
 const TZ_OFFSET_SECS: i32 = 8 * 3600;
 
@@ -446,22 +443,6 @@ async fn fill_dashboard(
     let regions = stats_service::by_region(&state.db, from.as_deref(), to.as_deref()).await?;
     ctx.insert("regions", &stats::region_view(&regions));
 
-    let (drafts, _total) = posts_service::list_posts(
-        &state.db,
-        posts_service::PostListOptions {
-            status: Some(PostStatus::Draft),
-            post_type: Some(PostType::Post),
-            category_slug: None,
-            tag_slug: None,
-            column_slug: None,
-            month: None,
-            sort: None,
-            page: 1,
-            page_size: DASHBOARD_DRAFT_LIMIT,
-        },
-    )
-    .await?;
-
     ctx.insert(
         "stats",
         &json!({
@@ -470,19 +451,6 @@ async fn fill_dashboard(
             "total_attachments": summary.total_attachments,
             "total_views": summary.total_views,
         }),
-    );
-    ctx.insert(
-        "drafts",
-        &json!(
-            drafts
-                .iter()
-                .map(|p| json!({
-                    "id": p.id,
-                    "title": p.title,
-                    "updated_at": format_local(p.updated_at),
-                }))
-                .collect::<Vec<_>>()
-        ),
     );
     // 内嵌 JSON 供 admin.js 画图：safe_string 标记避免 tera 自动转义破坏脚本。
     // 注意必须走 insert_value——insert 会重新序列化并丢失 safe 标记。

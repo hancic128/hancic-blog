@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/Angryshark128/hancic-blog/actions/workflows/ci.yaml/badge.svg)](https://github.com/Angryshark128/hancic-blog/actions/workflows/ci.yaml)
 
+**在线预览**：<https://hancic.site/>
+
 hancic（寒蝉）用 Rust 编写，以 SQLite 为存储，提供完整的博客能力：文章、说说（类似微博动态）、分类/标签/专栏、全文搜索、主题系统、后台管理与 REST API。后端一次编译为静态二进制，配合 Docker 可轻松部署到任意机器。
 
 ## ✨ 特性
@@ -30,7 +32,17 @@ hancic（寒蝉）用 Rust 编写，以 SQLite 为存储，提供完整的博客
 
 ## 📸 截图
 
-> 待补充：首页、文章页、后台仪表盘截图（可放置于 `docs/screenshots/`）。
+**博客前台**（桌面端）
+
+<p align="center"><img src="docs/screenshots/博客前台.png" width="75%" alt="博客前台"></p>
+
+**博客后台**（文章管理）
+
+<p align="center"><img src="docs/screenshots/博客后台.png" width="75%" alt="博客后台"></p>
+
+**手机端**
+
+<p align="center"><img src="docs/screenshots/手机端.png" width="40%" alt="手机端"></p>
 
 ## 🚀 快速开始
 
@@ -64,7 +76,27 @@ docker run -d --name hancic -p 8090:8090 -v "$(pwd)/data:/data" hancic
 
 镜像已内置 `default`、`modern` 两套主题，首次启动自动同步到数据目录。
 
-或使用 `docker-compose.yaml`（示例）与 `scripts/deploy-sh.sh`（生产部署/回滚脚本，详见 [docs/deploy-sh.md](docs/deploy-sh.md)）。
+### Docker Compose 部署
+
+仓库附带了 `docker-compose.yaml`（基于镜像 `ghcr.io/angryshark128/hancic:latest`，也可改为本地构建）：
+
+```bash
+# 使用发布镜像（GitHub Container Registry 拉取）
+docker compose up -d
+
+# 或先本地构建再启动
+docker compose build && docker compose up -d
+```
+
+`docker-compose.yaml` 要点：
+
+- **数据持久化**：命名卷 `hancic-data` 挂载到容器 `/data`（数据库、上传文件、运行时主题都在其中），删除重建容器不丢数据
+- **自定义配置**：如需覆盖默认配置，取消 `./config.toml:/app/config.toml:ro` 挂载注释即可（参考 `config.example.toml`）
+- **健康检查**：内置 `/api/health` 探测，`docker compose ps` 可查看健康状态
+- **资源限制**：默认限制 1 CPU / 256M 内存（静态博客足够；上传/备份时留足余量）
+- **自动更新**：打 tag 发布后 CI 自动构建并推送新镜像，服务器上 `docker compose pull && docker compose up -d` 即可升级
+
+> 生产部署/回滚（含镜像中转、健康轮询、回滚）请使用 `scripts/deploy-sh.sh`，详见 [docs/deploy-sh.md](docs/deploy-sh.md)。
 
 ## ⚙️ 配置
 
