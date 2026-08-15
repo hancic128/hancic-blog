@@ -26,7 +26,12 @@ ARG CARGO_SOURCE_INDEX=
 RUN if [ -n "$CARGO_SOURCE_INDEX" ]; then \
       mkdir -p /build/.cargo && \
       printf '[source.crates-io]\nreplace-with = "mirror"\n[source.mirror]\nregistry = "%s"\n' "$CARGO_SOURCE_INDEX" > /build/.cargo/config.toml; \
-    fi \
+    fi
+# 关键：touch 源码强制重编本项目 crate。GitHub checkout 复制的文件 mtime 早于
+# 依赖层 echo 写入虚拟 src 的时间，cargo 的 mtime 指纹会误判源码未变、跳过编译，
+# 导致 /build/target/release/hancic 仍是依赖层空 main 的虚拟二进制（528KB，启动即退）。
+# touch 后 mtime 最新 → cargo 只重编 hancic crate（依赖指纹未变，仍走增量）。
+RUN find src -name '*.rs' -exec touch {} + \
     && cargo build --release --locked
 
 FROM alpine:3.20
