@@ -6,7 +6,7 @@
     {# 1. 更新日历（近一年，GitHub Contribution 风格，hover 显示动态详情） #}
     {% if calendar %}
     <section class="heatmap-section" id="calendar">
-      <h3 class="section-title">更新日历 <small>近一年发布/更新动态</small></h3>
+      <h1 class="section-title">更新日历 <small>近一年发布/更新动态</small></h1>
       <div class="heatmap">
         {% for week in calendar %}
         <div class="heatmap-col">
@@ -28,7 +28,7 @@
     {# 1. 最近说说（时间线，每条可折叠，含缩略图） #}
     {% if moments %}
     <section class="activity-section" id="moments">
-      <h3 class="section-title">最近说说</h3>
+      <h1 class="section-title">最近说说</h1>
       <div class="moment-timeline">
         {% include "partials/moment_item.html" %}
       </div>
@@ -36,9 +36,14 @@
     </section>
     {% endif %}
 
-    {# 3. 最新文章列表 #}
+    {# 3. 最新文章列表（支持按发布/更新时间切换排序） #}
     <section class="post-list" id="posts">
-      <h3 class="section-title">最新文章</h3>
+      <h1 class="section-title">最新文章
+        <span class="section-sort" role="group" aria-label="文章排序">
+          <a class="{% if current_sort == 'published_at' %}active{% endif %}" href="?sort=published_at">按发布时间</a>
+          <a class="{% if current_sort == 'updated_at' %}active{% endif %}" href="?sort=updated_at">按更新时间</a>
+        </span>
+      </h1>
       {% include "partials/post_list.html" %}
       {% if post_total > 5 %}
       <p class="more-link"><a href="{{ base_path }}/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>

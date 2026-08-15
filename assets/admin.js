@@ -1515,9 +1515,9 @@
       btn.setAttribute('aria-expanded', 'false');
       syncSelected(sel, menu, labelEl);
     });
-    // 点击外部关闭
-    document.addEventListener('click', function () {
-      if (!menu.hidden) {
+    // 点击外部关闭（菜单内部点击不关闭，避免搜索框聚焦即收起）
+    document.addEventListener('click', function (e) {
+      if (!menu.hidden && !menu.contains(e.target)) {
         menu.hidden = true;
         btn.setAttribute('aria-expanded', 'false');
       }

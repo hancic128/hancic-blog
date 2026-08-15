@@ -242,6 +242,11 @@ button, a, [role="button"], label { cursor: pointer; }
   align-items: baseline;
   gap: .6rem;
 }
+/* 区块标题右侧排序切换（首页最新文章） */
+.section-sort { display: inline-flex; align-items: baseline; gap: .45rem; margin-left: auto; font-size: .8rem; font-weight: 400; font-family: inherit; }
+.section-sort a { color: var(--muted); text-decoration: none; padding: .12rem .65rem; border: 1px solid var(--border); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
+.section-sort a:hover { color: var(--accent); border-color: var(--accent); }
+.section-sort a.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .section-title small { font-family: inherit; font-size: .8rem; font-weight: 400; color: var(--muted); }
 .more-link { margin: 1.2rem 0 0; font-size: .9rem; }
 .more-link a { color: var(--accent); text-decoration: none; }

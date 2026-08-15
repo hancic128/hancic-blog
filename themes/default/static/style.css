@@ -701,6 +701,11 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .section-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
   margin: 2.5rem 0 1rem; display: flex; align-items: baseline; gap: .6rem; }
 .section-title small { font-size: .8rem; font-weight: 400; color: var(--muted); }
+/* 区块标题右侧排序切换（首页最新文章） */
+.section-sort { display: inline-flex; align-items: baseline; gap: .45rem; margin-left: auto; font-size: .78rem; font-weight: 400; }
+.section-sort a { color: var(--muted); text-decoration: none; padding: .12rem .65rem; border: 1px solid var(--border); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
+.section-sort a:hover { color: var(--accent); border-color: var(--accent); }
+.section-sort a.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* 热力图：53 列 × 7 行，GitHub Contribution 风格 */
 .heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }

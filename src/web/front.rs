@@ -242,7 +242,8 @@ async fn index(
             v.truncate(3);
             v
         };
-        // 最近文章（首页仅展示 5 篇，完整列表走 /archives）
+        // 最近文章（首页仅展示 5 篇，完整列表走 /archives）；支持 ?sort= 切换发布/更新时间
+        let sort = list_sort(&query);
         let (items, total) = posts::list_posts(
             &state.db,
             posts::PostListOptions {
@@ -252,7 +253,7 @@ async fn index(
                 tag_slug: None,
                 column_slug: None,
                 month: None,
-                sort: Some(list_sort(&query)),
+                sort: Some(sort),
                 page: 1,
                 page_size: 5,
             },
@@ -265,6 +266,7 @@ async fn index(
         ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &moments).await?);
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
+        ctx.insert("current_sort", &sort.field);
         Ok::<_, AppError>(ctx)
     }
     .await;
