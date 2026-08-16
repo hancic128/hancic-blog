@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -39,13 +39,13 @@ jobs:
             [ -f assets/vendor/vditor.min.js ]
           }
 
-      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。cargo 不支持用
-      # --config 把 crates-io 替换回官方源（指向 index.crates.io 会报
-      # "source already defined"；replace-with 置空报 "no source with the name"），
-      # 故在 CI 移除该文件让 cargo 走官方 crates.io——与 Docker 构建一致
-      # （.dockerignore 已排除 .cargo/config.toml，见 Dockerfile）。
-      - name: 去除 rsproxy 镜像配置（CI 直连 crates.io）
-        run: rm -f .cargo/config.toml
+      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。
+      # GitHub 托管 runner 上 cargo 不认该镜像源，原逻辑用 rm 移除；self-hosted
+      # 即本机开发环境，rsproxy 本机可用且依赖已缓存，直接保留不动。
+      - name: 使用本机 cargo 配置（rsproxy 镜像，self-hosted 已缓存依赖）
+        run: |
+          cat .cargo/config.toml
+          ls target/debug/deps >/dev/null 2>&1 && echo "依赖缓存存在，跳过全量下载" || echo "无缓存，首次运行将全量下载"
 
       # 仓库存在既有 rustfmt 漂移（M125），cargo fmt --check 无法全绿且格式化属本地职责，
       # 故 CI 不跑 fmt；以 clippy -D warnings 兜底代码质量。
@@ -66,7 +66,7 @@ jobs:
         run: |
           cd e2e
           npm ci --registry=https://registry.npmjs.org/ --replace-registry-host=always
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
 
       - name: Playwright E2E
         run: cd e2e && npx playwright test
@@ -75,7 +75,7 @@ jobs:
     # 仅在打 tag（v*）时构建镜像并部署上海主机；push main 只跑 test 作回归检查
     # needs: test
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
