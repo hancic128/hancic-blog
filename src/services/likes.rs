@@ -2,9 +2,11 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::LikeContentType;
 use crate::services::{moments, posts};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::SqliteExecutor;
 
+#[derive(Debug, Clone, Serialize)]
 pub struct LikeStatus {
     pub liked: bool,
     pub like_count: i64,

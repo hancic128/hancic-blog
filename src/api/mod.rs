@@ -8,6 +8,7 @@
 pub mod auth;
 pub mod backup;
 pub mod categories;
+pub mod likes;
 pub mod moments;
 pub mod posts;
 pub mod stats;
@@ -26,6 +27,8 @@ use tower_sessions::Session;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health))
+        .route("/likes/status", get(likes::status))
+        .route("/likes/toggle", post(likes::toggle))
         .route("/uploads", post(uploads::upload))
         .route("/posts", get(posts::list).post(posts::create))
         .route("/posts/{id}", get(posts::get).patch(posts::update).delete(posts::delete))
