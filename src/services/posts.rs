@@ -73,6 +73,7 @@ pub(crate) fn order_by_clause(sort: Option<PostSort>) -> String {
     let field = match s.field {
         "title" => "title",
         "views" => "views",
+        "like_count" => "like_count",
         "updated_at" => "updated_at",
         "published_at" => "published_at",
         "created_at" => "created_at",

@@ -1,10 +1,11 @@
 pub mod backup;
+pub mod columns;
+pub mod likes;
 pub mod migrate;
 pub mod moments;
 pub mod posts;
 pub mod settings;
 pub mod stats;
-pub mod columns;
 pub mod taxonomy;
 pub mod tokens;
 pub mod uploads;
