@@ -7,6 +7,20 @@
 <meta name="description" content="{{ site.desc }}">
 <link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/style.css">
 <link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/github.min.css">
+{% if share %}
+{# 分享卡片元数据：canonical + Open Graph + Twitter Card（share 对象由 Rust 注入，可选字段缺省不输出） #}
+{% if share.canonical_url %}<link rel="canonical" href="{{ share.canonical_url }}">{% endif %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ share.title }}">
+<meta property="og:description" content="{{ share.description }}">
+{% if share.og_url %}<meta property="og:url" content="{{ share.og_url }}">{% endif %}
+<meta property="og:site_name" content="{{ share.site_name }}">
+{% if share.og_image %}<meta property="og:image" content="{{ share.og_image }}">{% endif %}
+<meta name="twitter:card" content="{{ share.twitter_card }}">
+<meta name="twitter:title" content="{{ share.title }}">
+<meta name="twitter:description" content="{{ share.description }}">
+{% if share.og_image %}<meta name="twitter:image" content="{{ share.og_image }}">{% endif %}
+{% endif %}
 </head>
 <body>
 <header class="site-header">

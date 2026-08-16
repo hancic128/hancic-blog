@@ -74,6 +74,216 @@ async fn post_page_renders_markdown() {
 }
 
 #[tokio::test]
+async fn post_page_renders_share_meta_tags() {
+    let (app, pool) = test_app("front-post-share-meta").await;
+    create_published_post(&pool, "分享文章", None, vec![]).await;
+
+    let (status, html) = get_html(&app, "/post/分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"<link rel="canonical" href="https://example.test/post/"#));
+    assert!(html.contains(r#"property="og:type" content="article""#));
+    assert!(html.contains(r#"property="og:title" content="分享文章""#));
+    assert!(html.contains(r#"name="twitter:card" content="summary""#));
+}
+
+#[tokio::test]
+async fn post_page_uses_site_logo_as_absolute_share_image() {
+    let (app, pool) = test_app("front-share-logo").await;
+    sqlx::query("INSERT OR REPLACE INTO settings (key, value) VALUES ('site_logo', '/uploads/site/logo.png')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    create_published_post(&pool, "Logo 分享文章", None, vec![]).await;
+
+    // slugify 会把空格转 '-' 并转小写：「Logo 分享文章」→ logo-分享文章
+    let (status, html) = get_html(&app, "/post/logo-分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"property="og:image" content="https://example.test/uploads/site/logo.png""#));
+    assert!(html.contains(r#"name="twitter:image" content="https://example.test/uploads/site/logo.png""#));
+    assert!(html.contains(r#"name="twitter:card" content="summary_large_image""#));
+}
+
+#[tokio::test]
+async fn post_page_omits_share_image_when_logo_missing() {
+    let (app, pool) = test_app("front-share-no-logo").await;
+    create_published_post(&pool, "无 Logo 分享文章", None, vec![]).await;
+
+    // slugify 会把空格转 '-' 并转小写：「无 Logo 分享文章」→ 无-logo-分享文章
+    let (status, html) = get_html(&app, "/post/无-logo-分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!html.contains(r#"property="og:image""#));
+    assert!(!html.contains(r#"name="twitter:image""#));
+}
+
+#[tokio::test]
+async fn about_page_renders_share_meta_tags() {
+    let (app, pool) = test_app("front-about-share-meta").await;
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "关于本站".into(),
+            content_md: "站点正文。".into(),
+            excerpt: Some("关于页摘要".into()),
+            slug: Some("about".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            column_id: None,
+            tags: vec![],
+        },
+    ).await.unwrap();
+
+    let (status, html) = get_html(&app, "/about").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"property="og:title" content="关于本站""#));
+    assert!(html.contains(r#"property="og:url" content="https://example.test/about""#));
+}
+
+#[tokio::test]
+async fn page_route_renders_canonical_for_standalone_page() {
+    let (app, pool) = test_app("front-share-page-route").await;
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "独立分享页".into(),
+            content_md: "页面正文".into(),
+            excerpt: Some("页面摘要".into()),
+            slug: Some("standalone-share".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            column_id: None,
+            tags: vec![],
+        },
+    ).await.unwrap();
+
+    let (status, html) = get_html(&app, "/page/standalone-share").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"<link rel="canonical" href="https://example.test/page/standalone-share">"#));
+}
+
+#[test]
+fn share_context_builds_absolute_urls_from_config() {
+    let share = hancic::web::front::share_context(
+        "分享配置文章",
+        "",
+        "正文",
+        "/post/分享配置文章",
+        "寒蝉 Hancic",
+        "https://example.test",
+        Some("/uploads/logo.png"),
+    );
+
+    assert_eq!(
+        share.get("canonical_url").and_then(|v| v.as_str()),
+        Some("https://example.test/post/分享配置文章")
+    );
+    assert_eq!(
+        share.get("og_url").and_then(|v| v.as_str()),
+        Some("https://example.test/post/分享配置文章")
+    );
+    assert_eq!(
+        share.get("og_image").and_then(|v| v.as_str()),
+        Some("https://example.test/uploads/logo.png")
+    );
+}
+
+#[test]
+fn post_page_prefers_excerpt_for_share_description() {
+    let share = hancic::web::front::share_context(
+        "摘要优先文章",
+        "这是手写摘要",
+        "# 标题\n\n正文不会被选中",
+        "/post/摘要优先文章",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    assert_eq!(share.get("description").and_then(|v| v.as_str()), Some("这是手写摘要"));
+}
+
+#[test]
+fn page_share_description_falls_back_to_body_text() {
+    let share = hancic::web::front::share_context(
+        "关于分享",
+        "",
+        "## 介绍\n\n这里是 **正文摘要来源**，应该去掉 markdown。",
+        "/page/share-about",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    let description = share.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(description.contains("正文摘要来源"));
+    assert!(!description.contains("**正文摘要来源**"));
+}
+
+#[test]
+fn share_summary_decodes_entities_and_strips_tags() {
+    let share = hancic::web::front::share_context(
+        "实体文章",
+        "",
+        "摘要 <strong>重点</strong>：Rust &amp; Go、&lt;code&gt;、&quot;引号&quot;、&apos;撇号&apos;、&nbsp;空格。",
+        "/post/entities",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    let description = share.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(description.contains("重点"));
+    assert!(!description.contains("<strong>"), "应剥离 HTML 标签");
+    assert!(description.contains("Rust & Go"), "&amp; 应解码为 &");
+    assert!(description.contains("<code>"), "&lt;code&gt; 应解码为字面文本");
+    assert!(description.contains("引号"), "&quot; 应解码为引号");
+    assert!(description.contains("撇号"), "&apos; 应解码为撇号");
+    for residue in ["&amp;", "&lt;", "&gt;", "&quot;", "&apos;", "&nbsp;"] {
+        assert!(!description.contains(residue), "摘要不应残留实体文本 {residue}");
+    }
+
+    // 裸 & 与未知实体应原样保留
+    let bare = hancic::web::front::share_context(
+        "裸与符号",
+        "",
+        "Rust & Go、&unknown; 结尾",
+        "/post/bare-amp",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+    let bare_desc = bare.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(bare_desc.contains("Rust & Go"), "裸 & 不应被吞掉");
+    assert!(bare_desc.contains("&unknown;"), "未知实体应原样保留");
+}
+
+#[test]
+fn share_context_omits_image_when_site_url_or_logo_missing() {
+    let no_site = hancic::web::front::share_context(
+        "无站点地址",
+        "",
+        "正文",
+        "/post/no-site",
+        "寒蝉 Hancic",
+        "",
+        Some("/uploads/logo.png"),
+    );
+    assert!(no_site.get("og_image").is_some_and(|v| v.is_null()));
+
+    let no_logo = hancic::web::front::share_context(
+        "无 logo",
+        "",
+        "正文",
+        "/post/no-logo",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+    assert!(no_logo.get("og_image").is_some_and(|v| v.is_null()));
+}
+
+#[tokio::test]
 async fn homepage_article_card_shows_like_count() {
     let (app, pool) = test_app("front-like-card").await;
     let post_id = create_published_post(&pool, "点赞卡片文章", None, vec![]).await;
@@ -254,8 +464,10 @@ async fn about_page_renders_page_type() {
 
     let (status, html) = get_html(&app, "/about").await;
     assert_eq!(status, StatusCode::OK);
-    // 页面类型不再显示标题（page.html 已移除 h1），正文正常渲染
-    assert!(!html.contains("关于本站"), "页面标题不应显示");
+    // 页面类型不再显示标题（page.html 已移除 h1），正文正常渲染；
+    // 标题只允许出现在分享元数据（og:title / twitter:title）里
+    assert!(!html.contains("<h1>关于本站"), "页面标题不应以 h1 显示");
+    assert!(html.contains("og:title"));
     assert!(html.contains("站点介绍"));
     assert!(html.contains("<h2"));
 }
