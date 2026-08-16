@@ -1,9 +1,10 @@
 //! 前台页面：文章流、文章/独立页、分类/标签归档、搜索、静态资源与错误页。
 //!
-//! 页面经 `site_context` 注入站点信息（settings 表）与前台分享元数据；模板取自
-//! `themes/<active_theme>/templates/`（T6 `build_tera` 构建、注册
-//! `markdown`/`date` 过滤器），文章/独立页在 SSR 阶段输出 canonical、
-//! Open Graph、Twitter Card 分享元数据。渲染失败统一输出 `error.html`（含状态码）。
+//! 页面经 `site_context` 注入站点设置（settings 表）；`share` 分享元数据对象
+//! 由文章/独立页 handler 单独注入，SSR 阶段在 `<head>` 输出 canonical、
+//! Open Graph、Twitter Card。模板取自 `themes/<active_theme>/templates/`
+//! （T6 `build_tera` 构建、注册 `markdown`/`date` 过滤器）。
+//! 渲染失败统一输出 `error.html`（含状态码）。
 //! 支持后台主题预览（T18）：`?theme_preview={name}` 只读覆盖
 //! `site.active_theme` 与渲染用 tera（每次请求按预览主题构建），不落库。
 
@@ -202,20 +203,6 @@ fn parse_json_array(s: &str) -> Value {
     serde_json::from_str(s).unwrap_or_else(|_| json!([]))
 }
 
-async fn share_site_meta(db: &Db) -> AppResult<(String, Option<String>)> {
-    let s = settings::get_many(db, &["site_name", "site_logo"]).await?;
-    let site_name = s
-        .get("site_name")
-        .cloned()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "寒蝉 Hancic".to_string());
-    let logo = s
-        .get("site_logo")
-        .cloned()
-        .filter(|v| !v.trim().is_empty());
-    Ok((site_name, logo))
-}
-
 /// 解析 `?theme_preview=`：名字合法且主题存在（theme.toml 可读）才生效，
 /// 否则回退默认渲染——预览参数既不破坏页面，也不暴露不存在的主题。
 fn resolve_preview(state: &AppState, query: &HashMap<String, String>) -> Option<String> {
@@ -361,15 +348,15 @@ async fn post_page(
         .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("post", &post_value(&post, like_status.liked));
-        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let site = ctx.get("site");
         let share = share_context(
             &post.title,
             post.excerpt.as_str(),
             &post.content_md,
             &format!("/post/{}", post.slug),
-            &site_name,
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
             &state.config.site_url,
-            site_logo.as_deref(),
+            site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
         ctx.insert("share", &share);
         ctx.insert(
@@ -470,15 +457,15 @@ async fn page_page(
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page, false));
-        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let site = ctx.get("site");
         let share = share_context(
             &page.title,
             page.excerpt.as_str(),
             &page.content_md,
             &format!("/page/{}", page.slug),
-            &site_name,
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
             &state.config.site_url,
-            site_logo.as_deref(),
+            site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
         ctx.insert("share", &share);
         // 页面正文（带标题锚点）+ 目录，供右侧栏导航（内容长时便于跳转）
@@ -513,15 +500,15 @@ async fn about_page(
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page, false));
-        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let site = ctx.get("site");
         let share = share_context(
             &page.title,
             page.excerpt.as_str(),
             &page.content_md,
             "/about",
-            &site_name,
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
             &state.config.site_url,
-            site_logo.as_deref(),
+            site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
         ctx.insert("share", &share);
         let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);

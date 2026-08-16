@@ -100,6 +100,7 @@ async fn post_page_uses_site_logo_as_absolute_share_image() {
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains(r#"property="og:image" content="https://example.test/uploads/site/logo.png""#));
     assert!(html.contains(r#"name="twitter:image" content="https://example.test/uploads/site/logo.png""#));
+    assert!(html.contains(r#"name="twitter:card" content="summary_large_image""#));
 }
 
 #[tokio::test]
