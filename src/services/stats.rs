@@ -199,9 +199,9 @@ fn range_filter(col: &str, from: Option<&str>, to: Option<&str>) -> (String, Vec
 
 /// posts 表列（带 `p.` 前缀，与 `PostStatRow` 字段顺序一致）。
 const POST_COLUMNS: &str = "p.id, p.slug, p.title, p.content_md, p.excerpt, p.status, \
-    p.post_type, p.published_at, p.created_at, p.updated_at, p.views, p.category_id";
+    p.post_type, p.published_at, p.created_at, p.updated_at, p.views, p.like_count, p.category_id";
 
-/// 排行榜行：12 个 post 字段（view_count 不在此结构内，另行 `Row::get` 读取，
+/// 排行榜行：13 个 post 字段（view_count 不在此结构内，另行 `Row::get` 读取，
 /// FromRow 对结果集多余列自动忽略）。
 #[derive(FromRow)]
 struct PostStatRow {
@@ -216,6 +216,7 @@ struct PostStatRow {
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     views: i64,
+    like_count: i64,
     category_id: Option<i64>,
 }
 
@@ -233,6 +234,7 @@ impl From<PostStatRow> for Post {
             created_at: r.created_at,
             updated_at: r.updated_at,
             views: r.views,
+            like_count: r.like_count,
             category_id: r.category_id,
             column_id: None,
         }

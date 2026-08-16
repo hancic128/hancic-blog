@@ -33,6 +33,7 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
     ensure_column_id(&pool).await?;
     ensure_column_description(&pool).await?;
+    ensure_like_schema(&pool).await?;
     seed_default_settings(&pool).await?;
     Ok(pool)
 }
@@ -67,6 +68,51 @@ async fn ensure_column_id(pool: &Db) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await?;
     }
+    Ok(())
+}
+
+async fn ensure_like_schema(pool: &Db) -> Result<(), sqlx::Error> {
+    sqlx::raw_sql(
+        r#"
+CREATE TABLE IF NOT EXISTS content_likes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  content_type TEXT NOT NULL,
+  content_id INTEGER NOT NULL,
+  visitor_id TEXT NOT NULL,
+  ip_hash TEXT NOT NULL DEFAULT '',
+  ua_hash TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(content_type, content_id, visitor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_content_likes_target ON content_likes(content_type, content_id);
+"#,
+    )
+    .execute(pool)
+    .await?;
+
+    let has_post_like: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('posts') WHERE name = 'like_count'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has_post_like.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE posts ADD COLUMN like_count INTEGER NOT NULL DEFAULT 0")
+            .execute(pool)
+            .await?;
+    }
+
+    let has_moment_like: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('moments') WHERE name = 'like_count'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has_moment_like.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE moments ADD COLUMN like_count INTEGER NOT NULL DEFAULT 0")
+            .execute(pool)
+            .await?;
+    }
+
     Ok(())
 }
 

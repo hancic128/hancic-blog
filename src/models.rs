@@ -108,6 +108,7 @@ pub struct Post {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub views: i64,
+    pub like_count: i64,
     pub category_id: Option<i64>,
     pub column_id: Option<i64>,
 }
@@ -117,6 +118,33 @@ pub struct Moment {
     pub id: i64,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub like_count: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LikeContentType {
+    Post,
+    Moment,
+}
+
+impl LikeContentType {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Post => "post",
+            Self::Moment => "moment",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContentLike {
+    pub id: i64,
+    pub content_type: LikeContentType,
+    pub content_id: i64,
+    pub visitor_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]

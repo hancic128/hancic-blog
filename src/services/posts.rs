@@ -98,6 +98,7 @@ pub(crate) struct PostRow {
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     views: i64,
+    like_count: i64,
     category_id: Option<i64>,
     column_id: Option<i64>,
 }
@@ -116,6 +117,7 @@ impl From<PostRow> for Post {
             created_at: r.created_at,
             updated_at: r.updated_at,
             views: r.views,
+            like_count: r.like_count,
             category_id: r.category_id,
             column_id: r.column_id,
         }
@@ -124,7 +126,7 @@ impl From<PostRow> for Post {
 
 /// `pub(crate)`：后台文章管理复用。
 pub(crate) const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
-    published_at, created_at, updated_at, views, category_id, column_id";
+    published_at, created_at, updated_at, views, like_count, category_id, column_id";
 
 pub async fn slugify(input: &str) -> String {
     let s = input.trim().to_lowercase();

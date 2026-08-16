@@ -19,6 +19,7 @@ struct MomentRow {
     id: i64,
     content: String,
     created_at: DateTime<Utc>,
+    like_count: i64,
 }
 
 impl From<MomentRow> for Moment {
@@ -27,11 +28,12 @@ impl From<MomentRow> for Moment {
             id: r.id,
             content: r.content,
             created_at: r.created_at,
+            like_count: r.like_count,
         }
     }
 }
 
-const MOMENT_COLUMNS: &str = "id, content, created_at";
+const MOMENT_COLUMNS: &str = "id, content, created_at, like_count";
 
 /// 创建说说：事务内 INSERT moments + 按数组序 INSERT moment_attachments。
 /// `attachment_ids` 为空数组时仅建说说本体。
