@@ -38,7 +38,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(index))
         .route("/archives", get(archives_page))
-        .route("/post/{slug}", get(post_page))
+        .route("/post/{id}", get(post_page))
         .route("/page/{slug}", get(page_page))
         .route("/category/{slug}", get(category_page))
         .route("/tag/{slug}", get(tag_page))
@@ -313,16 +313,26 @@ async fn archives_page(
 
 async fn post_page(
     State(state): State<AppState>,
-    Path(slug): Path<String>,
+    Path(id): Path<String>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let post = posts::get_post_by_slug(&state.db, &slug)
+        let post = if let Some(post) = posts::get_post_by_uuid(&state.db, &id)
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Post)
-            .ok_or_else(|| AppError::NotFound("文章不存在".into()))?;
+        {
+            post
+        } else if let Some(post) = posts::get_post_by_slug(&state.db, &id)
+            .await?
+            .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Post)
+        {
+            let target = format!("{}{}", state.config.base_path, posts::public_post_path(&post));
+            return Ok::<_, AppError>(axum::response::Redirect::permanent(&target).into_response());
+        } else {
+            return Err(AppError::NotFound("文章不存在".into()));
+        };
         let (prev, next) = posts::adjacent_posts(&state.db, &post).await?;
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
@@ -351,7 +361,6 @@ async fn post_page(
         );
         ctx.insert("prev", &adjacent_value(prev.as_ref()));
         ctx.insert("next", &adjacent_value(next.as_ref()));
-        // 正文（带标题锚点）+ 1~3 级目录，供右侧栏导航
         let (content_html, toc) = crate::markdown::render_with_toc(&post.content_md);
         ctx.insert("content_html", &content_html);
         ctx.insert(
@@ -361,16 +370,15 @@ async fn post_page(
                 .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
                 .collect::<Vec<_>>()),
         );
-        // 字数统计 + 预计阅读时长（300 字/分钟，最少 1 分钟）
         let word_count = html_word_count(&content_html);
         ctx.insert("word_count", &word_count);
         ctx.insert("read_minutes", &word_count.div_ceil(300).max(1));
         record_view_once(&state, &post, &headers).await;
-        Ok::<_, AppError>(ctx)
+        Ok::<_, AppError>(render(&state, "post.html", &ctx, preview.as_deref()).await)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "post.html", &ctx, preview.as_deref()).await,
+        Ok(resp) => resp,
         Err(e) => render_error(&state, e).await,
     }
 }

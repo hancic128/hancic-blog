@@ -2,6 +2,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use std::path::Path;
 use std::str::FromStr;
+use uuid::Uuid;
 
 pub type Db = SqlitePool;
 
@@ -31,6 +32,7 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
         .connect_with(opts).await?;
     sqlx::raw_sql(MIGRATION_001).execute(&pool).await?;
     sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
+    ensure_post_uuid(&pool).await?;
     ensure_column_id(&pool).await?;
     ensure_column_description(&pool).await?;
     seed_default_settings(&pool).await?;
@@ -49,6 +51,34 @@ async fn ensure_column_description(pool: &Db) -> Result<(), sqlx::Error> {
             .execute(pool)
             .await?;
     }
+    Ok(())
+}
+
+/// posts 表加 `uuid`（幂等：旧库补列，历史文章自动回填随机 UUID，并建唯一索引）。
+async fn ensure_post_uuid(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('posts') WHERE name = 'uuid'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE posts ADD COLUMN uuid TEXT")
+            .execute(pool)
+            .await?;
+    }
+    let ids: Vec<(i64,)> = sqlx::query_as("SELECT id FROM posts WHERE uuid IS NULL OR uuid = ''")
+        .fetch_all(pool)
+        .await?;
+    for (id,) in ids {
+        sqlx::query("UPDATE posts SET uuid = ? WHERE id = ?")
+            .bind(Uuid::new_v4().to_string())
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    sqlx::raw_sql("CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_uuid ON posts(uuid)")
+        .execute(pool)
+        .await?;
     Ok(())
 }
 

@@ -64,10 +64,14 @@ async fn homepage_lists_published_posts() {
 #[tokio::test]
 async fn post_page_renders_markdown() {
     let (app, pool) = test_app("front-post").await;
-    create_published_post(&pool, "第一篇文章", None, vec!["rust".into()]).await;
+    let id = create_published_post(&pool, "第一篇文章", None, vec!["rust".into()]).await;
+    let post = posts::get_post(&pool, id).await.unwrap().unwrap();
 
-    // slug 由标题生成：slugify 保留 CJK，故为「第一篇文章」
-    let (status, html) = get_html(&app, "/post/第一篇文章").await;
+    // 旧 slug 链接现在应永久重定向到 UUID 链接
+    let (status, _html) = get_html(&app, "/post/第一篇文章").await;
+    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+
+    let (status, html) = get_html(&app, &format!("/post/{}", post.uuid)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("<h1"));
     assert!(html.contains("正文内容"));

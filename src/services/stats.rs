@@ -198,7 +198,7 @@ fn range_filter(col: &str, from: Option<&str>, to: Option<&str>) -> (String, Vec
 }
 
 /// posts 表列（带 `p.` 前缀，与 `PostStatRow` 字段顺序一致）。
-const POST_COLUMNS: &str = "p.id, p.slug, p.title, p.content_md, p.excerpt, p.status, \
+const POST_COLUMNS: &str = "p.id, p.uuid, p.slug, p.title, p.content_md, p.excerpt, p.status, \
     p.post_type, p.published_at, p.created_at, p.updated_at, p.views, p.category_id";
 
 /// 排行榜行：12 个 post 字段（view_count 不在此结构内，另行 `Row::get` 读取，
@@ -206,6 +206,7 @@ const POST_COLUMNS: &str = "p.id, p.slug, p.title, p.content_md, p.excerpt, p.st
 #[derive(FromRow)]
 struct PostStatRow {
     id: i64,
+    uuid: String,
     slug: String,
     title: String,
     content_md: String,
@@ -223,6 +224,7 @@ impl From<PostStatRow> for Post {
     fn from(r: PostStatRow) -> Self {
         Post {
             id: r.id,
+            uuid: r.uuid,
             slug: r.slug,
             title: r.title,
             content_md: r.content_md,

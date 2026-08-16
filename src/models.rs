@@ -98,6 +98,7 @@ impl std::str::FromStr for AttachmentKind {
 #[derive(Debug, Clone, Serialize)]
 pub struct Post {
     pub id: i64,
+    pub uuid: String,
     pub slug: String,
     pub title: String,
     pub content_md: String,
