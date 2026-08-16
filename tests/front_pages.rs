@@ -80,8 +80,8 @@ async fn post_page_renders_absolute_share_urls_from_config() {
 
     let (status, html) = get_html(&app, "/post/分享配置文章").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(html.contains(r#"rel=\"canonical\" href=\"https://example.test/post/"#));
-    assert!(html.contains(r#"property=\"og:url\" content=\"https://example.test/post/"#));
+    assert!(html.contains(r#"rel="canonical" href="https://example.test/post/"#));
+    assert!(html.contains(r#"property="og:url" content="https://example.test/post/"#));
 }
 
 #[tokio::test]

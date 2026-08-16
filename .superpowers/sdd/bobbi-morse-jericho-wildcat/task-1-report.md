@@ -14,3 +14,7 @@
 ## Notes
 - I did not implement share-card metadata generation in this task.
 - Scope stayed limited to config plumbing + minimal test scaffolding, per brief.
+
+## Review fix
+- Corrected the Task 1 test assertions in `tests/front_pages.rs` to use raw strings with real HTML quotes instead of escaped quotes.
+- Re-ran the covering test; it still fails because the share metadata itself is not implemented yet, which is expected for Task 1 scope.
