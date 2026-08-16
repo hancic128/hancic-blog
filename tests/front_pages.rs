@@ -138,6 +138,29 @@ async fn about_page_renders_share_meta_tags() {
     assert!(html.contains(r#"property="og:url" content="https://example.test/about""#));
 }
 
+#[tokio::test]
+async fn page_route_renders_canonical_for_standalone_page() {
+    let (app, pool) = test_app("front-share-page-route").await;
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "独立分享页".into(),
+            content_md: "页面正文".into(),
+            excerpt: Some("页面摘要".into()),
+            slug: Some("standalone-share".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            column_id: None,
+            tags: vec![],
+        },
+    ).await.unwrap();
+
+    let (status, html) = get_html(&app, "/page/standalone-share").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"<link rel="canonical" href="https://example.test/page/standalone-share">"#));
+}
+
 #[test]
 fn share_context_builds_absolute_urls_from_config() {
     let share = hancic::web::front::share_context(

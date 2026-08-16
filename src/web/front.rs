@@ -1,8 +1,9 @@
 //! 前台页面：文章流、文章/独立页、分类/标签归档、搜索、静态资源与错误页。
 //!
-//! 页面经 `site_context` 注入站点信息（settings 表），模板取自
+//! 页面经 `site_context` 注入站点信息（settings 表）与前台分享元数据；模板取自
 //! `themes/<active_theme>/templates/`（T6 `build_tera` 构建、注册
-//! `markdown`/`date` 过滤器）。渲染失败统一输出 `error.html`（含状态码）。
+//! `markdown`/`date` 过滤器），文章/独立页在 SSR 阶段输出 canonical、
+//! Open Graph、Twitter Card 分享元数据。渲染失败统一输出 `error.html`（含状态码）。
 //! 支持后台主题预览（T18）：`?theme_preview={name}` 只读覆盖
 //! `site.active_theme` 与渲染用 tera（每次请求按预览主题构建），不落库。
 
