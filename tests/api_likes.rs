@@ -197,3 +197,121 @@ async fn toggle_like_toggles_off_again_for_same_visitor() {
     assert_eq!(body["data"]["liked"], false);
     assert_eq!(body["data"]["like_count"], 0);
 }
+
+#[tokio::test]
+async fn tampered_visitor_cookie_is_not_trusted_as_is() {
+    let (app, post_id) = setup_api_post("api-likes-tampered-cookie").await;
+
+    let issued = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/likes/status?content_type=post&content_id={post_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let issued_cookie = issued
+        .headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let liked = app
+        .clone()
+        .oneshot(toggle_like_request("post", post_id, &issued_cookie))
+        .await
+        .unwrap();
+    assert_eq!(liked.status(), StatusCode::OK);
+    assert_eq!(read_json(liked).await["data"]["liked"], true);
+
+    let tampered_cookie = issued_cookie.replacen("visitor=", "visitor=forged", 1);
+    let status = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/likes/status?content_type=post&content_id={post_id}"))
+                .header("cookie", cookie_cookie_header(&tampered_cookie))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(status.status(), StatusCode::OK);
+    let replacement = status.headers().get("set-cookie").unwrap().to_str().unwrap();
+    assert_ne!(cookie_cookie_header(replacement), cookie_cookie_header(&tampered_cookie));
+    let body = read_json(status).await;
+    assert_eq!(body["data"]["liked"], false);
+    assert_eq!(body["data"]["like_count"], 1);
+}
+
+#[tokio::test]
+async fn excessive_toggle_requests_hit_rate_limit() {
+    let (app, post_id) = setup_api_post("api-likes-rate-limit").await;
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/likes/status?content_type=post&content_id={post_id}"))
+                .header("x-real-ip", "198.51.100.24")
+                .header("user-agent", "rate-test")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let cookie = first
+        .headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    for _ in 0..6 {
+        let res = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/likes/toggle")
+                    .header("content-type", "application/json")
+                    .header("cookie", cookie_cookie_header(&cookie))
+                    .header("x-real-ip", "198.51.100.24")
+                    .header("user-agent", "rate-test")
+                    .body(Body::from(format!(
+                        r#"{{"content_type":"post","content_id":{post_id}}}"#
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    let limited = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/likes/toggle")
+                .header("content-type", "application/json")
+                .header("cookie", cookie_cookie_header(&cookie))
+                .header("x-real-ip", "198.51.100.24")
+                .header("user-agent", "rate-test")
+                .body(Body::from(format!(
+                    r#"{{"content_type":"post","content_id":{post_id}}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(limited.status(), StatusCode::TOO_MANY_REQUESTS);
+    let body = read_json(limited).await;
+    assert_eq!(body["error"]["code"], 429);
+    assert_eq!(body["error"]["message"], "请求过于频繁，请稍后再试");
+}

@@ -5,11 +5,62 @@ use crate::services::{moments, posts};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::SqliteExecutor;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+const LIKE_RATE_LIMIT_WINDOW_SECS: i64 = 60;
+const LIKE_RATE_LIMIT_MAX_REQUESTS: i64 = 6;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LikeStatus {
     pub liked: bool,
     pub like_count: i64,
+}
+
+#[derive(Clone)]
+pub struct LikeRateLimiter {
+    inner: Arc<Mutex<HashMap<String, (i64, i64)>>>,
+}
+
+impl LikeRateLimiter {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn now_secs() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
+    }
+
+    pub fn check(&self, key: &str) -> bool {
+        let mut map = self.inner.lock().expect("like limiter 锁可用");
+        let now = Self::now_secs();
+        match map.get_mut(key) {
+            None => {
+                map.insert(key.to_string(), (1, now));
+                true
+            }
+            Some(entry) if now - entry.1 > LIKE_RATE_LIMIT_WINDOW_SECS => {
+                *entry = (1, now);
+                true
+            }
+            Some(entry) if entry.0 < LIKE_RATE_LIMIT_MAX_REQUESTS => {
+                entry.0 += 1;
+                true
+            }
+            Some(_) => false,
+        }
+    }
+}
+
+impl Default for LikeRateLimiter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub fn hash_client_hint(raw: &str) -> String {

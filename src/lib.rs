@@ -15,6 +15,7 @@ pub mod web;
 
 use crate::config::Config;
 use crate::error::AppError;
+use crate::services::likes::LikeRateLimiter;
 use crate::services::tokens::PlainStore;
 use crate::session::LoginLimiter;
 use axum::Router;
@@ -63,6 +64,7 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
         config: Arc::new(config),
         db: db.clone(),
         login_limiter: Arc::new(LoginLimiter::new()),
+        like_rate_limiter: Arc::new(LikeRateLimiter::new()),
         tera,
         tera_admin: admin::build_tera(),
         theme_dir,
@@ -132,6 +134,7 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub db: db::Db,
     pub login_limiter: Arc<LoginLimiter>,
+    pub like_rate_limiter: Arc<LikeRateLimiter>,
     pub tera: Tera,
     pub tera_admin: Tera,
     pub theme_dir: PathBuf,

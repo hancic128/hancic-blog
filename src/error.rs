@@ -9,6 +9,7 @@ pub enum AppError {
     BadRequest(String),
     Unauthorized(String),
     Forbidden(String),
+    TooManyRequests(String),
     Internal(String),
     Conflict(String),
 }
@@ -21,6 +22,7 @@ impl AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::Forbidden(_) => StatusCode::FORBIDDEN,
+            AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Conflict(_) => StatusCode::CONFLICT,
         }
@@ -28,8 +30,13 @@ impl AppError {
     /// 错误消息（前台错误页、二进制启动错误等使用）。
     pub fn message(&self) -> &str {
         match self {
-            AppError::NotFound(m) | AppError::BadRequest(m) | AppError::Unauthorized(m)
-            | AppError::Forbidden(m) | AppError::Internal(m) | AppError::Conflict(m) => m,
+            AppError::NotFound(m)
+            | AppError::BadRequest(m)
+            | AppError::Unauthorized(m)
+            | AppError::Forbidden(m)
+            | AppError::TooManyRequests(m)
+            | AppError::Internal(m)
+            | AppError::Conflict(m) => m,
         }
     }
 }

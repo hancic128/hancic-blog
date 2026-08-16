@@ -266,7 +266,7 @@ async fn index(
         // 首页最近说说与说说页同构（moment + attachments），模板可渲染图片/视频附件
         ctx.insert(
             "moments",
-            &moment_items_value(&state.db, &headers, &state.config.base_path, &moments).await?,
+            &moment_items_value(&state.db, &state.config, &headers, &state.config.base_path, &moments).await?,
         );
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
@@ -336,6 +336,7 @@ async fn post_page(
         let column = column_of(&state.db, post.column_id).await?;
         let like_status = like_status_from_headers(
             &state.db,
+            &state.config,
             &headers,
             crate::models::LikeContentType::Post,
             post.id,
@@ -508,7 +509,7 @@ async fn moments_page(
         // 与首页最近说说同款时间线折叠：默认单行，点击展开全文与附件
         ctx.insert(
             "moments",
-            &moment_items_value(&state.db, &headers, &state.config.base_path, &items).await?,
+            &moment_items_value(&state.db, &state.config, &headers, &state.config.base_path, &items).await?,
         );
         ctx.insert("pagination", &moments_pagination_value(page, total));
         let months = moments::month_list(&state.db).await?;
@@ -870,12 +871,13 @@ async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value
 /// 根据请求 cookie 返回当前访客对内容的点赞状态；无 visitor cookie 时视为未点赞。
 async fn like_status_from_headers(
     db: &Db,
+    config: &std::sync::Arc<crate::config::Config>,
     headers: &HeaderMap,
     content_type: crate::models::LikeContentType,
     content_id: i64,
     current_like_count: i64,
 ) -> AppResult<likes::LikeStatus> {
-    match crate::api::likes::ensure_visitor_cookie(headers) {
+    match crate::api::likes::ensure_visitor_cookie(config, headers) {
         (visitor_id, None) => likes::like_status(db, content_type, content_id, &visitor_id).await,
         (_visitor_id, Some(_)) => Ok(likes::LikeStatus {
             liked: false,
@@ -1006,6 +1008,7 @@ fn pagination_with(page: i64, total: i64, page_size: i64) -> Value {
 /// 每条含附件（按 sort_order 升序）；模板渲染为时间线折叠样式。
 async fn moment_items_value(
     db: &Db,
+    config: &std::sync::Arc<crate::config::Config>,
     headers: &HeaderMap,
     base: &str,
     items: &[Moment],
@@ -1015,6 +1018,7 @@ async fn moment_items_value(
         let atts = moments::list_moment_attachments(db, m.id).await?;
         let like_status = like_status_from_headers(
             db,
+            config,
             headers,
             crate::models::LikeContentType::Moment,
             m.id,
