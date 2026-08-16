@@ -132,6 +132,44 @@ fn page_share_description_falls_back_to_body_text() {
 }
 
 #[test]
+fn share_summary_decodes_entities_and_strips_tags() {
+    let share = hancic::web::front::share_context(
+        "实体文章",
+        "",
+        "摘要 <strong>重点</strong>：Rust &amp; Go、&lt;code&gt;、&quot;引号&quot;、&apos;撇号&apos;、&nbsp;空格。",
+        "/post/entities",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    let description = share.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(description.contains("重点"));
+    assert!(!description.contains("<strong>"), "应剥离 HTML 标签");
+    assert!(description.contains("Rust & Go"), "&amp; 应解码为 &");
+    assert!(description.contains("<code>"), "&lt;code&gt; 应解码为字面文本");
+    assert!(description.contains("引号"), "&quot; 应解码为引号");
+    assert!(description.contains("撇号"), "&apos; 应解码为撇号");
+    for residue in ["&amp;", "&lt;", "&gt;", "&quot;", "&apos;", "&nbsp;"] {
+        assert!(!description.contains(residue), "摘要不应残留实体文本 {residue}");
+    }
+
+    // 裸 & 与未知实体应原样保留
+    let bare = hancic::web::front::share_context(
+        "裸与符号",
+        "",
+        "Rust & Go、&unknown; 结尾",
+        "/post/bare-amp",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+    let bare_desc = bare.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(bare_desc.contains("Rust & Go"), "裸 & 不应被吞掉");
+    assert!(bare_desc.contains("&unknown;"), "未知实体应原样保留");
+}
+
+#[test]
 fn share_context_omits_image_when_site_url_or_logo_missing() {
     let no_site = hancic::web::front::share_context(
         "无站点地址",

@@ -974,18 +974,43 @@ pub fn absolute_url(site_url: Option<&str>, path: &str) -> Option<String> {
     Some(format!("{origin}{path}"))
 }
 
+/// 剥离 HTML 标签并解码常见 HTML 实体的纯文本摘要（≤ max_chars 字符）。
+/// 实体解码覆盖分享摘要常见的命名实体（`&amp;` `&lt;` `&gt;` `&quot;`
+/// `&apos;` `&nbsp;` 及常用排版实体）与数字引用（`&#NN;` / `&#xHH;`）；
+/// 未知实体与裸 `&` 原样保留。最小实现，不引入外部依赖。
 fn plain_text_summary(input: &str, max_chars: usize) -> String {
     let html = crate::markdown::render(input);
+    let chars: Vec<char> = html.chars().collect();
     let mut text = String::with_capacity(html.len());
     let mut in_tag = false;
     let mut last_was_space = true;
-    for c in html.chars() {
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
         match c {
             '<' => in_tag = true,
             '>' => in_tag = false,
             '&' if !in_tag => {
-                text.push('&');
-                last_was_space = false;
+                match decode_entity_at(&chars, i) {
+                    Some((decoded, consumed)) => {
+                        // 解码出的空白（如 &nbsp;）同样折叠成普通空格
+                        if decoded.is_whitespace() {
+                            if !last_was_space {
+                                text.push(' ');
+                                last_was_space = true;
+                            }
+                        } else {
+                            text.push(decoded);
+                            last_was_space = false;
+                        }
+                        i += consumed;
+                        continue;
+                    }
+                    None => {
+                        text.push('&');
+                        last_was_space = false;
+                    }
+                }
             }
             c if in_tag => {
                 let _ = c;
@@ -1001,12 +1026,78 @@ fn plain_text_summary(input: &str, max_chars: usize) -> String {
                 last_was_space = false;
             }
         }
+        i += 1;
     }
     let mut out = String::new();
     for ch in text.trim().chars().take(max_chars) {
         let _ = out.write_char(ch);
     }
     out.trim().to_string()
+}
+
+/// 在 `chars[i] == '&'` 处解析一个 HTML 实体：命名（`&amp;` 等）或数字
+/// （`&#123;` / `&#x1f;`）。成功返回（解码字符，含 `&` 在内的消耗字符数）。
+fn decode_entity_at(chars: &[char], i: usize) -> Option<(char, usize)> {
+    let mut j = i + 1;
+    // 数字引用：&#123; / &#x1f;
+    if chars.get(j) == Some(&'#') {
+        let mut j = i + 2;
+        let mut radix = 10u32;
+        if matches!(chars.get(j), Some('x') | Some('X')) {
+            radix = 16;
+            j += 1;
+        }
+        let digits_start = j;
+        let mut val = 0u32;
+        while let Some(&c) = chars.get(j) {
+            if c == ';' {
+                break;
+            }
+            if j - digits_start >= 8 {
+                return None;
+            }
+            val = val.checked_mul(radix)?.checked_add(c.to_digit(radix)?)?;
+            j += 1;
+        }
+        if j == digits_start || chars.get(j) != Some(&';') {
+            return None;
+        }
+        return Some((char::from_u32(val)?, j + 1 - i));
+    }
+    // 命名引用：&amp; 等（≤16 字母数字）
+    let name_start = j;
+    while let Some(&c) = chars.get(j) {
+        if c == ';' {
+            break;
+        }
+        if !c.is_ascii_alphanumeric() || j - name_start >= 16 {
+            return None;
+        }
+        j += 1;
+    }
+    if j == name_start || chars.get(j) != Some(&';') {
+        return None;
+    }
+    let name: String = chars[name_start..j].iter().collect();
+    let decoded = match name.as_str() {
+        "amp" => '&',
+        "lt" => '<',
+        "gt" => '>',
+        "quot" => '"',
+        "apos" => '\'',
+        "nbsp" => '\u{00A0}',
+        "hellip" => '\u{2026}',
+        "mdash" => '\u{2014}',
+        "ndash" => '\u{2013}',
+        "middot" => '\u{00B7}',
+        "copy" => '\u{00A9}',
+        "lsquo" => '\u{2018}',
+        "rsquo" => '\u{2019}',
+        "ldquo" => '\u{201C}',
+        "rdquo" => '\u{201D}',
+        _ => return None,
+    };
+    Some((decoded, j + 1 - i))
 }
 
 pub fn share_summary(excerpt: &str, content_md: &str) -> String {
@@ -1318,4 +1409,26 @@ fn fallback_error_page(status: StatusCode, message: &str) -> Response {
         )),
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plain_text_summary_decodes_named_entities_and_strips_tags() {
+        // 标签剥离 + 命名/数字实体解码 + 未知实体原样保留
+        let summary = plain_text_summary("A <b>B</b> &amp; C &lt;D&gt; &#43; &unknown;", 200);
+        assert_eq!(summary, "A B & C <D> + &unknown;");
+    }
+
+    #[test]
+    fn decode_entity_at_handles_named_numeric_and_unknown() {
+        let s: Vec<char> = "&amp; &lt; &#43; &#x2B; &unknown;".chars().collect();
+        assert_eq!(decode_entity_at(&s, 0), Some(('&', 5)));
+        assert_eq!(decode_entity_at(&s, 6), Some(('<', 4)));
+        assert_eq!(decode_entity_at(&s, 11), Some(('+', 5)));
+        assert_eq!(decode_entity_at(&s, 17), Some(('+', 6)));
+        assert_eq!(decode_entity_at(&s, 24), None);
+    }
 }

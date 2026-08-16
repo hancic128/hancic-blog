@@ -60,3 +60,15 @@ Ran:
 ## Follow-up
 
 Committed the Task 2 work in git after review.
+
+## Review fix
+
+Addressed the open review finding on `plain_text_summary` in `src/web/front.rs`:
+
+- `plain_text_summary` now decodes common HTML entities while stripping tags, via a new minimal `decode_entity_at()` helper (no new dependencies):
+  - named: `&amp;` `&lt;` `&gt;` `&quot;` `&apos;` `&nbsp;` plus common typographic entities (`hellip`, `mdash`, `ndash`, `middot`, `copy`, `lsquo/rsquo/ldquo/rdquo`)
+  - numeric: `&#NN;` (decimal) and `&#xHH;` (hex), with overflow guard
+  - bare `&` and unknown entities are preserved as-is
+- Added unit tests in `src/web/front.rs` (`mod tests`) covering entity decoding (named/numeric/unknown) together with tag stripping, plus a `share_context`-level test in `tests/front_pages.rs` asserting no entity residue in the description.
+
+Route-level integration coverage for post/page/about share metadata was NOT added — out of scope for this fix.
