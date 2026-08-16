@@ -4,7 +4,7 @@ use crate::models::LikeContentType;
 use crate::services::{moments, posts};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use sqlx::SqliteExecutor;
+use sqlx::{Row, SqliteExecutor};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -153,6 +153,43 @@ pub async fn recent_like_count(db: &Db, days: i64) -> Result<i64, AppError> {
     .fetch_one(db)
     .await?;
     Ok(total)
+}
+
+/// 按日点赞数（UTC 日期分组，与仪表盘阅读趋势横轴一致）。
+/// `from`/`to` 为 `YYYY-MM-DD`，缺省不设限；返回 [(日期, 点赞数)] 升序。
+pub async fn daily_like_count(
+    db: &Db,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> Result<Vec<(String, i64)>, AppError> {
+    let mut conds: Vec<String> = Vec::new();
+    let mut binds: Vec<String> = Vec::new();
+    if let Some(f) = from.filter(|f| !f.is_empty()) {
+        conds.push("created_at >= ?".to_string());
+        binds.push(f.to_string());
+    }
+    if let Some(t) = to.filter(|t| !t.is_empty()) {
+        conds.push("created_at < date(?, '+1 day')".to_string());
+        binds.push(t.to_string());
+    }
+    let where_sql = if conds.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conds.join(" AND "))
+    };
+    let sql = format!(
+        "SELECT substr(created_at, 1, 10) AS date, COUNT(*) AS count \
+         FROM content_likes {where_sql} GROUP BY date ORDER BY date"
+    );
+    let mut q = sqlx::query(&sql);
+    for b in &binds {
+        q = q.bind(b);
+    }
+    let rows = q.fetch_all(db).await?;
+    Ok(rows
+        .iter()
+        .map(|r| (r.get::<String, _>("date"), r.get::<i64, _>("count")))
+        .collect())
 }
 
 async fn ensure_target_exists(

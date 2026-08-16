@@ -863,6 +863,8 @@ async fn listing_ctx(
     ctx.insert("sort_ctl", &true);
     ctx.insert("current_sort", &sort.field);
     ctx.insert("sort_base", base);
+    // 列表页文章卡片展示点赞数（归档/分类/标签/专栏）
+    ctx.insert("show_like", &true);
     // 列表总数（专栏页标题等处展示）
     ctx.insert("post_total", &total);
     Ok(ctx)

@@ -269,6 +269,45 @@ button, a, [role="button"], label { cursor: pointer; }
   font-size: .9375rem;
 }
 
+/* ---------- 点赞 ---------- */
+.like-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+}
+.like-toggle,
+.moment-like-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: .875rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 200ms ease;
+  align-self: center;
+}
+.like-toggle:hover,
+.like-toggle[aria-pressed="true"],
+.moment-like-toggle:hover,
+.moment-like-toggle[aria-pressed="true"] {
+  color: var(--accent);
+}
+.like-count {
+  color: inherit;
+}
+/* 文章列表 meta 中的点赞（静态展示，不可点击） */
+.post-like-count {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  color: var(--muted);
+}
+
 .empty {
   color: var(--muted);
   text-align: center;
@@ -806,8 +845,10 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .side-toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
 .side-toc a { color: var(--fg); text-decoration: none; font-size: .9rem; line-height: 1.5; }
 .side-toc a:hover { color: var(--accent); }
-/* 目录层级：2 级标题正常，3 级缩进 */
-.toc-list .toc-l3 { padding-left: 1rem; }
+/* 目录层级：1 级无缩进，2 级缩进，3 级进一步缩进 */
+.toc-list .toc-l2 { padding-left: 1rem; }
+.toc-list .toc-l2 a { color: var(--muted); font-size: .85rem; }
+.toc-list .toc-l3 { padding-left: 2rem; }
 .toc-list .toc-l3 a { color: var(--muted); font-size: .85rem; }
 .side-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
 /* 按月份时间线：竖线（ul::before 独立绘制）+ 节点圆点，两者中心对齐。
@@ -918,8 +959,9 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .moment-dot { position: absolute; left: -1.42rem; top: .35rem; width: 9px; height: 9px;
   border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
   box-shadow: 0 0 0 2px var(--accent); }
+.moment-head { display: flex; align-items: baseline; gap: .6rem; }
 .moment-toggle { cursor: pointer; background: none; border: 0; padding: 0;
-  display: flex; align-items: baseline; gap: .6rem; width: 100%; text-align: left; }
+  display: flex; align-items: baseline; gap: .6rem; flex: 1; min-width: 0; text-align: left; }
 .moment-time { font-size: .78rem; color: var(--muted); flex-shrink: 0; }
 .moment-preview { font-size: .9rem; color: var(--muted); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; flex: 1; }

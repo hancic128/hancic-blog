@@ -77,6 +77,19 @@ async fn stats_overview_region_detail_and_clear() {
         .unwrap();
     }
 
+    // 手工 INSERT 两条点赞记录（当日），供点赞趋势断言
+    for content_id in [p1.id, p2.id] {
+        sqlx::query(
+            "INSERT INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash)
+             VALUES ('post', ?, ?, '', '')",
+        )
+        .bind(content_id)
+        .bind(format!("visitor-{content_id}"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
     // 历史 /admin/stats 直接渲染仪表盘（统计已合并）
     let res = client.get(format!("{base}/admin/stats")).send().await.unwrap();
     assert_eq!(res.status(), 200, "历史统计路由应直接渲染仪表盘");
@@ -91,6 +104,18 @@ async fn stats_overview_region_detail_and_clear() {
     );
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
     assert!(html.contains(&today), "趋势横轴应含当日 {today}");
+    // 点赞趋势：当日点赞数 = 2（两条 content_likes 记录），chart_data 双数据集
+    let chart_start = html.find("window.chartData = ").map(|i| i + "window.chartData = ".len())
+        .expect("仪表盘应输出 chartData");
+    let chart_json = html[chart_start..].split("</script>").next().unwrap_or("").trim();
+    let chart_json = chart_json.strip_suffix(';').unwrap_or(chart_json);
+    let chart: serde_json::Value = serde_json::from_str(chart_json)
+        .unwrap_or_else(|e| panic!("chartData 应为合法 JSON: {e}"));
+    assert!(chart.get("views").is_some(), "趋势数据应含阅读序列");
+    let likes = chart.get("likes").and_then(|v| v.as_array()).expect("趋势数据应含点赞序列");
+    assert_eq!(likes.last().and_then(|v| v.as_i64()), Some(2),
+        "点赞趋势当日应为 2: {likes:?}");
+    assert!(html.contains("阅读 / 点赞趋势"), "趋势标题应标注阅读与点赞");
 
     // 文章排行：两篇文章都在仪表盘排行区
     assert!(html.contains("统计文章一") && html.contains("统计文章二"), "排行应含两篇文章");

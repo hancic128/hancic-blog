@@ -296,11 +296,13 @@ button, a, [role="button"], label { cursor: pointer; }
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .moment-body { flex: 1; min-width: 0; }
+.moment-head { display: flex; align-items: baseline; gap: .7rem; }
 .moment-toggle {
   display: flex;
   align-items: baseline;
   gap: .7rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0;
   border: none;
   background: none;
@@ -374,6 +376,46 @@ button, a, [role="button"], label { cursor: pointer; }
 .meta a { color: var(--muted); text-decoration: none; }
 .meta a:hover { color: var(--accent); }
 .excerpt { margin: .7rem 0 0; font-size: .94rem; color: var(--muted); line-height: 1.75; }
+
+/* ---------- 点赞 ---------- */
+.like-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+}
+.like-toggle,
+.moment-like-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: .875rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 200ms ease;
+  align-self: center;
+}
+.like-toggle:hover,
+.like-toggle[aria-pressed="true"],
+.moment-like-toggle:hover,
+.moment-like-toggle[aria-pressed="true"] {
+  color: var(--accent);
+}
+.like-count {
+  color: inherit;
+}
+/* 文章列表 meta 中的点赞（静态展示，不可点击） */
+.post-like-count {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  color: var(--muted);
+}
+
 .post-tags { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .85rem; }
 .tag-link {
   display: inline-block;

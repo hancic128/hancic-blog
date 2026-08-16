@@ -297,14 +297,34 @@ async fn homepage_article_card_shows_like_count() {
     assert_eq!(status, StatusCode::OK);
     assert!(
         html.contains("class=\"post-like-count\""),
-        "文章卡片应渲染点赞容器"
+        "首页文章卡片应渲染点赞容器"
+    );
+    assert!(html.contains("like-icon"), "首页文章卡片应显示点赞图标");
+    assert!(html.contains(">7</span></span>"), "点赞数应绑定在文章卡片点赞容器中");
+}
+
+#[tokio::test]
+async fn archives_article_card_shows_like_count() {
+    let (app, pool) = test_app("front-like-card-archives").await;
+    let post_id = create_published_post(&pool, "点赞卡片文章", None, vec![]).await;
+    sqlx::query("UPDATE posts SET like_count = 7 WHERE id = ?")
+        .bind(post_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/archives").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        html.contains("class=\"post-like-count\""),
+        "归档页文章卡片应渲染点赞容器"
     );
     assert!(html.contains(">7</span></span>"), "点赞数应绑定在文章卡片点赞容器中");
     assert!(html.contains("like-icon"));
 }
 
 #[tokio::test]
-async fn homepage_article_list_sort_supports_like_count() {
+async fn homepage_article_list_hides_like_sort() {
     let (app, pool) = test_app("front-like-sort").await;
     let first = create_published_post(&pool, "低赞文章", None, vec![]).await;
     let second = create_published_post(&pool, "高赞文章", None, vec![]).await;
@@ -319,13 +339,16 @@ async fn homepage_article_list_sort_supports_like_count() {
         .await
         .unwrap();
 
-    let (home_status, home_html) = get_html(&app, "/?sort=like_count").await;
+    let (home_status, home_html) = get_html(&app, "/").await;
     assert_eq!(home_status, StatusCode::OK);
-    assert!(home_html.contains("href=\"?sort=like_count\""), "首页应提供按点赞排序链接");
-    assert!(home_html.contains("按点赞"), "首页排序入口应展示按点赞文案");
+    assert!(
+        !home_html.contains("href=\"?sort=like_count\""),
+        "首页不应提供按点赞排序链接"
+    );
+    assert!(!home_html.contains("按点赞"), "首页排序入口不应展示按点赞文案");
     let home_high = home_html.find("高赞文章").unwrap();
     let home_low = home_html.find("低赞文章").unwrap();
-    assert!(home_high < home_low, "首页按点赞数排序时高赞文章应排在前面");
+    assert!(home_high < home_low, "首页高赞文章应排在前面（默认顺序）");
 
     let (status, html) = get_html(&app, "/archives?sort=like_count").await;
     assert_eq!(status, StatusCode::OK);

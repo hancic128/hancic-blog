@@ -35,7 +35,7 @@ async fn dashboard_requires_login_and_shows_counts() {
         html.contains("admin-nav-item active"),
         "仪表盘导航项应高亮"
     );
-    assert!(html.contains("阅读趋势"), "仪表盘应含趋势图区块");
+    assert!(html.contains("阅读 / 点赞趋势"), "仪表盘应含趋势图区块");
     assert!(html.contains("window.chartData"), "仪表盘应输出趋势数据");
 
     // 后台页禁止缓存（M19）

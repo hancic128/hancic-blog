@@ -406,6 +406,22 @@ async fn fill_dashboard(
         .map(|d| counts.get(d.as_str()).copied().unwrap_or(0))
         .collect();
 
+    // 点赞趋势：与阅读趋势同横轴（UTC 日期），区间内无点赞补 0
+    let like_daily = crate::services::likes::daily_like_count(
+        &state.db,
+        from.as_deref(),
+        to.as_deref(),
+    )
+    .await?;
+    let like_counts: HashMap<&str, i64> = like_daily
+        .iter()
+        .map(|(date, count)| (date.as_str(), *count))
+        .collect();
+    let like_trend_data: Vec<i64> = days
+        .iter()
+        .map(|d| like_counts.get(d.as_str()).copied().unwrap_or(0))
+        .collect();
+
     // 文章排行：服务层一次拉取（上限内），内存分页
     let top = stats_service::top_posts(&state.db, from.as_deref(), to.as_deref(), stats::TOP_POSTS_CAP)
         .await?;
@@ -458,7 +474,13 @@ async fn fill_dashboard(
     );
     // 内嵌 JSON 供 admin.js 画图：safe_string 标记避免 tera 自动转义破坏脚本。
     // 注意必须走 insert_value——insert 会重新序列化并丢失 safe 标记。
-    let chart_json = json!({ "labels": days, "data": trend_data }).to_string();
+    // 双数据集：views（阅读）+ likes（点赞），labels 为 UTC 日期横轴。
+    let chart_json = json!({
+        "labels": days,
+        "views": trend_data,
+        "likes": like_trend_data,
+    })
+    .to_string();
     ctx.insert_value("chart_data", tera::Value::safe_string(&chart_json));
     Ok(())
 }

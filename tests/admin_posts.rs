@@ -341,3 +341,61 @@ async fn admin_posts_list_sorts_by_like_count_desc() {
     let low_pos = html.find("低赞文章").expect("应包含低赞文章");
     assert!(high_pos < low_pos, "like_count desc 应先显示高赞文章: {html}");
 }
+
+/// 文章管理列表默认显示全部类型（文章 + 页面）；type=post 仅显示文章。
+#[tokio::test]
+async fn posts_list_defaults_to_all_types() {
+    let cfg = test_config("admin-posts-all-types");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    // seed：一篇文章 + 一个独立页面（直接写库，绕过 CSRF 流程）
+    for (title, post_type) in [
+        ("全部类型文章", "post"),
+        ("全部类型页面", "page"),
+    ] {
+        sqlx::query(
+            "INSERT INTO posts(slug, title, content_md, status, post_type, published_at)
+             VALUES (?, ?, 'x', 'published', ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
+        )
+        .bind(format!("{}-{}", post_type, title))
+        .bind(title)
+        .bind(post_type)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
+    // 默认列表（无 type 参数）：文章与页面都应显示，类型筛选默认「全部类型」
+    let html = client
+        .get(format!("{base}/admin/posts"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(html.contains("全部类型文章"), "默认列表应含文章: {html}");
+    assert!(html.contains("全部类型页面"), "默认列表应含页面: {html}");
+    assert!(
+        html.contains(r#"<option value="all" selected>全部类型</option>"#),
+        "类型筛选应默认选中「全部类型」: {html}"
+    );
+
+    // type=post：仅文章
+    let html = client
+        .get(format!("{base}/admin/posts?type=post"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(html.contains("全部类型文章"), "type=post 应含文章: {html}");
+    assert!(!html.contains("全部类型页面"), "type=post 不应含页面: {html}");
+}

@@ -62,10 +62,10 @@ pub async fn list(
         _ => None,
     };
     let category_slug = query.get("category").filter(|s| !s.is_empty()).cloned();
-    // 列表默认只显示文章（post），页面通过「全部类型」查看；type=all 显示全部
-    let post_type = match query.get("type").map(String::as_str).unwrap_or("") {
+    // 列表默认显示全部类型；type=post/page 时按类型筛选（与模板默认选中「全部类型」一致）
+    let post_type = match query.get("type").map(String::as_str).unwrap_or("all") {
         "page" => Some(PostType::Page),
-        "post" | "" => Some(PostType::Post),
+        "post" => Some(PostType::Post),
         _ => None, // all 或未知值：显示全部
     };
     let q = query
@@ -130,7 +130,7 @@ pub async fn list(
         "filters",
         &json!({
             "status": query.get("status").map(String::as_str).unwrap_or(""),
-            "type": query.get("type").map(String::as_str).unwrap_or(""),
+            "type": query.get("type").map(String::as_str).unwrap_or("all"),
             "category": category_slug.unwrap_or_default(),
             "q": q,
             "sort": query.get("sort").map(String::as_str).unwrap_or(""),

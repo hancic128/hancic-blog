@@ -895,12 +895,13 @@
     });
   }
 
-  // ---- 仪表盘趋势图（Chart.js）----
+  // ---- 仪表盘趋势图（Chart.js）：阅读量 + 点赞数双线 ----
   document.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('trend');
     if (!canvas || !window.Chart || !window.chartData) return;
     var isLight = currentMode() === 'light';
     var accentColor = isLight ? '#16A34A' : '#22C55E';
+    var likeColor = isLight ? '#BE185D' : '#F472B6';
     var gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
     var tickColor = isLight ? '#64748B' : '#7C8DB0';
     window._adminChart = new window.Chart(canvas, {
@@ -909,7 +910,7 @@
         labels: window.chartData.labels,
         datasets: [{
           label: '阅读量',
-          data: window.chartData.data,
+          data: window.chartData.views,
           borderColor: accentColor,
           backgroundColor: isLight ? 'rgba(22, 163, 74, 0.08)' : 'rgba(34, 197, 94, 0.10)',
           fill: true,
@@ -917,12 +918,33 @@
           pointRadius: 2,
           pointBackgroundColor: accentColor,
           borderWidth: 2
+        }, {
+          label: '点赞数',
+          data: window.chartData.likes,
+          borderColor: likeColor,
+          backgroundColor: isLight ? 'rgba(190, 24, 93, 0.08)' : 'rgba(244, 114, 182, 0.10)',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 2,
+          pointBackgroundColor: likeColor,
+          borderWidth: 2,
+          borderDash: [5, 4]
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              color: tickColor,
+              boxWidth: 14,
+              usePointStyle: true,
+              padding: 12
+            }
+          }
+        },
         scales: {
           x: { grid: { color: gridColor }, ticks: { color: tickColor } },
           y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } }

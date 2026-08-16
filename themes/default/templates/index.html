@@ -42,9 +42,9 @@
         <span class="section-sort" role="group" aria-label="文章排序">
           <a class="{% if current_sort == 'published_at' %}active{% endif %}" href="?sort=published_at">按发布时间</a>
           <a class="{% if current_sort == 'updated_at' %}active{% endif %}" href="?sort=updated_at">按更新时间</a>
-          <a class="{% if current_sort == 'like_count' %}active{% endif %}" href="?sort=like_count">按点赞</a>
         </span>
       </h1>
+      {% set_global show_like = true %}
       {% include "partials/post_list.html" %}
       {% if post_total > 5 %}
       <p class="more-link"><a href="{{ base_path }}/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
