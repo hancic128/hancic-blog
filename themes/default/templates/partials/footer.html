@@ -56,7 +56,7 @@
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/highlight.min.js"></script>
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/mermaid/mermaid.min.js"></script>
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/main.js"></script>
-<script >
+<script>
 document.addEventListener('click', async (event) => {
   const btn = event.target.closest('[data-like-toggle]');
   if (!btn || btn.dataset.loading === '1') return;

@@ -144,22 +144,18 @@ async fn search_escapes_html_in_snippet() {
 
     let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("script"))).await;
     assert_eq!(status, StatusCode::OK);
-    // 命中词被高亮包裹，正文中的 `<`/`>` 必须转义：不得出现未转义的 <script>
+
+    let snippet_start = html.find("<p class=\"excerpt\">").unwrap();
+    let snippet_end = html[snippet_start..].find("</p>").unwrap() + snippet_start;
+    let snippet = &html[snippet_start..snippet_end];
+
     assert!(
-        !html.contains("<script>"),
-        "不得出现未转义的 <script>: {html}"
+        !snippet.contains("<script>"),
+        "snippet 不得出现未转义的 <script>: {snippet}"
     );
     assert!(
-        html.contains("<script\n>") || html.contains("<script >"),
-        "页面脚本标签应避免输出精确的 <script> 子串，以免干扰安全断言: {html}"
-    );
-    assert!(
-        html.contains("&lt;") && html.contains("&gt;"),
-        "snippet 中尖括号应转义: {html}"
-    );
-    assert!(
-        html.contains("<mark>script</mark>") || html.contains("<mark>"),
-        "命中词高亮应保留: {html}"
+        snippet.contains("&lt;<mark>script</mark>&gt;alert(1)&lt;/<mark>script</mark>&gt;"),
+        "snippet 应转义 HTML 并保留高亮: {snippet}"
     );
 }
 
