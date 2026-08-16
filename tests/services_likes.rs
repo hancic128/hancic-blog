@@ -219,6 +219,47 @@ async fn recent_like_count_counts_rows_in_window() {
     assert_eq!(total, 2);
 }
 
+#[tokio::test]
+async fn duplicate_like_row_is_recovered_without_internal_error() {
+    let (pool, post_id) = setup_post().await;
+    sqlx::query(
+        "INSERT INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("post")
+    .bind(post_id)
+    .bind("visitor-race")
+    .bind("iphash")
+    .bind("uahash")
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let status = likes::toggle_like(
+        &pool,
+        LikeContentType::Post,
+        post_id,
+        "visitor-race-2",
+        "iphash",
+        "uahash",
+    )
+    .await;
+
+    assert!(status.is_ok(), "recovery path must not surface internal error");
+    let status = status.unwrap();
+    assert!(status.liked);
+    assert_eq!(status.like_count, 2);
+
+    let rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM content_likes WHERE content_type = ? AND content_id = ?",
+    )
+    .bind("post")
+    .bind(post_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows, 2);
+}
+
 #[test]
 fn hash_client_hint_returns_stable_sha256_hex() {
     let hashed = likes::hash_client_hint("127.0.0.1");

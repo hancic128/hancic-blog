@@ -67,8 +67,8 @@ pub async fn toggle_like(
         bump_like_count(&mut *tx, target, content_id, -1).await?;
         false
     } else {
-        sqlx::query(
-            "INSERT INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?)",
+        let inserted = sqlx::query(
+            "INSERT OR IGNORE INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(target.to_str())
         .bind(content_id)
@@ -76,12 +76,17 @@ pub async fn toggle_like(
         .bind(ip_hash)
         .bind(ua_hash)
         .execute(&mut *tx)
-        .await?;
-        bump_like_count(&mut *tx, target, content_id, 1).await?;
+        .await?
+        .rows_affected()
+            > 0;
+        if inserted {
+            bump_like_count(&mut *tx, target, content_id, 1).await?;
+        }
         true
     };
 
-    let like_count = current_like_count(&mut *tx, target, content_id).await?;
+    let like_count = recount_like_count(&mut *tx, target, content_id).await?;
+    set_like_count(&mut *tx, target, content_id, like_count).await?;
     tx.commit().await?;
     Ok(LikeStatus { liked, like_count })
 }
@@ -167,4 +172,44 @@ async fn current_like_count_db(
     content_id: i64,
 ) -> Result<i64, AppError> {
     current_like_count(db, target, content_id).await
+}
+
+async fn recount_like_count<'e, E>(
+    executor: E,
+    target: LikeContentType,
+    content_id: i64,
+) -> Result<i64, AppError>
+where
+    E: SqliteExecutor<'e>,
+{
+    let count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM content_likes WHERE content_type = ? AND content_id = ?",
+    )
+    .bind(target.to_str())
+    .bind(content_id)
+    .fetch_one(executor)
+    .await?;
+    Ok(count)
+}
+
+async fn set_like_count<'e, E>(
+    executor: E,
+    target: LikeContentType,
+    content_id: i64,
+    like_count: i64,
+) -> Result<(), AppError>
+where
+    E: SqliteExecutor<'e>,
+{
+    let table = match target {
+        LikeContentType::Post => "posts",
+        LikeContentType::Moment => "moments",
+    };
+    let sql = format!("UPDATE {table} SET like_count = ? WHERE id = ?");
+    sqlx::query(&sql)
+        .bind(like_count)
+        .bind(content_id)
+        .execute(executor)
+        .await?;
+    Ok(())
 }
