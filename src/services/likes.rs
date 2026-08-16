@@ -60,12 +60,17 @@ pub async fn toggle_like(
     .await?;
 
     let liked = if let Some(id) = exists {
-        sqlx::query("DELETE FROM content_likes WHERE id = ?")
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
-        bump_like_count(&mut *tx, target, content_id, -1).await?;
-        false
+        let current = current_like_count(&mut *tx, target, content_id).await?;
+        if current <= 0 {
+            true
+        } else {
+            sqlx::query("DELETE FROM content_likes WHERE id = ?")
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+            bump_like_count(&mut *tx, target, content_id, -1).await?;
+            false
+        }
     } else {
         let inserted = sqlx::query(
             "INSERT OR IGNORE INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?)",

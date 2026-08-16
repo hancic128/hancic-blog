@@ -234,11 +234,17 @@ async fn duplicate_like_row_is_recovered_without_internal_error() {
     .await
     .unwrap();
 
+    sqlx::query("UPDATE posts SET like_count = 0 WHERE id = ?")
+        .bind(post_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
     let status = likes::toggle_like(
         &pool,
         LikeContentType::Post,
         post_id,
-        "visitor-race-2",
+        "visitor-race",
         "iphash",
         "uahash",
     )
@@ -247,17 +253,18 @@ async fn duplicate_like_row_is_recovered_without_internal_error() {
     assert!(status.is_ok(), "recovery path must not surface internal error");
     let status = status.unwrap();
     assert!(status.liked);
-    assert_eq!(status.like_count, 2);
+    assert_eq!(status.like_count, 1);
 
     let rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM content_likes WHERE content_type = ? AND content_id = ?",
+        "SELECT COUNT(*) FROM content_likes WHERE content_type = ? AND content_id = ? AND visitor_id = ?",
     )
     .bind("post")
     .bind(post_id)
+    .bind("visitor-race")
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(rows, 2);
+    assert_eq!(rows, 1);
 }
 
 #[test]
