@@ -20,3 +20,5 @@ scripts/
 Dockerfile
 docker-compose.yaml
 .dockerignore
+# SDD git worktrees（本机 runner 特有的巨型目录，含各自 target）
+.worktrees/
