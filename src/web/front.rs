@@ -9,7 +9,7 @@
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
 use crate::models::{Moment, Post, PostStatus, PostType};
-use crate::services::{moments, posts, settings, stats, taxonomy};
+use crate::services::{likes, moments, posts, settings, stats, taxonomy};
 use crate::{themes, AppState};
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -215,6 +215,7 @@ fn resolve_preview(state: &AppState, query: &HashMap<String, String>) -> Option<
 
 async fn index(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let preview = resolve_preview(&state, &query);
@@ -263,7 +264,10 @@ async fn index(
         ctx.insert("calendar", &calendar_matrix(&calendar));
         ctx.insert("hot_columns", &hot_columns);
         // 首页最近说说与说说页同构（moment + attachments），模板可渲染图片/视频附件
-        ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &moments).await?);
+        ctx.insert(
+            "moments",
+            &moment_items_value(&state.db, &headers, &state.config.base_path, &moments).await?,
+        );
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
         ctx.insert("current_sort", &sort.field);
@@ -327,8 +331,16 @@ async fn post_page(
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
         let column = column_of(&state.db, post.column_id).await?;
+        let like_status = like_status_from_headers(
+            &state.db,
+            &headers,
+            crate::models::LikeContentType::Post,
+            post.id,
+            post.like_count,
+        )
+        .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
-        ctx.insert("post", &post_value(&post));
+        ctx.insert("post", &post_value(&post, like_status.liked));
         ctx.insert(
             "category",
             &category
@@ -426,7 +438,7 @@ async fn page_page(
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
-        ctx.insert("page", &post_value(&page));
+        ctx.insert("page", &post_value(&page, false));
         // 页面正文（带标题锚点）+ 目录，供右侧栏导航（内容长时便于跳转）
         let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
         ctx.insert("content_html", &content_html);
@@ -458,7 +470,7 @@ async fn about_page(
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Page)
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
-        ctx.insert("page", &post_value(&page));
+        ctx.insert("page", &post_value(&page, false));
         let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
         ctx.insert("content_html", &content_html);
         ctx.insert(
@@ -480,6 +492,7 @@ async fn about_page(
 /// 说说页：朋友圈式按天分组展示（分页 20/页）；右侧按月份筛选（默认半年）。
 async fn moments_page(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let page = page_param(&query);
@@ -490,7 +503,10 @@ async fn moments_page(
             moments::list_moments(&state.db, month.as_deref(), false, None, page, MOMENTS_PAGE_SIZE).await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         // 与首页最近说说同款时间线折叠：默认单行，点击展开全文与附件
-        ctx.insert("moments", &moment_items_value(&state.db, &state.config.base_path, &items).await?);
+        ctx.insert(
+            "moments",
+            &moment_items_value(&state.db, &headers, &state.config.base_path, &items).await?,
+        );
         ctx.insert("pagination", &moments_pagination_value(page, total));
         let months = moments::month_list(&state.db).await?;
         ctx.insert(
@@ -824,12 +840,14 @@ async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value
         let (html, _) = crate::markdown::render_with_toc(&p.content_md);
         let word_count = html_word_count(&html);
         list.push(json!({
+            "id": p.id,
             "slug": p.slug,
             "title": p.title,
             "excerpt": p.excerpt,
             "published_at": p.published_at.map(|d| d.to_rfc3339()),
             "updated_at": p.updated_at.to_rfc3339(),
             "views": p.views,
+            "like_count": p.like_count,
             "word_count": word_count,
             "read_minutes": word_count.div_ceil(300).max(1),
             "url": post_url(base, p),
@@ -837,6 +855,23 @@ async fn post_list_value(db: &Db, base: &str, items: &[Post]) -> AppResult<Value
         }));
     }
     Ok(json!(list))
+}
+
+/// 根据请求 cookie 返回当前访客对内容的点赞状态；无 visitor cookie 时视为未点赞。
+async fn like_status_from_headers(
+    db: &Db,
+    headers: &HeaderMap,
+    content_type: crate::models::LikeContentType,
+    content_id: i64,
+    current_like_count: i64,
+) -> AppResult<likes::LikeStatus> {
+    match crate::api::likes::ensure_visitor_cookie(headers) {
+        (visitor_id, None) => likes::like_status(db, content_type, content_id, &visitor_id).await,
+        (_visitor_id, Some(_)) => Ok(likes::LikeStatus {
+            liked: false,
+            like_count: current_like_count,
+        }),
+    }
 }
 
 /// 搜索页命中 JSON：标题/链接/高亮片段（`| safe` 渲染 `<mark>`）/日期/阅读量。
@@ -854,8 +889,9 @@ fn search_hit_list_value(base: &str, hits: &[posts::SearchHit]) -> Value {
 }
 
 /// 文章页上下文 JSON。
-fn post_value(p: &Post) -> Value {
+fn post_value(p: &Post, liked: bool) -> Value {
     json!({
+        "id": p.id,
         "slug": p.slug,
         "title": p.title,
         "content_md": p.content_md,
@@ -863,6 +899,8 @@ fn post_value(p: &Post) -> Value {
         "published_at": p.published_at.map(|d| d.to_rfc3339()),
         "updated_at": p.updated_at.to_rfc3339(),
         "views": p.views,
+        "like_count": p.like_count,
+        "liked": liked,
     })
 }
 
@@ -956,12 +994,25 @@ fn pagination_with(page: i64, total: i64, page_size: i64) -> Value {
 
 /// 说说列表上下文（首页最近说说 / 说说页共用）：`moments: Vec<{moment, attachments}>`，
 /// 每条含附件（按 sort_order 升序）；模板渲染为时间线折叠样式。
-async fn moment_items_value(db: &Db, base: &str, items: &[Moment]) -> AppResult<Value> {
+async fn moment_items_value(
+    db: &Db,
+    headers: &HeaderMap,
+    base: &str,
+    items: &[Moment],
+) -> AppResult<Value> {
     let mut out = Vec::with_capacity(items.len());
     for m in items {
         let atts = moments::list_moment_attachments(db, m.id).await?;
+        let like_status = like_status_from_headers(
+            db,
+            headers,
+            crate::models::LikeContentType::Moment,
+            m.id,
+            m.like_count,
+        )
+        .await?;
         out.push(json!({
-            "moment": moment_value(m),
+            "moment": moment_value(m, like_status.liked),
             "attachments": json!(
                 atts.iter()
                     .map(|(att, _)| attachment_value(base, att))
@@ -973,11 +1024,13 @@ async fn moment_items_value(db: &Db, base: &str, items: &[Moment]) -> AppResult<
 }
 
 /// 单条说说 JSON：id/内容/创建时间（RFC3339，模板 `| date` 过滤器展示本地时间）。
-fn moment_value(m: &crate::models::Moment) -> Value {
+fn moment_value(m: &crate::models::Moment, liked: bool) -> Value {
     json!({
         "id": m.id,
         "content": m.content,
         "created_at": m.created_at.to_rfc3339(),
+        "like_count": m.like_count,
+        "liked": liked,
     })
 }
 

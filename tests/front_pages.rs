@@ -74,6 +74,57 @@ async fn post_page_renders_markdown() {
 }
 
 #[tokio::test]
+async fn homepage_article_card_shows_like_count() {
+    let (app, pool) = test_app("front-like-card").await;
+    let post_id = create_published_post(&pool, "点赞卡片文章", None, vec![]).await;
+    sqlx::query("UPDATE posts SET like_count = 7 WHERE id = ?")
+        .bind(post_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("7"));
+    assert!(html.contains("like-icon"));
+}
+
+#[tokio::test]
+async fn post_page_shows_like_button_and_count() {
+    let (app, pool) = test_app("front-like-post").await;
+    let post_id = create_published_post(&pool, "点赞详情文章", None, vec![]).await;
+    sqlx::query("UPDATE posts SET like_count = 5 WHERE id = ?")
+        .bind(post_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/post/点赞详情文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("like-toggle"));
+    assert!(html.contains("5"));
+    assert!(html.contains("like-icon"));
+}
+
+#[tokio::test]
+async fn moments_page_shows_like_button_and_count() {
+    let (app, pool) = test_app("front-like-moment").await;
+    let moment = hancic::services::moments::create_moment(&pool, "可点赞说说", &[])
+        .await
+        .unwrap();
+    sqlx::query("UPDATE moments SET like_count = 2 WHERE id = ?")
+        .bind(moment.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/moments").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("moment-like-toggle"));
+    assert!(html.contains("2"));
+}
+
+#[tokio::test]
 async fn unknown_slug_404() {
     let (app, _pool) = test_app("front-404").await;
     let (status, _html) = get_html(&app, "/post/不存在的文章").await;
