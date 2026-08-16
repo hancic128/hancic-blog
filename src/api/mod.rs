@@ -1,7 +1,8 @@
 //! API 路由：/api 下 JSON 接口，统一响应 `{data}` / `{error:{code,message}}`。
 //!
-//! 鉴权：除 `/api/health`（存活探针，保持开放，供监控/部署探测）外，全部端点
-//! 经 `require_admin_or_token`——后台 admin 会话或 `Authorization: Bearer <token>`
+//! 鉴权：`/api/health`（存活探针）与公开点赞端点
+//! `/api/likes/status`、`/api/likes/toggle` 保持开放；其余端点经
+//! `require_admin_or_token`——后台 admin 会话或 `Authorization: Bearer <token>`
 //! 二选一，都失败则 401。`GET /api/backup` 返回全量备份 zip（T22）。
 //! 统一 JSON 错误体由 `AppError` 的 `IntoResponse` 产出。
 
