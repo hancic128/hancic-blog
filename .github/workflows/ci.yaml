@@ -13,6 +13,12 @@ concurrency:
 jobs:
   test:
     runs-on: self-hosted
+    env:
+      # self-hosted 本机访问 GitHub CDN 需经本地代理（fetch-assets.sh 同款）；
+      # runner 与 Broker 的通信不走代理，仅步骤内下载（setup-node/Playwright）受益。
+      HTTPS_PROXY: http://127.0.0.1:7897
+      HTTP_PROXY: http://127.0.0.1:7897
+      NO_PROXY: localhost,127.0.0.1
     steps:
       - uses: actions/checkout@v4
 
