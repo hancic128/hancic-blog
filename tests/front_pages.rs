@@ -73,15 +73,87 @@ async fn post_page_renders_markdown() {
     assert!(html.contains("正文内容"));
 }
 
-#[tokio::test]
-async fn post_page_renders_absolute_share_urls_from_config() {
-    let (app, pool) = test_app("front-share-config").await;
-    create_published_post(&pool, "分享配置文章", None, vec![]).await;
+#[test]
+fn share_context_builds_absolute_urls_from_config() {
+    let share = hancic::web::front::share_context(
+        "分享配置文章",
+        "",
+        "正文",
+        "/post/分享配置文章",
+        "寒蝉 Hancic",
+        "https://example.test",
+        Some("/uploads/logo.png"),
+    );
 
-    let (status, html) = get_html(&app, "/post/分享配置文章").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(html.contains(r#"rel="canonical" href="https://example.test/post/"#));
-    assert!(html.contains(r#"property="og:url" content="https://example.test/post/"#));
+    assert_eq!(
+        share.get("canonical_url").and_then(|v| v.as_str()),
+        Some("https://example.test/post/分享配置文章")
+    );
+    assert_eq!(
+        share.get("og_url").and_then(|v| v.as_str()),
+        Some("https://example.test/post/分享配置文章")
+    );
+    assert_eq!(
+        share.get("og_image").and_then(|v| v.as_str()),
+        Some("https://example.test/uploads/logo.png")
+    );
+}
+
+#[test]
+fn post_page_prefers_excerpt_for_share_description() {
+    let share = hancic::web::front::share_context(
+        "摘要优先文章",
+        "这是手写摘要",
+        "# 标题\n\n正文不会被选中",
+        "/post/摘要优先文章",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    assert_eq!(share.get("description").and_then(|v| v.as_str()), Some("这是手写摘要"));
+}
+
+#[test]
+fn page_share_description_falls_back_to_body_text() {
+    let share = hancic::web::front::share_context(
+        "关于分享",
+        "",
+        "## 介绍\n\n这里是 **正文摘要来源**，应该去掉 markdown。",
+        "/page/share-about",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+
+    let description = share.get("description").and_then(|v| v.as_str()).unwrap();
+    assert!(description.contains("正文摘要来源"));
+    assert!(!description.contains("**正文摘要来源**"));
+}
+
+#[test]
+fn share_context_omits_image_when_site_url_or_logo_missing() {
+    let no_site = hancic::web::front::share_context(
+        "无站点地址",
+        "",
+        "正文",
+        "/post/no-site",
+        "寒蝉 Hancic",
+        "",
+        Some("/uploads/logo.png"),
+    );
+    assert!(no_site.get("og_image").is_some_and(|v| v.is_null()));
+
+    let no_logo = hancic::web::front::share_context(
+        "无 logo",
+        "",
+        "正文",
+        "/post/no-logo",
+        "寒蝉 Hancic",
+        "https://example.test",
+        None,
+    );
+    assert!(no_logo.get("og_image").is_some_and(|v| v.is_null()));
 }
 
 #[tokio::test]

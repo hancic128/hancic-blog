@@ -19,6 +19,7 @@ use axum::routing::get;
 use axum::Router;
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use tera::Context;
 use tower::ServiceExt;
@@ -200,6 +201,20 @@ fn parse_json_array(s: &str) -> Value {
     serde_json::from_str(s).unwrap_or_else(|_| json!([]))
 }
 
+async fn share_site_meta(db: &Db) -> AppResult<(String, Option<String>)> {
+    let s = settings::get_many(db, &["site_name", "site_logo"]).await?;
+    let site_name = s
+        .get("site_name")
+        .cloned()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "寒蝉 Hancic".to_string());
+    let logo = s
+        .get("site_logo")
+        .cloned()
+        .filter(|v| !v.trim().is_empty());
+    Ok((site_name, logo))
+}
+
 /// 解析 `?theme_preview=`：名字合法且主题存在（theme.toml 可读）才生效，
 /// 否则回退默认渲染——预览参数既不破坏页面，也不暴露不存在的主题。
 fn resolve_preview(state: &AppState, query: &HashMap<String, String>) -> Option<String> {
@@ -345,6 +360,17 @@ async fn post_page(
         .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("post", &post_value(&post, like_status.liked));
+        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let share = share_context(
+            &post.title,
+            post.excerpt.as_str(),
+            &post.content_md,
+            &format!("/post/{}", post.slug),
+            &site_name,
+            &state.config.site_url,
+            site_logo.as_deref(),
+        );
+        ctx.insert("share", &share);
         ctx.insert(
             "category",
             &category
@@ -443,6 +469,17 @@ async fn page_page(
             .ok_or_else(|| AppError::NotFound("页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page, false));
+        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let share = share_context(
+            &page.title,
+            page.excerpt.as_str(),
+            &page.content_md,
+            &format!("/page/{}", page.slug),
+            &site_name,
+            &state.config.site_url,
+            site_logo.as_deref(),
+        );
+        ctx.insert("share", &share);
         // 页面正文（带标题锚点）+ 目录，供右侧栏导航（内容长时便于跳转）
         let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
         ctx.insert("content_html", &content_html);
@@ -475,6 +512,17 @@ async fn about_page(
             .ok_or_else(|| AppError::NotFound("关于页面不存在".into()))?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         ctx.insert("page", &post_value(&page, false));
+        let (site_name, site_logo) = share_site_meta(&state.db).await?;
+        let share = share_context(
+            &page.title,
+            page.excerpt.as_str(),
+            &page.content_md,
+            "/about",
+            &site_name,
+            &state.config.site_url,
+            site_logo.as_deref(),
+        );
+        ctx.insert("share", &share);
         let (content_html, toc) = crate::markdown::render_with_toc(&page.content_md);
         ctx.insert("content_html", &content_html);
         ctx.insert(
@@ -913,6 +961,85 @@ fn post_value(p: &Post, liked: bool) -> Value {
         "views": p.views,
         "like_count": p.like_count,
         "liked": liked,
+    })
+}
+
+pub fn normalized_site_url(raw: &str) -> Option<String> {
+    let trimmed = raw.trim().trim_end_matches('/');
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+pub fn absolute_url(site_url: Option<&str>, path: &str) -> Option<String> {
+    let origin = site_url?.trim_end_matches('/');
+    Some(format!("{origin}{path}"))
+}
+
+fn plain_text_summary(input: &str, max_chars: usize) -> String {
+    let html = crate::markdown::render(input);
+    let mut text = String::with_capacity(html.len());
+    let mut in_tag = false;
+    let mut last_was_space = true;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            '&' if !in_tag => {
+                text.push('&');
+                last_was_space = false;
+            }
+            c if in_tag => {
+                let _ = c;
+            }
+            c if c.is_whitespace() => {
+                if !last_was_space {
+                    text.push(' ');
+                    last_was_space = true;
+                }
+            }
+            c => {
+                text.push(c);
+                last_was_space = false;
+            }
+        }
+    }
+    let mut out = String::new();
+    for ch in text.trim().chars().take(max_chars) {
+        let _ = out.write_char(ch);
+    }
+    out.trim().to_string()
+}
+
+pub fn share_summary(excerpt: &str, content_md: &str) -> String {
+    let excerpt = excerpt.trim();
+    if !excerpt.is_empty() {
+        return excerpt.to_string();
+    }
+    plain_text_summary(content_md, 160)
+}
+
+pub fn share_context(
+    title: &str,
+    excerpt: &str,
+    content_md: &str,
+    canonical_path: &str,
+    site_name: &str,
+    site_url: &str,
+    logo_path: Option<&str>,
+) -> Value {
+    let normalized_site = normalized_site_url(site_url);
+    let canonical_url = absolute_url(normalized_site.as_deref(), canonical_path);
+    let og_image = logo_path
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .and_then(|path| absolute_url(normalized_site.as_deref(), path));
+    json!({
+        "title": title,
+        "description": share_summary(excerpt, content_md),
+        "site_name": site_name,
+        "canonical_url": canonical_url,
+        "og_url": canonical_url,
+        "og_image": og_image,
+        "twitter_card": if og_image.is_some() { "summary_large_image" } else { "summary" },
     })
 }
 
