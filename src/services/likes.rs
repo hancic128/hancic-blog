@@ -16,7 +16,7 @@ pub fn hash_client_hint(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     let bytes = hasher.finalize();
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 pub async fn like_status(

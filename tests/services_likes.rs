@@ -268,9 +268,9 @@ async fn duplicate_like_row_recovery_keeps_existing_visitor_toggle_semantics() {
 }
 
 #[test]
-fn hash_client_hint_returns_stable_sha256_hex() {
+fn hash_client_hint_returns_expected_sha256_hex() {
     let hashed = likes::hash_client_hint("127.0.0.1");
     assert_eq!(hashed.len(), 64);
-    assert_eq!(hashed, likes::hash_client_hint("127.0.0.1"));
+    assert_eq!(hashed, "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0");
     assert_ne!(hashed, likes::hash_client_hint("127.0.0.2"));
 }
