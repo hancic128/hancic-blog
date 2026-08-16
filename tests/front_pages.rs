@@ -87,6 +87,34 @@ async fn post_page_renders_share_meta_tags() {
 }
 
 #[tokio::test]
+async fn post_page_uses_site_logo_as_absolute_share_image() {
+    let (app, pool) = test_app("front-share-logo").await;
+    sqlx::query("INSERT OR REPLACE INTO settings (key, value) VALUES ('site_logo', '/uploads/site/logo.png')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    create_published_post(&pool, "Logo 分享文章", None, vec![]).await;
+
+    // slugify 会把空格转 '-' 并转小写：「Logo 分享文章」→ logo-分享文章
+    let (status, html) = get_html(&app, "/post/logo-分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"property="og:image" content="https://example.test/uploads/site/logo.png""#));
+    assert!(html.contains(r#"name="twitter:image" content="https://example.test/uploads/site/logo.png""#));
+}
+
+#[tokio::test]
+async fn post_page_omits_share_image_when_logo_missing() {
+    let (app, pool) = test_app("front-share-no-logo").await;
+    create_published_post(&pool, "无 Logo 分享文章", None, vec![]).await;
+
+    // slugify 会把空格转 '-' 并转小写：「无 Logo 分享文章」→ 无-logo-分享文章
+    let (status, html) = get_html(&app, "/post/无-logo-分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!html.contains(r#"property="og:image""#));
+    assert!(!html.contains(r#"name="twitter:image""#));
+}
+
+#[tokio::test]
 async fn about_page_renders_share_meta_tags() {
     let (app, pool) = test_app("front-about-share-meta").await;
     posts::create_post(
