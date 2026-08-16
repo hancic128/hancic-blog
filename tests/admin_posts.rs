@@ -363,7 +363,7 @@ async fn posts_list_defaults_to_all_types() {
             "INSERT INTO posts(slug, title, content_md, status, post_type, published_at)
              VALUES (?, ?, 'x', 'published', ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
         )
-        .bind(format!("{}-{}", post_type, title))
+        .bind(format!("{post_type}-{title}"))
         .bind(title)
         .bind(post_type)
         .execute(&pool)
