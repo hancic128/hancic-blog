@@ -56,5 +56,29 @@
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/highlight.min.js"></script>
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/mermaid/mermaid.min.js"></script>
 <script src="{{ base_path }}/theme/{{ site.active_theme }}/static/main.js"></script>
+<script>
+document.addEventListener('click', async (event) => {
+  const btn = event.target.closest('[data-like-toggle]');
+  if (!btn || btn.dataset.loading === '1') return;
+  btn.dataset.loading = '1';
+  try {
+    const res = await fetch('{{ base_path }}/api/likes/toggle', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        content_type: btn.dataset.contentType,
+        content_id: Number(btn.dataset.contentId),
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.data) return;
+    btn.setAttribute('aria-pressed', String(json.data.liked));
+    const count = btn.querySelector('.like-count');
+    if (count) count.textContent = String(json.data.like_count);
+  } finally {
+    delete btn.dataset.loading;
+  }
+});
+</script>
 </body>
 </html>

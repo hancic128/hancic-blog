@@ -111,6 +111,7 @@ async fn homepage_article_list_sort_supports_like_count() {
 
     let (status, html) = get_html(&app, "/archives?sort=like_count").await;
     assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("href=\"/archives?sort=like_count\""), "归档页应提供按点赞排序链接");
     assert!(html.contains("data-sort=\"like_count\""), "前台排序条应暴露点赞数排序选项");
     let high = html.find("高赞文章").unwrap();
     let low = html.find("低赞文章").unwrap();
@@ -152,6 +153,28 @@ async fn moments_page_shows_like_button_and_count() {
     assert!(html.contains("moment-like-toggle"));
     assert!(html.contains("aria-label=\"点赞这条说说\""), "说说点赞按钮应带可访问名称");
     assert!(html.contains("<span class=\"like-count\">2</span>"));
+}
+
+#[tokio::test]
+async fn front_pages_include_like_toggle_script() {
+    let (app, pool) = test_app("front-like-script").await;
+    create_published_post(&pool, "脚本文章", None, vec![]).await;
+    hancic::services::moments::create_moment(&pool, "脚本说说", &[])
+        .await
+        .unwrap();
+
+    let (post_status, post_html) = get_html(&app, "/post/脚本文章").await;
+    assert_eq!(post_status, StatusCode::OK);
+    assert!(post_html.contains("/api/likes/toggle"));
+    assert!(post_html.contains("[data-like-toggle]"));
+    assert!(post_html.contains("content_type: btn.dataset.contentType"));
+    assert!(post_html.contains("aria-pressed"));
+    assert!(post_html.contains(".like-count"));
+
+    let (moment_status, moment_html) = get_html(&app, "/moments").await;
+    assert_eq!(moment_status, StatusCode::OK);
+    assert!(moment_html.contains("/api/likes/toggle"));
+    assert!(moment_html.contains("[data-like-toggle]"));
 }
 
 #[tokio::test]

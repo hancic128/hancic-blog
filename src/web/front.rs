@@ -271,6 +271,8 @@ async fn index(
         ctx.insert("posts", &post_list_value(&state.db, &state.config.base_path, &items).await?);
         ctx.insert("post_total", &total);
         ctx.insert("current_sort", &sort.field);
+        let sort_base = format!("{}/", state.config.base_path);
+        ctx.insert("sort_base", &sort_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -306,6 +308,7 @@ async fn archives_page(
         ctx.insert("current_month", &month);
         let month_base = format!("{}/archives", state.config.base_path);
         ctx.insert("month_base", &month_base);
+        ctx.insert("sort_base", &month_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -550,6 +553,8 @@ async fn category_page(
                 .map(|t| json!({ "slug": t.slug, "name": t.name }))
                 .collect::<Vec<_>>()),
         );
+        let sort_base = format!("{}/category/{}", state.config.base_path, category.slug);
+        ctx.insert("sort_base", &sort_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -586,6 +591,8 @@ async fn column_page(
             "column",
             &json!({ "slug": column.slug, "name": column.name }),
         );
+        let sort_base = format!("{}/column/{}", state.config.base_path, column.slug);
+        ctx.insert("sort_base", &sort_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -682,6 +689,7 @@ async fn tag_page(
         ctx.insert("current_month", &month);
         let month_base = format!("{}/tag/{slug}", state.config.base_path);
         ctx.insert("month_base", &month_base);
+        ctx.insert("sort_base", &month_base);
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -817,6 +825,7 @@ async fn listing_ctx(
     // 列表页排序切换（post_list.html 条件渲染；index 不注入）
     ctx.insert("sort_ctl", &true);
     ctx.insert("current_sort", &sort.field);
+    ctx.insert("sort_base", base);
     // 列表总数（专栏页标题等处展示）
     ctx.insert("post_total", &total);
     Ok(ctx)
