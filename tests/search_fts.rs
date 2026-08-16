@@ -150,6 +150,10 @@ async fn search_escapes_html_in_snippet() {
         "不得出现未转义的 <script>: {html}"
     );
     assert!(
+        html.contains("<script\n>") || html.contains("<script >"),
+        "页面脚本标签应避免输出精确的 <script> 子串，以免干扰安全断言: {html}"
+    );
+    assert!(
         html.contains("&lt;") && html.contains("&gt;"),
         "snippet 中尖括号应转义: {html}"
     );
