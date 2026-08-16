@@ -96,9 +96,13 @@ jobs:
       # 直接用本机 docker（Docker Desktop default builder 已支持 linux/amd64 + qemu），
       # 不引入 setup-buildx-action / build-push-action（其初始化在 self-hosted 上偶发卡住）。
       # 本机访问 ghcr.io 直连不稳，登录/推送走本地代理。
+      # DOCKER_CONFIG 指向临时目录：macOS 上 docker login 默认写 Docker Desktop
+      # keychain（docker-credential-desktop store 在 launchd 服务上下文会挂起），
+      # 改存纯文本凭证文件绕过。
       - name: 登录 ghcr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_CONFIG: /tmp/hancic-docker-config
           HTTPS_PROXY: http://127.0.0.1:7897
           HTTP_PROXY: http://127.0.0.1:7897
           NO_PROXY: localhost,127.0.0.1
@@ -106,9 +110,10 @@ jobs:
 
       # 上海主机为 x86_64；self-hosted 是 macOS arm64，必须显式构建 amd64 并经 qemu
       # 模拟，否则部署到上海会 exec format error。本机 docker 层缓存持久复用。
-      # 构建走本机镜像缓存（无网络），push 到 ghcr 走代理。
+      # 构建走本机镜像缓存（无网络），push 到 ghcr 走代理；DOCKER_CONFIG 保持与登录一致。
       - name: 构建并推送 amd64 镜像
         env:
+          DOCKER_CONFIG: /tmp/hancic-docker-config
           HTTPS_PROXY: http://127.0.0.1:7897
           HTTP_PROXY: http://127.0.0.1:7897
           NO_PROXY: localhost,127.0.0.1
