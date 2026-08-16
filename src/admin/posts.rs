@@ -151,6 +151,7 @@ fn post_list_value(items: &[Post], cat_names: &HashMap<i64, String>) -> Value {
             "status": p.status.to_str(),
             "post_type": p.post_type.to_str(),
             "views": p.views,
+            "like_count": p.like_count,
             "category": p
                 .category_id
                 .and_then(|id| cat_names.get(&id))

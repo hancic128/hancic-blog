@@ -124,3 +124,49 @@ async fn publish_and_delete_flow() {
     assert!(!html.contains(content), "删除后列表不应再含该内容");
     assert!(html.contains("暂无说说"), "空列表应显示占位文案");
 }
+
+#[tokio::test]
+async fn admin_moments_list_shows_like_count_column() {
+    let cfg = test_config("admin-moments-like-count");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    let html = client.get(format!("{base}/admin/moments")).send().await.unwrap();
+    let csrf = extract_csrf(&html.text().await.unwrap());
+    let res = client
+        .post(format!("{base}/admin/moments"))
+        .form(&[
+            ("content", "后台点赞说说"),
+            ("attachment_ids", ""),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302);
+
+    let (moments_list, total) = moments::list_moments(&pool, None, false, None, 1, 20).await.unwrap();
+    assert_eq!(total, 1);
+    let moment_id = moments_list[0].id;
+    sqlx::query("UPDATE moments SET like_count = 4 WHERE id = ?")
+        .bind(moment_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let html = client
+        .get(format!("{base}/admin/moments"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(html.contains("点赞数"), "说说列表应展示点赞数字段: {html}");
+    assert!(html.contains(">4<") || html.contains("4"), "说说列表应展示点赞数 4: {html}");
+}

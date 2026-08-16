@@ -8,6 +8,7 @@ use common::{extract_csrf, login_admin, start_server_with_cfg, test_config};
 use hancic::db;
 use hancic::models::PostStatus;
 use hancic::services::posts;
+use sqlx::Row;
 
 
 /// 固定链接已改为系统生成的短 uuid，测试按标题反查文章 id。
@@ -220,4 +221,56 @@ async fn slug_is_managed_by_system() {
     let a2 = find_by_title(&pool, "甲文章·新标题").await.unwrap();
     assert_eq!(a2.slug, a.slug, "编辑不应改变固定链接");
     assert_eq!(a2.content_md, "# 新内容", "正文应更新");
+}
+
+#[tokio::test]
+async fn admin_posts_list_shows_like_count_column() {
+    let cfg = test_config("admin-posts-like-count");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    let html = client.get(format!("{base}/admin/posts")).send().await.unwrap();
+    let csrf = extract_csrf(&html.text().await.unwrap());
+    let res = client
+        .post(format!("{base}/admin/posts"))
+        .form(&[
+            ("title", "后台点赞文章"),
+            ("content_md", "点赞正文"),
+            ("status", "draft"),
+            ("category_id", ""),
+            ("tags", ""),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302);
+
+    let post_id: i64 = sqlx::query("SELECT id FROM posts WHERE title = ?")
+        .bind("后台点赞文章")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get(0);
+    sqlx::query("UPDATE posts SET like_count = 11 WHERE id = ?")
+        .bind(post_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let html = client
+        .get(format!("{base}/admin/posts"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(html.contains("点赞数"), "列表页应展示点赞数字段: {html}");
+    assert!(html.contains(">11<") || html.contains("11"), "列表页应展示点赞数 11: {html}");
 }

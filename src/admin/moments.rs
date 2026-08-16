@@ -88,6 +88,7 @@ async fn moment_list_value(state: &AppState, items: &[Moment]) -> Value {
             "id": m.id,
             "content": m.content,
             "created_at": super::format_local(m.created_at),
+            "like_count": m.like_count,
             "attachments": attachments,
             // 编辑表单 JS 用：序列化字符串注入 data-attachments 属性（tera autoescape 保证安全）
             "attachments_json": serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into()),

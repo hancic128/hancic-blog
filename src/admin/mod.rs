@@ -443,6 +443,9 @@ async fn fill_dashboard(
     let regions = stats_service::by_region(&state.db, from.as_deref(), to.as_deref()).await?;
     ctx.insert("regions", &stats::region_view(&regions));
 
+    let recent_like_count_7d = crate::services::likes::recent_like_count(&state.db, 7)
+        .await
+        .unwrap_or(0);
     ctx.insert(
         "stats",
         &json!({
@@ -450,6 +453,7 @@ async fn fill_dashboard(
             "total_moments": summary.total_moments,
             "total_attachments": summary.total_attachments,
             "total_views": summary.total_views,
+            "recent_like_count_7d": recent_like_count_7d,
         }),
     );
     // 内嵌 JSON 供 admin.js 画图：safe_string 标记避免 tera 自动转义破坏脚本。

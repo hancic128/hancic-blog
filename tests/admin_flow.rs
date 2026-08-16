@@ -4,7 +4,7 @@
 //! 布局导航与静态资源管线（/static 下的 css/js/vendor）。
 
 mod common;
-use common::{login_admin, start_server_with_cfg, test_config};
+use common::{extract_csrf, login_admin, start_server_with_cfg, test_config};
 use hancic::auth;
 
 #[tokio::test]
@@ -59,4 +59,65 @@ async fn dashboard_requires_login_and_shows_counts() {
         let res = client.get(format!("{base}{path}")).send().await.unwrap();
         assert_eq!(res.status(), 200, "{path} 应可访问");
     }
+}
+
+#[tokio::test]
+async fn admin_dashboard_shows_recent_7d_like_count() {
+    let cfg = test_config("admin-dash-like-count");
+    let pool = hancic::db::init(&cfg.data_dir).await.unwrap();
+    auth::set_password(&pool, common::TEST_PASSWORD).await.unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    let login_html = client
+        .get(format!("{base}/admin"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let csrf = extract_csrf(&login_html);
+    let res = client
+        .post(format!("{base}/admin/posts"))
+        .form(&[
+            ("title", "仪表盘点赞文章"),
+            ("content_md", "点赞正文"),
+            ("status", "published"),
+            ("category_id", ""),
+            ("tags", ""),
+            ("csrf", csrf.as_str()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 302);
+
+    let post_id: i64 = sqlx::query_scalar("SELECT id FROM posts WHERE title = ?")
+        .bind("仪表盘点赞文章")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    for visitor_id in ["visitor-a", "visitor-b", "visitor-c"] {
+        sqlx::query(
+            "INSERT INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES ('post', ?, ?, '', '')",
+        )
+        .bind(post_id)
+        .bind(visitor_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
+    let html = client
+        .get(format!("{base}/admin"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(html.contains("最近 7 天点赞"), "仪表盘应展示最近 7 天点赞卡片: {html}");
+    assert!(html.contains(">3<") || html.contains("3"), "仪表盘应展示最近 7 天点赞数 3: {html}");
 }
