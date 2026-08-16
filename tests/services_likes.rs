@@ -220,7 +220,7 @@ async fn recent_like_count_counts_rows_in_window() {
 }
 
 #[tokio::test]
-async fn duplicate_like_row_is_recovered_without_internal_error() {
+async fn duplicate_like_row_recovery_keeps_existing_visitor_toggle_semantics() {
     let (pool, post_id) = setup_post().await;
     sqlx::query(
         "INSERT INTO content_likes(content_type, content_id, visitor_id, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?)",
@@ -252,8 +252,8 @@ async fn duplicate_like_row_is_recovered_without_internal_error() {
 
     assert!(status.is_ok(), "recovery path must not surface internal error");
     let status = status.unwrap();
-    assert!(status.liked);
-    assert_eq!(status.like_count, 1);
+    assert!(!status.liked);
+    assert_eq!(status.like_count, 0);
 
     let rows: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM content_likes WHERE content_type = ? AND content_id = ? AND visitor_id = ?",
@@ -264,7 +264,7 @@ async fn duplicate_like_row_is_recovered_without_internal_error() {
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(rows, 1);
+    assert_eq!(rows, 0);
 }
 
 #[test]
