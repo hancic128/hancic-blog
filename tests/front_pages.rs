@@ -73,6 +73,43 @@ async fn post_page_renders_markdown() {
     assert!(html.contains("正文内容"));
 }
 
+#[tokio::test]
+async fn post_page_renders_share_meta_tags() {
+    let (app, pool) = test_app("front-post-share-meta").await;
+    create_published_post(&pool, "分享文章", None, vec![]).await;
+
+    let (status, html) = get_html(&app, "/post/分享文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"<link rel="canonical" href="https://example.test/post/"#));
+    assert!(html.contains(r#"property="og:type" content="article""#));
+    assert!(html.contains(r#"property="og:title" content="分享文章""#));
+    assert!(html.contains(r#"name="twitter:card" content="summary""#));
+}
+
+#[tokio::test]
+async fn about_page_renders_share_meta_tags() {
+    let (app, pool) = test_app("front-about-share-meta").await;
+    posts::create_post(
+        &pool,
+        NewPost {
+            title: "关于本站".into(),
+            content_md: "站点正文。".into(),
+            excerpt: Some("关于页摘要".into()),
+            slug: Some("about".into()),
+            status: PostStatus::Published,
+            post_type: PostType::Page,
+            category_id: None,
+            column_id: None,
+            tags: vec![],
+        },
+    ).await.unwrap();
+
+    let (status, html) = get_html(&app, "/about").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"property="og:title" content="关于本站""#));
+    assert!(html.contains(r#"property="og:url" content="https://example.test/about""#));
+}
+
 #[test]
 fn share_context_builds_absolute_urls_from_config() {
     let share = hancic::web::front::share_context(
@@ -375,8 +412,10 @@ async fn about_page_renders_page_type() {
 
     let (status, html) = get_html(&app, "/about").await;
     assert_eq!(status, StatusCode::OK);
-    // 页面类型不再显示标题（page.html 已移除 h1），正文正常渲染
-    assert!(!html.contains("关于本站"), "页面标题不应显示");
+    // 页面类型不再显示标题（page.html 已移除 h1），正文正常渲染；
+    // 标题只允许出现在分享元数据（og:title / twitter:title）里
+    assert!(!html.contains("<h1>关于本站"), "页面标题不应以 h1 显示");
+    assert!(html.contains("og:title"));
     assert!(html.contains("站点介绍"));
     assert!(html.contains("<h2"));
 }
