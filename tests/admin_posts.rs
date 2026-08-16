@@ -274,3 +274,70 @@ async fn admin_posts_list_shows_like_count_column() {
     assert!(html.contains("点赞数"), "列表页应展示点赞数字段: {html}");
     assert!(html.contains(">11<") || html.contains("11"), "列表页应展示点赞数 11: {html}");
 }
+
+#[tokio::test]
+async fn admin_posts_list_sorts_by_like_count_desc() {
+    let cfg = test_config("admin-posts-like-sort");
+    let pool = db::init(&cfg.data_dir).await.unwrap();
+    hancic::auth::set_password(&pool, common::TEST_PASSWORD)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+
+    let html = client.get(format!("{base}/admin/posts")).send().await.unwrap();
+    let csrf = extract_csrf(&html.text().await.unwrap());
+
+    for title in ["高赞文章", "低赞文章"] {
+        let res = client
+            .post(format!("{base}/admin/posts"))
+            .form(&[
+                ("title", title),
+                ("content_md", title),
+                ("status", "draft"),
+                ("category_id", ""),
+                ("tags", ""),
+                ("csrf", csrf.as_str()),
+            ])
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status(), 302);
+    }
+
+    let low_id: i64 = sqlx::query("SELECT id FROM posts WHERE title = ?")
+        .bind("低赞文章")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get(0);
+    let high_id: i64 = sqlx::query("SELECT id FROM posts WHERE title = ?")
+        .bind("高赞文章")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get(0);
+    sqlx::query("UPDATE posts SET like_count = 1 WHERE id = ?")
+        .bind(low_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE posts SET like_count = 9 WHERE id = ?")
+        .bind(high_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let html = client
+        .get(format!("{base}/admin/posts?sort=like_count&dir=desc"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let high_pos = html.find("高赞文章").expect("应包含高赞文章");
+    let low_pos = html.find("低赞文章").expect("应包含低赞文章");
+    assert!(high_pos < low_pos, "like_count desc 应先显示高赞文章: {html}");
+}

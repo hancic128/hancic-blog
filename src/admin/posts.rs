@@ -37,6 +37,7 @@ fn admin_sort(query: &HashMap<String, String>) -> Option<posts::PostSort> {
     let field: &'static str = match query.get("sort").map(String::as_str).unwrap_or("") {
         "title" => "title",
         "views" => "views",
+        "like_count" => "like_count",
         "updated_at" => "updated_at",
         "published_at" => "published_at",
         "status" => "status",
