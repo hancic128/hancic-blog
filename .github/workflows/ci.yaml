@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -23,9 +23,10 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      # 不使用 Swatinem/rust-cache：其 restore/save 反复在本机挂起（GitHub cache API
-      # 直连不稳定）。self-hosted 即本机，~/.cargo/registry 已缓存全部依赖，
-      # checkout 目录每次全新编译依赖可从本机 registry 秒拉。
+      # cargo 构建缓存：依赖编译产物跨 run 复用，test job 从 ~10min 压到 2-3min
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
 
       # assets 已提交入库（T13），此步用于验证 fetch-assets.sh 仍可用（含代理回退路径）。
       # 若因网络受限下载失败，只要 assets/vendor/vditor.min.js 在（已入库）即短路通过。
@@ -38,13 +39,13 @@ jobs:
             [ -f assets/vendor/vditor.min.js ]
           }
 
-      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。
-      # GitHub 托管 runner 上 cargo 不认该镜像源，原逻辑用 rm 移除；self-hosted
-      # 即本机开发环境，rsproxy 本机可用且依赖已缓存，直接保留不动。
-      - name: 使用本机 cargo 配置（rsproxy 镜像，self-hosted 已缓存依赖）
-        run: |
-          cat .cargo/config.toml
-          ls target/debug/deps >/dev/null 2>&1 && echo "依赖缓存存在，跳过全量下载" || echo "无缓存，首次运行将全量下载"
+      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。cargo 不支持用
+      # --config 把 crates-io 替换回官方源（指向 index.crates.io 会报
+      # "source already defined"；replace-with 置空报 "no source with the name"），
+      # 故在 CI 移除该文件让 cargo 走官方 crates.io——与 Docker 构建一致
+      # （.dockerignore 已排除 .cargo/config.toml，见 Dockerfile）。
+      - name: 去除 rsproxy 镜像配置（CI 直连 crates.io）
+        run: rm -f .cargo/config.toml
 
       # 仓库存在既有 rustfmt 漂移（M125），cargo fmt --check 无法全绿且格式化属本地职责，
       # 故 CI 不跑 fmt；以 clippy -D warnings 兜底代码质量。
@@ -54,29 +55,18 @@ jobs:
       - name: 单元/集成测试
         run: cargo test
 
-      # self-hosted 本机访问 GitHub CDN 下载 Node 需经本地代理（fetch-assets.sh 同款）。
-      # 只在 setup-node 步骤级生效，避免代理环境变量污染 runner 与 GitHub 的通信。
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-        env:
-          HTTPS_PROXY: http://127.0.0.1:7897
-          HTTP_PROXY: http://127.0.0.1:7897
-          NO_PROXY: localhost,127.0.0.1
 
       # e2e/package-lock.json 的 resolved 指向 npmmirror（M124，本地配置所致）。
       # GitHub 运行时显式用官方 registry，并 --replace-registry-host=always 强制把
       # lockfile 里的 registry host 改写到 npmjs，避免从 npmmirror 拉包变慢/失败。
-      # Playwright chromium 从 GitHub CDN 下载，同样走本地代理。
       - name: E2E 依赖安装（Playwright）
-        env:
-          HTTPS_PROXY: http://127.0.0.1:7897
-          HTTP_PROXY: http://127.0.0.1:7897
-          NO_PROXY: localhost,127.0.0.1
         run: |
           cd e2e
           npm ci --registry=https://registry.npmjs.org/ --replace-registry-host=always
-          npx playwright install chromium
+          npx playwright install --with-deps chromium
 
       - name: Playwright E2E
         run: cd e2e && npx playwright test
@@ -85,38 +75,27 @@ jobs:
     # 仅在打 tag（v*）时构建镜像并部署上海主机；push main 只跑 test 作回归检查
     # needs: test
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      # 直接用本机 docker（Docker Desktop default builder 已支持 linux/amd64 + qemu），
-      # 不引入 setup-buildx-action / build-push-action（其初始化在 self-hosted 上偶发卡住）。
-      # 凭证：macOS 上 docker login 默认写 Docker Desktop keychain，launchd 服务上下文
-      # 会报 "User interaction is not allowed"，故绕过 docker login，直接构造
-      # DOCKER_CONFIG 下的 config.json（auths 内嵌 base64 的 user:token）。
-      - name: 写入 ghcr 凭证
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/hancic-docker-config
-          AUTH="$(printf '%s:%s' "${{ github.actor }}" "$GH_TOKEN" | base64)"
-          printf '{\n  "auths": {\n    "ghcr.io": {\n      "auth": "%s"\n    }\n  }\n}\n' "$AUTH" > /tmp/hancic-docker-config/config.json
-
-      # 上海主机为 x86_64；self-hosted 是 macOS arm64，必须显式构建 amd64 并经 qemu
-      # 模拟，否则部署到上海会 exec format error。本机 docker 层缓存持久复用。
-      # 构建走本机镜像缓存（无网络），push 到 ghcr 走代理。
-      - name: 构建并推送 amd64 镜像
-        env:
-          DOCKER_CONFIG: /tmp/hancic-docker-config
-          HTTPS_PROXY: http://127.0.0.1:7897
-          HTTP_PROXY: http://127.0.0.1:7897
-          NO_PROXY: localhost,127.0.0.1
-        run: |
-          docker build --platform linux/amd64 -t ghcr.io/angryshark128/hancic:latest .
-          docker push ghcr.io/angryshark128/hancic:latest
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          load: true
+          tags: ghcr.io/angryshark128/hancic:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Deploy to Shanghai
         run: |
