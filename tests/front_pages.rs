@@ -109,6 +109,14 @@ async fn homepage_article_list_sort_supports_like_count() {
         .await
         .unwrap();
 
+    let (home_status, home_html) = get_html(&app, "/?sort=like_count").await;
+    assert_eq!(home_status, StatusCode::OK);
+    assert!(home_html.contains("href=\"?sort=like_count\""), "首页应提供按点赞排序链接");
+    assert!(home_html.contains("按点赞"), "首页排序入口应展示按点赞文案");
+    let home_high = home_html.find("高赞文章").unwrap();
+    let home_low = home_html.find("低赞文章").unwrap();
+    assert!(home_high < home_low, "首页按点赞数排序时高赞文章应排在前面");
+
     let (status, html) = get_html(&app, "/archives?sort=like_count").await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("href=\"/archives?sort=like_count\""), "归档页应提供按点赞排序链接");

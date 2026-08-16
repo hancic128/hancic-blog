@@ -70,7 +70,13 @@ document.addEventListener('click', async (event) => {
         content_id: Number(btn.dataset.contentId),
       }),
     });
-    const json = await res.json();
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return;
+    }
     if (!res.ok || !json.data) return;
     btn.setAttribute('aria-pressed', String(json.data.liked));
     const count = btn.querySelector('.like-count');
