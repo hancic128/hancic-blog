@@ -6,7 +6,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::sqlite::SqliteRow;
+use sqlx::{FromRow, Row};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -137,14 +138,43 @@ impl LikeContentType {
     }
 }
 
+impl std::str::FromStr for LikeContentType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "moment" => Self::Moment,
+            _ => Self::Post,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ContentLike {
     pub id: i64,
     pub content_type: LikeContentType,
     pub content_id: i64,
     pub visitor_id: String,
+    pub ip_hash: String,
+    pub ua_hash: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl<'r> FromRow<'r, SqliteRow> for ContentLike {
+    fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
+        let content_type: String = row.try_get("content_type")?;
+        Ok(Self {
+            id: row.try_get("id")?,
+            content_type: content_type.parse().unwrap_or(LikeContentType::Post),
+            content_id: row.try_get("content_id")?,
+            visitor_id: row.try_get("visitor_id")?,
+            ip_hash: row.try_get("ip_hash")?,
+            ua_hash: row.try_get("ua_hash")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]

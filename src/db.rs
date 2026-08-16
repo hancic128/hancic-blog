@@ -81,8 +81,8 @@ CREATE TABLE IF NOT EXISTS content_likes (
   visitor_id TEXT NOT NULL,
   ip_hash TEXT NOT NULL DEFAULT '',
   ua_hash TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   UNIQUE(content_type, content_id, visitor_id)
 );
 CREATE INDEX IF NOT EXISTS idx_content_likes_target ON content_likes(content_type, content_id);
