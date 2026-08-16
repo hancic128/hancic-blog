@@ -822,11 +822,12 @@ async fn listing_ctx(
     Ok(ctx)
 }
 
-/// 前台列表排序：`?sort=updated_at|published_at|views`，默认按更新时间倒序。
+/// 前台列表排序：`?sort=updated_at|published_at|views|like_count`，默认按更新时间倒序。
 fn list_sort(query: &HashMap<String, String>) -> posts::PostSort {
     let field = match query.get("sort").map(String::as_str) {
         Some("published_at") => "published_at",
         Some("views") => "views",
+        Some("like_count") => "like_count",
         _ => "updated_at",
     };
     posts::PostSort { field, asc: false }

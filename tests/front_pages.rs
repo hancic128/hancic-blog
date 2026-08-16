@@ -85,8 +85,36 @@ async fn homepage_article_card_shows_like_count() {
 
     let (status, html) = get_html(&app, "/").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(html.contains("7"));
+    assert!(
+        html.contains("class=\"post-like-count\""),
+        "文章卡片应渲染点赞容器"
+    );
+    assert!(html.contains(">7</span></span>"), "点赞数应绑定在文章卡片点赞容器中");
     assert!(html.contains("like-icon"));
+}
+
+#[tokio::test]
+async fn homepage_article_list_sort_supports_like_count() {
+    let (app, pool) = test_app("front-like-sort").await;
+    let first = create_published_post(&pool, "低赞文章", None, vec![]).await;
+    let second = create_published_post(&pool, "高赞文章", None, vec![]).await;
+    sqlx::query("UPDATE posts SET like_count = 1 WHERE id = ?")
+        .bind(first)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE posts SET like_count = 9 WHERE id = ?")
+        .bind(second)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let (status, html) = get_html(&app, "/archives?sort=like_count").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("data-sort=\"like_count\""), "前台排序条应暴露点赞数排序选项");
+    let high = html.find("高赞文章").unwrap();
+    let low = html.find("低赞文章").unwrap();
+    assert!(high < low, "按点赞数排序时高赞文章应排在前面");
 }
 
 #[tokio::test]
@@ -102,7 +130,8 @@ async fn post_page_shows_like_button_and_count() {
     let (status, html) = get_html(&app, "/post/点赞详情文章").await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("like-toggle"));
-    assert!(html.contains("5"));
+    assert!(html.contains("aria-label=\"点赞这篇文章\""), "文章点赞按钮应带可访问名称");
+    assert!(html.contains("<span class=\"like-count\">5</span>"));
     assert!(html.contains("like-icon"));
 }
 
@@ -121,7 +150,8 @@ async fn moments_page_shows_like_button_and_count() {
     let (status, html) = get_html(&app, "/moments").await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("moment-like-toggle"));
-    assert!(html.contains("2"));
+    assert!(html.contains("aria-label=\"点赞这条说说\""), "说说点赞按钮应带可访问名称");
+    assert!(html.contains("<span class=\"like-count\">2</span>"));
 }
 
 #[tokio::test]
