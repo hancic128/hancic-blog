@@ -59,7 +59,9 @@ pub fn copy_recursive(src: &str, dst: &std::path::Path) {
 }
 
 pub fn test_config(tag: &str) -> Config {
-    Config::default_for_temp_dir().with_data_dir(temp_data_dir(tag))
+    let mut cfg = Config::default_for_temp_dir().with_data_dir(temp_data_dir(tag));
+    cfg.site_url = "https://example.test".into();
+    cfg
 }
 
 pub async fn test_app(tag: &str) -> (axum::Router, Db) {

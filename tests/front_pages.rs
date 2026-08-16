@@ -74,6 +74,17 @@ async fn post_page_renders_markdown() {
 }
 
 #[tokio::test]
+async fn post_page_renders_absolute_share_urls_from_config() {
+    let (app, pool) = test_app("front-share-config").await;
+    create_published_post(&pool, "分享配置文章", None, vec![]).await;
+
+    let (status, html) = get_html(&app, "/post/分享配置文章").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains(r#"rel=\"canonical\" href=\"https://example.test/post/"#));
+    assert!(html.contains(r#"property=\"og:url\" content=\"https://example.test/post/"#));
+}
+
+#[tokio::test]
 async fn homepage_article_card_shows_like_count() {
     let (app, pool) = test_app("front-like-card").await;
     let post_id = create_published_post(&pool, "点赞卡片文章", None, vec![]).await;

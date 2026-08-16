@@ -10,6 +10,7 @@ pub struct Config {
     /// 站点部署子路径（如 `/blog`）；空表示根路径部署。
     /// 非空时页面链接/静态资源/重定向均带此前缀，nginx 反代需剥前缀转发。
     pub base_path: String,
+    pub site_url: String,
     pub site_name: String,
     pub site_desc: String,
     pub active_theme: String,
@@ -28,6 +29,7 @@ impl Config {
             port: 8090,
             data_dir: PathBuf::from("data"),
             base_path: String::new(),
+            site_url: String::new(),
             site_name: "寒蝉 Hancic".into(),
             site_desc: String::new(),
             active_theme: "default".into(),
