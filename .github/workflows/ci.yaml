@@ -104,6 +104,9 @@ jobs:
           file: Dockerfile
           push: true
           load: true
+          # 上海主机为 x86_64；self-hosted 是 macOS arm64，必须显式构建 amd64
+          # 并通过 qemu 模拟，否则 docker save/load 部署到上海会 exec format error。
+          platforms: linux/amd64
           tags: ghcr.io/angryshark128/hancic:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
