@@ -49,6 +49,8 @@ pub fn routes() -> Router<AppState> {
         .route("/columns", get(columns_page))
         .route("/about", get(about_page))
         .route("/moments", get(moments_page))
+        .route("/trails", get(trails_page))
+        .route("/trails/{id}", get(trail_page))
         .route("/search", get(search_page))
         .route("/uploads/{*path}", get(serve_uploads))
         .route("/theme/{name}/static/{*path}", get(serve_theme_static))
@@ -765,6 +767,141 @@ async fn search_page(
     }
 }
 
+// ---------- 徒步轨迹 ----------
+
+/// 轨迹总览颜色盘（不同轨迹用不同颜色区分；按列表序号取模）。
+const TRAIL_PALETTE: &[&str] = &[
+    "#d4442a", "#2a7dd4", "#1a9d4f", "#8e44ad", "#d49a2a", "#1aad9e", "#d4448a", "#5a63d4",
+];
+
+/// 轨迹总览：Leaflet 地图（所有轨迹简化线，可切换瓦片源）+ 轨迹卡片列表。
+async fn trails_page(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let preview = resolve_preview(&state, &query);
+    let out = async {
+        let trails = crate::services::trails::list_trails(&state.db).await?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
+        // 地图数据：id/名称/颜色/简化坐标（safe_string 内嵌，避免 tera 转义 JSON）
+        let map_trails: Vec<Value> = trails
+            .iter()
+            .enumerate()
+            .map(|(i, t)| {
+                json!({
+                    "id": t.id,
+                    "name": t.name,
+                    "color": TRAIL_PALETTE[i % TRAIL_PALETTE.len()],
+                    "coords": serde_json::from_str::<Value>(&t.simplified).unwrap_or_else(|_| json!([])),
+                })
+            })
+            .collect();
+        ctx.insert_value(
+            "trails_json",
+            tera::Value::safe_string(&json!(map_trails).to_string()),
+        );
+        ctx.insert("trails", &trail_card_value(&trails));
+        ctx.insert("has_trails", &!trails.is_empty());
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "trails.html", &ctx, preview.as_deref()).await,
+        Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 轨迹详情：完整轨迹地图 + 数据卡片 + 描述；不存在 → 404。
+async fn trail_page(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    // 非数字 id（如 /trails/abc）按 404 处理，与"轨迹不存在"一致
+    let id = match id.parse::<i64>() {
+        Ok(id) => id,
+        Err(_) => return render_error(&state, AppError::NotFound("轨迹不存在".into())).await,
+    };
+    let preview = resolve_preview(&state, &query);
+    let out = async {
+        let trail = crate::services::trails::get_trail(&state.db, id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("轨迹不存在".into()))?;
+        let trails_dir = state.config.data_dir.join("trails");
+        // 完整坐标：优先导入时落盘的 {id}.json；缺失时解析 GPX 兜底
+        let coords = crate::services::trails::load_full_coords(&trails_dir, id).or_else(|| {
+            tracing::warn!("轨迹完整坐标缺失 id={id}，回退解析 GPX 原文件");
+            crate::services::trails::load_gpx_coords(&trails_dir, &trail.file_path)
+        });
+        let coords = coords.ok_or_else(|| AppError::Internal("轨迹坐标缺失".into()))?;
+        let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
+        ctx.insert_value(
+            "trail_coords_json",
+            tera::Value::safe_string(&crate::services::trails::coords_json(&coords)),
+        );
+        ctx.insert("trail", &trail_detail_value(&trail));
+        Ok::<_, AppError>(ctx)
+    }
+    .await;
+    match out {
+        Ok(ctx) => render(&state, "trail.html", &ctx, preview.as_deref()).await,
+        Err(e) => render_error(&state, e).await,
+    }
+}
+
+/// 总览卡片 JSON：名称/日期/里程/爬升/点数/详情链接（显示字符串已格式化）。
+fn trail_card_value(trails: &[crate::models::Trail]) -> Value {
+    json!(trails
+        .iter()
+        .map(|t| json!({
+            "id": t.id,
+            "name": t.name,
+            "description": t.description,
+            "distance_km": t.distance_m.map(|m| m / 1000.0),
+            "distance_km_str": t.distance_m.map(|m| format!("{:.1}", m / 1000.0)),
+            "elevation_gain_m": t.elevation_gain_m,
+            "elevation_gain_str": t.elevation_gain_m.map(|e| format!("{e:.0}")),
+            "point_count": t.point_count,
+            "started_at": t.started_at.map(|d| d.to_rfc3339()),
+            "moving": crate::services::trails::format_moving(t.moving_seconds),
+            "url": format!("/trails/{}", t.id),
+        }))
+        .collect::<Vec<_>>())
+}
+
+/// 详情 JSON：数据卡片全部原始数值 + 展示用格式化字段。
+fn trail_detail_value(t: &crate::models::Trail) -> Value {
+    json!({
+        "id": t.id,
+        "name": t.name,
+        "description": t.description,
+        "distance_km": t.distance_m.map(|m| m / 1000.0),
+        "distance_km_str": t.distance_m.map(|m| format!("{:.1}", m / 1000.0)),
+        "elevation_gain_m": t.elevation_gain_m,
+        "elevation_gain_str": t.elevation_gain_m.map(|e| format!("{e:.0}")),
+        "elevation_loss_m": t.elevation_loss_m,
+        "elevation_loss_str": t.elevation_loss_m.map(|e| format!("{e:.0}")),
+        "moving": crate::services::trails::format_moving(t.moving_seconds),
+        "avg_speed_kmh": t.avg_speed_kmh,
+        "avg_speed_str": t.avg_speed_kmh.map(|s| format!("{s:.1}")),
+        "max_elevation_m": t.max_elevation_m,
+        "max_elevation_str": t.max_elevation_m.map(|e| format!("{e:.0}")),
+        "min_elevation_m": t.min_elevation_m,
+        "min_elevation_str": t.min_elevation_m.map(|e| format!("{e:.0}")),
+        "started_at": t.started_at.map(|d| d.to_rfc3339()),
+        "point_count": t.point_count,
+        "start": if t.start_lat.is_some() && t.start_lon.is_some() {
+            json!([t.start_lat.unwrap(), t.start_lon.unwrap()])
+        } else {
+            json!(null)
+        },
+        "end": if t.end_lat.is_some() && t.end_lon.is_some() {
+            json!([t.end_lat.unwrap(), t.end_lon.unwrap()])
+        } else {
+            json!(null)
+        },
+    })
+}
 /// 未匹配路由 → 404 错误页。
 pub async fn not_found(State(state): State<AppState>) -> Response {
     render_error(&state, AppError::NotFound("页面不存在".into())).await

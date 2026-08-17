@@ -715,3 +715,55 @@ button, a, [role="button"], label { cursor: pointer; }
 .side-columns a:hover { color: var(--accent); }
 .side-columns .side-column-active a { color: var(--accent); font-weight: 600; }
 .side-column-count { color: var(--muted); font-size: .78rem; flex-shrink: 0; }
+
+/* ===== 徒步轨迹 ===== */
+.trails-map-wrap { margin: 1.25rem 0 1.5rem; }
+.trails-map {
+  height: 400px;
+  width: 100%;
+  position: relative;
+  z-index: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #e7e5e0;
+}
+.trail-date { color: var(--muted); font-size: .9rem; margin: .3rem 0 1rem; }
+.trail-desc { color: var(--muted); line-height: 1.7; margin: 0 0 1rem; }
+.trail-card-list { display: flex; flex-direction: column; gap: .85rem; margin-top: 1rem; }
+.trail-card {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  padding: 1rem 1.15rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--fg);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.trail-card:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(0, 0, 0, .08); }
+.trail-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.trail-card-name { font-weight: 700; font-size: 1.05rem; color: var(--fg); transition: color 200ms ease; }
+.trail-card:hover .trail-card-name { color: var(--accent); }
+.trail-card-meta { display: flex; gap: .5rem; flex-wrap: wrap; }
+.trail-badge { font-size: .78rem; color: var(--muted); background: var(--code-bg); padding: .15rem .55rem; border-radius: 999px; }
+.trail-card-desc { color: var(--muted); font-size: .875rem; line-height: 1.6; }
+.trail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: .85rem;
+  margin: 1.25rem 0 0;
+}
+.trail-stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.trail-stat-value { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+.trail-stat-label { font-size: .78rem; color: var(--muted); }
