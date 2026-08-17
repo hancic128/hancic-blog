@@ -32,6 +32,7 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     sqlx::raw_sql(MIGRATION_001).execute(&pool).await?;
     sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
     ensure_column_id(&pool).await?;
+    ensure_column_sort(&pool).await?;
     ensure_column_description(&pool).await?;
     ensure_like_schema(&pool).await?;
     seed_default_settings(&pool).await?;
@@ -67,6 +68,21 @@ async fn ensure_column_id(pool: &Db) -> Result<(), sqlx::Error> {
         )
         .execute(pool)
         .await?;
+    }
+    Ok(())
+}
+
+/// posts 表加 `column_sort`（幂等：专栏内文章自定义顺序，0=未手动排序）。
+async fn ensure_column_sort(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('posts') WHERE name = 'column_sort'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE posts ADD COLUMN column_sort INTEGER NOT NULL DEFAULT 0")
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }

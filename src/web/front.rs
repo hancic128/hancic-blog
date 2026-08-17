@@ -612,6 +612,12 @@ async fn column_page(
         let column = crate::services::columns::get_column_by_slug(&state.db, &slug)
             .await?
             .ok_or_else(|| AppError::NotFound("专栏不存在".into()))?;
+        // 专栏页默认按专栏内自定义顺序（column_sort）；显式 ?sort= 才走通用排序
+        let sort = if query.contains_key("sort") {
+            list_sort(&query)
+        } else {
+            posts::PostSort { field: "column_sort", asc: true }
+        };
         let mut ctx = listing_ctx(
             &state.db,
             &state.config.base_path,
@@ -620,7 +626,7 @@ async fn column_page(
             None,
             Some(slug),
             None,
-            list_sort(&query),
+            sort,
             preview.clone(),
         )
         .await?;
@@ -662,7 +668,7 @@ async fn columns_page(
                     tag_slug: None,
                     column_slug: Some(c.slug.clone()),
                     month: None,
-                    sort: Some(posts::PostSort { field: "updated_at", asc: false }),
+                    sort: Some(posts::PostSort { field: "column_sort", asc: true }),
                     page: 1,
                     page_size: COLUMN_CARD_POSTS,
                 },

@@ -30,12 +30,14 @@ pub async fn list(
         return super::redirect(&state.config.base_path, "/admin/login");
     }
     // 文章排序：updated_at（默认）/ created_at / title
-    let sort_field = match query.get("sort").map(String::as_str) {
-        Some("created_at") => "created_at",
-        Some("title") => "title",
-        _ => "updated_at",
+    // 专栏内文章默认按自定义顺序（column_sort asc）；显式 ?sort= 才用通用字段（desc）
+    let (sort_field, asc) = match query.get("sort").map(String::as_str) {
+        Some("created_at") => ("created_at", false),
+        Some("title") => ("title", false),
+        Some("updated_at") => ("updated_at", false),
+        _ => ("column_sort", true),
     };
-    let sort = posts::PostSort { field: sort_field, asc: false };
+    let sort = posts::PostSort { field: sort_field, asc };
     let cols = columns::list_columns(&state.db).await.unwrap_or_default();
     let counts = columns::count_columns_posts(&state.db).await.unwrap_or_default();
     // 全部已发布文章（一次查询），供各专栏"添加文章"差集
@@ -48,7 +50,7 @@ pub async fn list(
             tag_slug: None,
             column_slug: None,
             month: None,
-            sort: Some(sort),
+            sort: Some(posts::PostSort { field: "updated_at", asc: false }),
             page: 1,
             page_size: 500,
         },
@@ -131,7 +133,7 @@ pub async fn detail(
                 tag_slug: None,
                 column_slug: Some(column.slug.clone()),
                 month: None,
-                sort: Some(posts::PostSort { field: "updated_at", asc: false }),
+                sort: Some(posts::PostSort { field: "column_sort", asc: true }),
                 page: 1,
                 page_size: COLUMN_POSTS_LIMIT,
             },
@@ -355,4 +357,66 @@ fn urlencode(s: &str) -> String {
         }
     }
     out
+}
+
+// ---------- 卡片拖拽排序 ----------
+
+/// 专栏卡片拖拽排序：前端提交新顺序的 id 列表，后端重写 sort_order（1..n）。
+pub async fn reorder(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<std::collections::HashMap<String, String>>,
+) -> Result<Response, AppError> {
+    session::require_admin(&session).await?;
+    session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
+    let ids = parse_ids(form.get("ids"));
+    if ids.is_empty() {
+        return Ok(fail(&state.config.base_path, "排序数据为空"));
+    }
+    match columns::reorder_columns(&state.db, &ids).await {
+        Ok(()) => Ok(super::redirect(&state.config.base_path, "/admin/columns")),
+        Err(e) => {
+            tracing::error!("专栏排序失败: {e:?}");
+            Ok(fail(&state.config.base_path, "排序保存失败，请重试"))
+        }
+    }
+}
+
+// ---------- 专栏内文章拖拽排序 ----------
+
+/// 专栏内文章拖拽排序：重写 posts.column_sort（0..n）。
+pub async fn reorder_posts(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+    Form(form): Form<std::collections::HashMap<String, String>>,
+) -> Result<Response, AppError> {
+    session::require_admin(&session).await?;
+    session::verify_csrf(&session, form.get("csrf").map(String::as_str)).await?;
+    if !columns::list_columns(&state.db).await?.into_iter().any(|c| c.id == id) {
+        return Ok(fail(&state.config.base_path, "专栏不存在"));
+    }
+    let ids = parse_ids(form.get("ids"));
+    if ids.is_empty() {
+        return Ok(fail(&state.config.base_path, "排序数据为空"));
+    }
+    match posts::reorder_column_posts(&state.db, &ids).await {
+        Ok(()) => Ok(super::redirect(
+            &state.config.base_path,
+            &format!("/admin/columns/{id}"),
+        )),
+        Err(e) => {
+            tracing::error!("专栏文章排序失败: {e:?}");
+            Ok(fail(&state.config.base_path, "排序保存失败，请重试"))
+        }
+    }
+}
+
+fn parse_ids(s: Option<&String>) -> Vec<i64> {
+    s.map(|v| {
+        v.split(',')
+            .filter_map(|x| x.trim().parse::<i64>().ok())
+            .collect()
+    })
+    .unwrap_or_default()
 }

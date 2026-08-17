@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 pub async fn list_columns(db: &Db) -> Result<Vec<Column>, AppError> {
     let rows = sqlx::query_as::<_, Column>(
-        "SELECT id, slug, name, sort_order, description FROM columns ORDER BY sort_order, id",
+        "SELECT id, slug, name, sort_order, description FROM columns ORDER BY sort_order ASC, id DESC",
     )
     .fetch_all(db)
     .await?;
@@ -116,4 +116,16 @@ pub async fn count_columns_posts(db: &Db) -> Result<HashMap<i64, i64>, AppError>
 pub async fn slug_for(name: &str) -> String {
     let s = slugify(name).await;
     if s.is_empty() { "column".to_string() } else { s }
+}
+
+/// 专栏卡片拖拽排序：按传入 id 顺序重写 sort_order（1..n；新建专栏保持 0 排最前）。
+pub async fn reorder_columns(db: &Db, ids: &[i64]) -> Result<(), AppError> {
+    for (idx, id) in ids.iter().enumerate() {
+        sqlx::query("UPDATE columns SET sort_order = ? WHERE id = ?")
+            .bind((idx as i64) + 1)
+            .bind(id)
+            .execute(db)
+            .await?;
+    }
+    Ok(())
 }

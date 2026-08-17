@@ -24,8 +24,14 @@
     </div>
     <div class="col-admin-list">
       {% for c in columns %}
-      <div class="col-admin-item" data-id="{{ c.id }}" data-name="{{ c.name }}" data-desc="{{ c.description }}">
+      <div class="col-admin-item collapsed" data-id="{{ c.id }}" data-name="{{ c.name }}" data-desc="{{ c.description }}">
         <header class="col-admin-head">
+          <button class="col-toggle" type="button" title="展开/折叠" aria-label="展开/折叠" aria-expanded="false">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <span class="col-drag" title="拖拽排序" aria-label="拖拽排序">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+          </span>
           <div class="col-admin-info">
             <span class="col-admin-name-text">{{ c.name }}</span>
             <span class="col-admin-desc-text">{% if c.description %}{{ c.description }}{% endif %}</span>
@@ -44,16 +50,21 @@
           </div>
         </header>
 
+        <div class="col-body">
         {% if c.in_posts %}
         <div class="col-posts">
           <div class="col-post-row col-post-head">
+            <span class="col-post-drag"></span>
             <span class="col-post-cell-title">文章</span>
             <span class="col-time">创建时间</span>
             <span class="col-time">更新时间</span>
             <span class="col-ops">操作</span>
           </div>
           {% for p in c.in_posts %}
-          <div class="col-post-row">
+          <div class="col-post-row" data-id="{{ p.id }}">
+            <span class="col-post-drag" title="拖拽排序" aria-label="拖拽排序">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+            </span>
             <a class="col-post-title" href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a>
             <span class="col-time">{{ p.created_at }}</span>
             <span class="col-time">{{ p.updated_at }}</span>
@@ -81,6 +92,7 @@
             </select>
           </div>
           <button class="btn btn-sm col-add-btn" type="button" data-id="{{ c.id }}">加入</button>
+        </div>
         </div>
       </div>
       {% endfor %}
@@ -201,6 +213,102 @@
       post('/admin/columns/' + colId + '/posts/add', { post_id: sel.value }).then(function (res) {
         if (!res.ok) { window.hancicToast('加入失败，请重试', 'error'); return; }
         window.location.reload();
+      }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+    });
+  });
+
+  // ---- 卡片折叠/展开 ----
+  document.querySelectorAll('.col-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var item = btn.closest('.col-admin-item');
+      var collapsed = item.classList.toggle('collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    });
+  });
+
+  // ---- 通用拖拽排序：容器内按住手柄拖行，松手后按 DOM 顺序回调 ----
+  function enableDragSort(container, handleSel, rowSel, onReorder) {
+    var dragEl = null, ghost = null, offX = 0, offY = 0;
+    container.addEventListener('mousedown', function (e) {
+      var handle = e.target.closest(handleSel);
+      if (!handle) return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      var row = handle.closest(rowSel);
+      if (!row) return;
+      var rect = row.getBoundingClientRect();
+      offX = e.clientX - rect.left;
+      offY = e.clientY - rect.top;
+      ghost = row.cloneNode(true);
+      ghost.classList.add('col-ghost');
+      ghost.style.width = rect.width + 'px';
+      document.body.appendChild(ghost);
+      dragEl = row;
+      row.classList.add('col-dragging');
+      moveGhost(e.clientX, e.clientY);
+      function moveGhost(x, y) {
+        ghost.style.left = (x - offX) + 'px';
+        ghost.style.top = (y - offY) + 'px';
+      }
+      function rows() { return Array.prototype.slice.call(container.querySelectorAll(rowSel)); }
+      function clearTargets() {
+        rows().forEach(function (r) { r.classList.remove('col-drop-before', 'col-drop-after'); });
+      }
+      function onMove(ev) {
+        if (!dragEl) return;
+        moveGhost(ev.clientX, ev.clientY);
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest(rowSel);
+        clearTargets();
+        if (t && t !== dragEl && container.contains(t)) {
+          var r = t.getBoundingClientRect();
+          t.classList.add(ev.clientY > r.top + r.height / 2 ? 'col-drop-after' : 'col-drop-before');
+        }
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (!dragEl) return;
+        var target = document.elementFromPoint(ev.clientX, ev.clientY);
+        var t = target && target.closest(rowSel);
+        if (t && t !== dragEl && container.contains(t)) {
+          var r = t.getBoundingClientRect();
+          if (ev.clientY > r.top + r.height / 2) t.after(dragEl);
+          else t.before(dragEl);
+        }
+        dragEl.classList.remove('col-dragging');
+        dragEl = null;
+        if (ghost) { ghost.remove(); ghost = null; }
+        clearTargets();
+        onReorder();
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  // 卡片拖拽排序
+  var colList = document.querySelector('.col-admin-list');
+  if (colList) {
+    enableDragSort(colList, '.col-drag', '.col-admin-item', function () {
+      var ids = Array.prototype.map.call(colList.querySelectorAll('.col-admin-item'), function (it) {
+        return it.getAttribute('data-id');
+      });
+      post('/admin/columns/reorder', { ids: ids.join(',') }).then(function (res) {
+        if (!res.ok) window.hancicToast('排序保存失败，请重试', 'error');
+      }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+    });
+  }
+
+  // 专栏内文章拖拽排序
+  document.querySelectorAll('.col-posts').forEach(function (list) {
+    var colId = list.closest('.col-admin-item').getAttribute('data-id');
+    enableDragSort(list, '.col-post-drag', '.col-post-row:not(.col-post-head)', function () {
+      var ids = Array.prototype.map.call(list.querySelectorAll('.col-post-row:not(.col-post-head)'), function (r) {
+        return r.getAttribute('data-id');
+      });
+      post('/admin/columns/' + colId + '/posts/reorder', { ids: ids.join(',') }).then(function (res) {
+        if (!res.ok) window.hancicToast('排序保存失败，请重试', 'error');
       }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
     });
   });

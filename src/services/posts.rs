@@ -78,10 +78,13 @@ pub(crate) fn order_by_clause(sort: Option<PostSort>) -> String {
         "published_at" => "published_at",
         "created_at" => "created_at",
         "status" => "status",
+        "column_sort" => "column_sort",
         _ => return "ORDER BY published_at DESC, id DESC".to_string(),
     };
     let dir = if s.asc { "ASC" } else { "DESC" };
-    format!("ORDER BY {field} {dir}, id DESC")
+    // 专栏内文章按自定义顺序（column_sort）：同序回退按 id 升序（加入顺序）
+    let tail = if s.field == "column_sort" { "id ASC" } else { "id DESC" };
+    format!("ORDER BY {field} {dir}, {tail}")
 }
 
 /// 数据库行结构：枚举字段以 String 存取，经 `to_str`/`from_str` 与模型互转。
@@ -102,6 +105,7 @@ pub(crate) struct PostRow {
     like_count: i64,
     category_id: Option<i64>,
     column_id: Option<i64>,
+    column_sort: i64,
 }
 
 impl From<PostRow> for Post {
@@ -121,13 +125,14 @@ impl From<PostRow> for Post {
             like_count: r.like_count,
             category_id: r.category_id,
             column_id: r.column_id,
+            column_sort: r.column_sort,
         }
     }
 }
 
 /// `pub(crate)`：后台文章管理复用。
 pub(crate) const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
-    published_at, created_at, updated_at, views, like_count, category_id, column_id";
+    published_at, created_at, updated_at, views, like_count, category_id, column_id, column_sort";
 
 pub async fn slugify(input: &str) -> String {
     let s = input.trim().to_lowercase();
@@ -307,6 +312,18 @@ pub async fn list_posts(db: &Db, opts: PostListOptions) -> Result<(Vec<Post>, i6
     let rows = q.fetch_all(db).await?;
     let items: Vec<Post> = rows.into_iter().map(Post::from).collect();
     Ok((items, total))
+}
+
+/// 专栏内文章拖拽排序：按传入 post id 顺序重写 column_sort（0..n）。
+pub async fn reorder_column_posts(db: &Db, ids: &[i64]) -> Result<(), AppError> {
+    for (idx, id) in ids.iter().enumerate() {
+        sqlx::query("UPDATE posts SET column_sort = ? WHERE id = ?")
+            .bind(idx as i64)
+            .bind(id)
+            .execute(db)
+            .await?;
+    }
+    Ok(())
 }
 
 /// 搜索命中：文章 + FTS5 高亮片段（`<mark>` 包裹，空则回退摘要）。

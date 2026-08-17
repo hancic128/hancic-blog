@@ -112,6 +112,7 @@ pub struct Post {
     pub like_count: i64,
     pub category_id: Option<i64>,
     pub column_id: Option<i64>,
+    pub column_sort: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]

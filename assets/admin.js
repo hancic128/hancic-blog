@@ -1524,9 +1524,21 @@
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var open = !menu.hidden;
-      document.querySelectorAll('.cs-menu').forEach(function (m) { m.hidden = true; });
-      menu.hidden = open;
-      btn.setAttribute('aria-expanded', String(!open));
+      document.querySelectorAll('.cs-menu').forEach(function (m) { m.hidden = true; m.classList.remove('cs-up'); });
+      if (open) {
+        menu.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+      } else {
+        menu.hidden = false;
+        menu.classList.remove('cs-up');
+        // 底部空间不足且上方足够时向上弹出，避免页面底部卡片的下拉被裁剪
+        var r = btn.getBoundingClientRect();
+        var mh = menu.offsetHeight;
+        if (window.innerHeight - r.bottom < mh && r.top > mh) {
+          menu.classList.add('cs-up');
+        }
+        btn.setAttribute('aria-expanded', 'true');
+      }
     });
     menu.addEventListener('click', function (e) {
       var li = e.target.closest('.cs-option');

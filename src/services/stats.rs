@@ -237,6 +237,7 @@ impl From<PostStatRow> for Post {
             like_count: r.like_count,
             category_id: r.category_id,
             column_id: None,
+            column_sort: 0,
         }
     }
 }
