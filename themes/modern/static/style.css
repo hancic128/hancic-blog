@@ -198,14 +198,13 @@ button, a, [role="button"], label { cursor: pointer; }
 .site-desc { margin: 0 0 1rem; }
 .footer-copy { margin: 0; }
 
-/* ---------- 两栏布局（正文 + 侧栏） ---------- */
-.layout-two-col {
-  display: flex;
-  gap: 2.5rem;
-  align-items: flex-start;
-}
-.layout-main { flex: 1; min-width: 0; }
-.layout-side { flex: 0 0 200px; position: sticky; top: 5.5rem; }
+/* ---------- 两栏布局：正文居中，右侧栏 fixed 悬浮（不占内容宽度） ---------- */
+.layout-two-col { display: block; position: relative; }
+.layout-main { max-width: var(--content-width); margin: 0 auto; }
+.layout-side { position: fixed; top: 5.5rem;
+  right: max(1rem, calc((100vw - var(--content-width)) / 2 - 300px));
+  width: 200px; display: flex; flex-direction: column; gap: 1.75rem;
+  max-height: calc(100vh - 7rem); overflow-y: auto; }
 .side-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -638,7 +637,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .archive-clear { margin-left: .5rem; }
 
 /* ---------- 响应式 ---------- */
-@media (max-width: 860px) {
+@media (max-width: 1280px) {
   .layout-side { display: none; }
   .post { padding: 1.8rem 1.4rem; }
   .page, .search-page { padding: 1.6rem 1.4rem; }
