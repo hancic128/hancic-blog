@@ -32,6 +32,8 @@ pub struct TrailPoint {
     pub lon: f64,
     pub ele: Option<f64>,
     pub time: Option<DateTime<Utc>>,
+    /// 瞬时速度（km/h，导入时按相邻点距离/时间差计算）
+    pub speed: f64,
 }
 
 /// 解析 + 统计 + 抽稀结果（导入时计算一次，其余持久化在 trails 表与 JSON 文件）。
@@ -49,7 +51,7 @@ pub struct TrailData {
     pub min_elevation_m: Option<f64>,
     pub started_at: Option<DateTime<Utc>>,
     /// 抽稀后坐标（lat, lon）
-    pub simplified: Vec<(f64, f64)>,
+    pub simplified: Vec<(f64, f64, f64)>,
 }
 
 // ---------- GPX 解析 ----------
@@ -152,6 +154,7 @@ pub fn parse_gpx(data: &[u8]) -> Result<(Vec<TrailPoint>, Option<String>), Strin
                         lon: cur_lon,
                         ele,
                         time,
+                        speed: 0.0,
                     });
                     in_trkpt = false;
                     in_ele = false;
@@ -212,10 +215,20 @@ pub fn haversine_m(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 /// - 运动时长：全部有点时间的最小→最大跨度（个别点缺时间时按可用时间估算）；
 ///   完全无时间时为 0（均速随之 0）。
 pub fn compute_stats(points: &[TrailPoint]) -> TrailData {
+    // 计算每点瞬时速度（km/h）：相邻点距离 / 时间差；首点与无时间差为 0
+    let mut pts: Vec<TrailPoint> = points.to_vec();
+    for i in 1..pts.len() {
+        let dt = match (pts[i - 1].time, pts[i].time) {
+            (Some(a), Some(b)) => (b - a).num_seconds().max(0) as f64,
+            _ => 0.0,
+        };
+        let dist = haversine_m(pts[i - 1].lat, pts[i - 1].lon, pts[i].lat, pts[i].lon);
+        pts[i].speed = if dt > 0.0 { dist / dt * 3.6 } else { 0.0 };
+    }
     let mut distance_m = 0.0f64;
     let mut elevation_gain_m = 0.0f64;
     let mut elevation_loss_m = 0.0f64;
-    for w in points.windows(2) {
+    for w in pts.windows(2) {
         distance_m += haversine_m(w[0].lat, w[0].lon, w[1].lat, w[1].lon);
         if let (Some(a), Some(b)) = (w[0].ele, w[1].ele) {
             let d = b - a;
@@ -228,13 +241,13 @@ pub fn compute_stats(points: &[TrailPoint]) -> TrailData {
     }
     let mut max_elevation_m: Option<f64> = None;
     let mut min_elevation_m: Option<f64> = None;
-    for p in points {
+    for p in &pts {
         if let Some(e) = p.ele {
             max_elevation_m = Some(max_elevation_m.map_or(e, |m: f64| m.max(e)));
             min_elevation_m = Some(min_elevation_m.map_or(e, |m: f64| m.min(e)));
         }
     }
-    let times: Vec<DateTime<Utc>> = points.iter().filter_map(|p| p.time).collect();
+    let times: Vec<DateTime<Utc>> = pts.iter().filter_map(|p| p.time).collect();
     let moving_seconds = match (times.iter().min(), times.iter().max()) {
         (Some(min), Some(max)) => max.signed_duration_since(*min).num_seconds().max(0),
         _ => 0,
@@ -245,9 +258,9 @@ pub fn compute_stats(points: &[TrailPoint]) -> TrailData {
         0.0
     };
     let started_at = times.iter().min().copied();
-    let simplified = simplify(points);
+    let simplified = simplify(&pts);
     TrailData {
-        points: points.to_vec(),
+        points: pts,
         name: None,
         distance_m,
         elevation_gain_m,
@@ -263,15 +276,15 @@ pub fn compute_stats(points: &[TrailPoint]) -> TrailData {
 
 // ---------- Douglas-Peucker 抽稀 ----------
 
-/// 简化轨迹：仅取 (lat, lon)，DP 抽稀后返回坐标序列。
-pub fn simplify(points: &[TrailPoint]) -> Vec<(f64, f64)> {
-    let coords: Vec<(f64, f64)> = points.iter().map(|p| (p.lat, p.lon)).collect();
+/// 简化轨迹：取 (lat, lon, speed)，DP 抽稀后返回坐标序列。
+pub fn simplify(points: &[TrailPoint]) -> Vec<(f64, f64, f64)> {
+    let coords: Vec<(f64, f64, f64)> = points.iter().map(|p| (p.lat, p.lon, p.speed)).collect();
     douglas_peucker(&coords, SIMPLIFY_THRESHOLD_M)
 }
 
 /// Douglas-Peucker 抽稀（迭代实现，避免递归爆栈）：端点恒保留，
 /// 距线段超过阈值的中间点保留并递归细分；结果保持原顺序。
-pub fn douglas_peucker(points: &[(f64, f64)], threshold_m: f64) -> Vec<(f64, f64)> {
+pub fn douglas_peucker(points: &[(f64, f64, f64)], threshold_m: f64) -> Vec<(f64, f64, f64)> {
     if points.len() <= 2 {
         return points.to_vec();
     }
@@ -308,11 +321,11 @@ pub fn douglas_peucker(points: &[(f64, f64)], threshold_m: f64) -> Vec<(f64, f64
 
 /// 点到线段距离（米）：以线段中点纬度为基准做等距圆柱投影后算欧氏距离，
 /// 再乘地球半径。抽稀场景精度足够，避免逐段 haversine 的复杂度。
-fn seg_distance_m(a: (f64, f64), b: (f64, f64), p: (f64, f64)) -> f64 {
+fn seg_distance_m(a: (f64, f64, f64), b: (f64, f64, f64), p: (f64, f64, f64)) -> f64 {
     let cos_lat = ((a.0 + b.0) / 2.0).to_radians().cos();
-    let to_xy = |(lat, lon): (f64, f64)| {
-        let lat_r = lat.to_radians();
-        let lon_r = lon.to_radians();
+    let to_xy = |pt: (f64, f64, f64)| {
+        let lat_r = pt.0.to_radians();
+        let lon_r = pt.1.to_radians();
         (lon_r * cos_lat, lat_r)
     };
     let (ax, ay) = to_xy(a);
@@ -332,11 +345,11 @@ fn seg_distance_m(a: (f64, f64), b: (f64, f64), p: (f64, f64)) -> f64 {
     (dx * dx + dy * dy).sqrt() * EARTH_RADIUS_M
 }
 
-/// 坐标序列 → `[[lat,lon],...]` JSON 字符串。
-pub fn coords_json(coords: &[(f64, f64)]) -> String {
+/// 坐标序列 → `[[lat,lon,speed],...]` JSON 字符串。
+pub fn coords_json(coords: &[(f64, f64, f64)]) -> String {
     json!(coords
         .iter()
-        .map(|(lat, lon)| json!([lat, lon]))
+        .map(|(lat, lon, speed)| json!([lat, lon, speed]))
         .collect::<Vec<_>>())
     .to_string()
 }
@@ -412,7 +425,7 @@ pub async fn import_gpx(
             return Err(e.into());
         }
     };
-    let full = coords_json(&stats.points.iter().map(|p| (p.lat, p.lon)).collect::<Vec<_>>());
+    let full = coords_json(&stats.points.iter().map(|p| (p.lat, p.lon, p.speed)).collect::<Vec<_>>());
     if let Err(e) = std::fs::write(trails_dir.join(format!("{id}.json")), &full) {
         // 完整坐标缺失不影响浏览（详情页有 GPX 兜底），仅告警
         tracing::warn!("写入轨迹完整坐标失败 id={id}: {e}");
@@ -492,26 +505,31 @@ pub async fn delete_trail(db: &Db, trails_dir: &Path, id: i64) -> Result<(), App
 // ---------- 完整坐标加载（详情页） ----------
 
 /// 读 `data/trails/{id}.json` 的完整坐标（导入时落盘）；缺失/损坏返回 None。
-pub fn load_full_coords(trails_dir: &Path, id: i64) -> Option<Vec<(f64, f64)>> {
+pub fn load_full_coords(trails_dir: &Path, id: i64) -> Option<Vec<(f64, f64, f64)>> {
     let text = std::fs::read_to_string(trails_dir.join(format!("{id}.json"))).ok()?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let arr = value.as_array()?;
     let mut out = Vec::with_capacity(arr.len());
     for item in arr {
         let pair = item.as_array()?;
-        out.push((pair.first()?.as_f64()?, pair.get(1)?.as_f64()?));
+        out.push((
+            pair.first()?.as_f64()?,
+            pair.get(1)?.as_f64()?,
+            pair.get(2).and_then(serde_json::Value::as_f64).unwrap_or(0.0),
+        ));
     }
     Some(out)
 }
 
 /// 详情页兜底：完整坐标 JSON 缺失时解析 GPX 原文件重算（正常导入不会走到）。
-pub fn load_gpx_coords(trails_dir: &Path, file_path: &str) -> Option<Vec<(f64, f64)>> {
+pub fn load_gpx_coords(trails_dir: &Path, file_path: &str) -> Option<Vec<(f64, f64, f64)>> {
     let data = std::fs::read(trails_dir.join(file_path)).ok()?;
     let (points, _) = parse_gpx(&data).ok()?;
     if points.len() < 2 {
         return None;
     }
-    Some(points.iter().map(|p| (p.lat, p.lon)).collect())
+    let stats = compute_stats(&points);
+    Some(stats.points.iter().map(|p| (p.lat, p.lon, p.speed)).collect())
 }
 
 fn internal(e: impl std::fmt::Display) -> AppError {
@@ -636,8 +654,8 @@ mod tests {
 
     #[test]
     fn douglas_peucker_reduces_straight_line_to_endpoints() {
-        let pts: Vec<(f64, f64)> = (0..100)
-            .map(|i| (30.0, 120.0 + i as f64 * 0.001))
+        let pts: Vec<(f64, f64, f64)> = (0..100)
+            .map(|i| (30.0, 120.0 + i as f64 * 0.001, 0.0))
             .collect();
         let out = douglas_peucker(&pts, 30.0);
         assert_eq!(out.len(), 2);
@@ -648,13 +666,13 @@ mod tests {
     #[test]
     fn douglas_peucker_keeps_deviation_point() {
         // 99 个点直线 + 中间一个突出 100m（0.001° ≈ 111m 经向偏 0.0009°）
-        let mut pts: Vec<(f64, f64)> = Vec::new();
+        let mut pts: Vec<(f64, f64, f64)> = Vec::new();
         for i in 0..50 {
-            pts.push((30.0, 120.0 + i as f64 * 0.001));
+            pts.push((30.0, 120.0 + i as f64 * 0.001, 0.0));
         }
-        pts.push((30.0009, 120.0 + 50.0 * 0.001)); // 突出 ~100m
+        pts.push((30.0009, 120.0 + 50.0 * 0.001, 0.0)); // 突出 ~100m
         for i in 51..100 {
-            pts.push((30.0, 120.0 + i as f64 * 0.001));
+            pts.push((30.0, 120.0 + i as f64 * 0.001, 0.0));
         }
         let out = douglas_peucker(&pts, 30.0);
         assert!(out.len() >= 3, "凸点应保留，len={}", out.len());
@@ -665,17 +683,18 @@ mod tests {
 
     #[test]
     fn douglas_peucker_keeps_small_tracks_intact() {
-        let pts = vec![(30.0, 120.0), (30.001, 120.0)];
+        let pts = vec![(30.0, 120.0, 0.0), (30.001, 120.0, 0.0)];
         let out = douglas_peucker(&pts, 30.0);
         assert_eq!(out, pts);
     }
 
     #[test]
     fn coords_json_roundtrips() {
-        let coords = vec![(31.0, 121.0), (31.1, 121.2)];
+        let coords = vec![(31.0, 121.0, 2.5), (31.1, 121.2, 0.0)];
         let s = coords_json(&coords);
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v[0][0].as_f64(), Some(31.0));
         assert_eq!(v[1][1].as_f64(), Some(121.2));
+        assert_eq!(v[0][2].as_f64(), Some(2.5));
     }
 }

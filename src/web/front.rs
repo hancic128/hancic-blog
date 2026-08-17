@@ -113,6 +113,12 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
                     } else {
                         ty
                     };
+                    // 轨迹类型路径预设（url 可空）
+                    let url = if ty == "trail" && url.is_empty() {
+                        "/trails"
+                    } else {
+                        url
+                    };
                     json!({ "type": ty, "label": label, "url": url })
                 })
                 .collect()
@@ -793,6 +799,20 @@ async fn trails_page(
                     "name": t.name,
                     "color": TRAIL_PALETTE[i % TRAIL_PALETTE.len()],
                     "coords": serde_json::from_str::<Value>(&t.simplified).unwrap_or_else(|_| json!([])),
+                    "description": t.description,
+                    "distance_km_str": t.distance_m.map(|m| format!("{:.1}", m / 1000.0)),
+                    "elevation_gain_str": t.elevation_gain_m.map(|e| format!("{e:.0}")),
+                    "elevation_loss_str": t.elevation_loss_m.map(|e| format!("{e:.0}")),
+                    "moving": crate::services::trails::format_moving(t.moving_seconds),
+                    "avg_speed_str": t.avg_speed_kmh.map(|s| format!("{s:.1}")),
+                    "max_ele_str": t.max_elevation_m.map(|e| format!("{e:.0}")),
+                    "min_ele_str": t.min_elevation_m.map(|e| format!("{e:.0}")),
+                    "point_count": t.point_count,
+                    "started_at": t.started_at.map(|d| d.to_rfc3339()),
+                    "distance_m": t.distance_m,
+                    "elevation_gain_m": t.elevation_gain_m,
+                    "moving_seconds": t.moving_seconds,
+                    "url": format!("/trails/{}", t.id),
                 })
             })
             .collect();

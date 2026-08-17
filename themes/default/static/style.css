@@ -1055,6 +1055,70 @@ html { scroll-behavior: smooth; }
 .side-columns .side-column-active a { color: var(--accent); font-weight: 600; }
 .side-column-count { color: var(--muted); font-size: .78rem; flex-shrink: 0; }
 
+/* ---- 轨迹地图：全屏控件与全屏态 ---- */
+.leaflet-control-fullscreen {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  border: none;
+}
+.leaflet-control-fullscreen:hover { color: #000; }
+.trails-map:fullscreen, .trail-map:fullscreen { width: 100vw; height: 100vh; }
+
+/* ---- 轨迹总览：详情卡片与列表选中态 ---- */
+.trail-detail-card {
+  margin-top: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.trail-detail-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.trail-detail-name { margin: 0; font-size: 1.1rem; }
+.trail-detail-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.trail-detail-close:hover { color: var(--accent); }
+.trail-detail-stats { margin-top: .4rem; color: var(--muted); font-size: .9rem; }
+.trail-detail-desc { margin: .6rem 0 0; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.trail-detail-link { display: inline-block; margin-top: .6rem; color: var(--accent); text-decoration: none; font-size: .9rem; }
+.trail-detail-link:hover { text-decoration: underline; }
+.trail-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.trail-detail-title { min-width: 0; }
+.trail-detail-date { display: block; margin-top: .15rem; font-size: .85rem; color: var(--muted); }
+
+/* ---- 轨迹总览：搜索与排序 ---- */
+.trail-filter-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin: 1rem 0 .75rem; }
+.trail-search { flex: 1 1 220px; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.trail-search:focus { outline: none; border-color: var(--accent); }
+.trail-sort-bar { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; font-size: .875rem; color: var(--muted); margin: 0; }
+.trail-sort-btn { font: inherit; font-size: .85rem; padding: .15rem .65rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all .2s; }
+.trail-sort-btn:hover { color: var(--accent); border-color: var(--accent); }
+.trail-sort-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* ---- 轨迹总览：列表（上，固定高滚动）+ 地图 + 右侧数字卡片 ---- */
+.trails-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+.trails-main { flex: 1; min-width: 0; }
+.trail-list-panel { max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
+.trails-side { flex: 0 0 320px; max-width: 340px; position: sticky; top: 1rem; }
+@media (max-width: 860px) {
+  .trails-layout { flex-direction: column; }
+  .trails-side { flex: 1 1 auto; max-width: none; width: 100%; position: static; }
+}
+
 /* ===== 徒步轨迹 ===== */
 .trails-map-wrap { margin: 1rem 0 1.5rem; }
 .trails-map {
