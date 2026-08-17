@@ -92,17 +92,25 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          load: true
           tags: ghcr.io/angryshark128/hancic:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Deploy to Shanghai
         run: |
-          docker tag ghcr.io/angryshark128/hancic:latest hancic:latest
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${{ secrets.HANCIC_SH_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.HANCIC_SH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          docker save hancic:latest | ssh -o StrictHostKeyChecking=no ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} 'docker load'
-          ssh -o StrictHostKeyChecking=no ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} 'cd /opt/hancic && docker compose up -d --force-recreate hancic && sleep 8 && curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"'
+          # 快速失败：runner→上海 SSH 被丢包时不再无限重试挂死（此前 ssh/ssh-keyscan 无超时）
+          SSH_OPTS="-o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+          # 上海后端直连 ghcr 拉镜像（后端可达 ghcr.io），绕过 runner→上海传 82MB 镜像的慢链路
+          ssh $SSH_OPTS ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} '
+            set -euo pipefail
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/angryshark128/hancic:latest
+            docker tag ghcr.io/angryshark128/hancic:latest hancic:latest
+            cd /opt/hancic && docker compose up -d --force-recreate hancic
+            sleep 8
+            curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"
+          '
