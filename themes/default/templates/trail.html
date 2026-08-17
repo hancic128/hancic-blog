@@ -38,36 +38,8 @@
     return;
   }
   var map = L.map(mapEl, { layers: [baseLayers['高德卫星']] });
-  // 速度 → 颜色（红=快，蓝=慢）
-  function speedColor(speed) {
-    if (speed >= 6) return '#e11d48';
-    if (speed >= 4) return '#f97316';
-    if (speed >= 2.5) return '#eab308';
-    if (speed >= 1) return '#22c55e';
-    return '#3b82f6';
-  }
-  // 按速度分段（coords 为 [lat, lon, speed]）
-  function trailSegments(coords) {
-    var segs = [];
-    var cur = [];
-    var curColor = null;
-    for (var i = 0; i < coords.length; i++) {
-      var c = coords[i];
-      var color = speedColor(c[2] || 0);
-      if (cur.length > 0 && color !== curColor) {
-        if (cur.length > 1) segs.push({ color: curColor, coords: cur });
-        cur = [];
-      }
-      cur.push([c[0], c[1]]);
-      curColor = color;
-    }
-    if (cur.length > 1) segs.push({ color: curColor, coords: cur });
-    return segs;
-  }
-  trailSegments(coords).forEach(function (seg) {
-    if (seg.coords.length < 2) return;
-    L.polyline(seg.coords, { color: seg.color, weight: 3, opacity: 0.9 }).addTo(map);
-  });
+  var latlngs = coords.map(function (c) { return [c[0], c[1]]; });
+  L.polyline(latlngs, { color: '#d4442a', weight: 3, opacity: 0.9 }).addTo(map);
   var first = coords[0];
   var last = coords[coords.length - 1];
   L.circleMarker(first, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#1a9d4f', fillOpacity: 1 })
