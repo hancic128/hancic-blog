@@ -1,8 +1,8 @@
-{# 徒步轨迹总览：轨迹列表（上，固定高滚动）+ 地图（速度着色/瓦片/全屏）+ 右侧数字卡片 #}
+{# 徒步轨迹总览：轨迹列表（固定高滚动）+ 地图（纯色/瓦片切换/全屏）+ 右侧标准侧栏数字卡片 #}
 {% include "partials/header.html" %}
 <div class="layout-two-col">
   <main class="layout-main">
-    <h1 class="archive-title">徒步轨迹</h1>
+    <h1 class="archive-title">徒步轨迹{% if trail_count %}<span class="archive-count">（{{ trail_count }} 条）</span>{% endif %}</h1>
     {% if trails %}
     <div class="trail-list-panel">
       <div class="trail-filter-row">
@@ -25,6 +25,7 @@
               {% if t.distance_km_str %}<span class="trail-badge">{{ t.distance_km_str }} km</span>{% endif %}
               {% if t.elevation_gain_str %}<span class="trail-badge">爬升 {{ t.elevation_gain_str }} m</span>{% endif %}
               {% if t.started_at %}<span class="trail-badge">{{ t.started_at | date }}</span>{% endif %}
+              {% if t.moving %}<span class="trail-badge">{{ t.moving }}</span>{% endif %}
             </span>
           </span>
           {% if t.description %}<span class="trail-card-desc">{{ t.description }}</span>{% endif %}
@@ -73,48 +74,15 @@
   var allBounds = L.latLngBounds([]);
   var trailLayers = [];
 
-  // 速度 → 颜色（红=快，蓝=慢）
-  function speedColor(speed) {
-    if (speed >= 6) return '#e11d48';
-    if (speed >= 4) return '#f97316';
-    if (speed >= 2.5) return '#eab308';
-    if (speed >= 1) return '#22c55e';
-    return '#3b82f6';
-  }
-  // 按速度分段（coords 为 [lat, lon, speed]，旧数据可能只有 [lat, lon]）
-  function trailSegments(coords) {
-    var segs = [];
-    var cur = [];
-    var curColor = null;
-    for (var i = 0; i < coords.length; i++) {
-      var c = coords[i];
-      var color = speedColor(c[2] || 0);
-      if (cur.length > 0 && color !== curColor) {
-        if (cur.length > 1) segs.push({ color: curColor, coords: cur });
-        cur = [];
-      }
-      cur.push([c[0], c[1]]);
-      curColor = color;
-    }
-    if (cur.length > 1) segs.push({ color: curColor, coords: cur });
-    return segs;
-  }
-
+  // 纯色渲染：每条轨迹一条 polyline（coords 兼容 [lat,lon] 与 [lat,lon,speed]）
   trails.forEach(function (t, idx) {
     if (!t.coords || !t.coords.length) return;
-    var layers = [];
-    var bounds = L.latLngBounds([]);
-    trailSegments(t.coords).forEach(function (seg) {
-      if (seg.coords.length < 2) return;
-      var layer = L.polyline(seg.coords, { color: seg.color, weight: 3, opacity: 0.85 }).addTo(map);
-      layer.bindTooltip(t.name, { sticky: true });
-      layers.push(layer);
-      bounds.extend(seg.coords);
-    });
-    if (layers.length) {
-      trailLayers.push({ idx: idx, data: t, layers: layers, bounds: bounds, selected: false });
-      allBounds.extend(bounds);
-    }
+    var latlngs = t.coords.map(function (c) { return [c[0], c[1]]; });
+    var layer = L.polyline(latlngs, { color: t.color, weight: 3, opacity: 0.85, noClip: true })
+      .addTo(map)
+      .bindTooltip(t.name, { sticky: true });
+    trailLayers.push({ idx: idx, data: t, layer: layer, bounds: L.latLngBounds(latlngs), selected: false });
+    allBounds.extend(trailLayers[trailLayers.length - 1].bounds);
   });
   if (allBounds.isValid()) {
     map.fitBounds(allBounds, { padding: [24, 24] });
@@ -180,15 +148,15 @@
     }
     return null;
   }
-  function selectTrail(id) {
+  function selectTrail(id, focus) {
     trailLayers.forEach(function (tr) {
       var sel = tr.data.id === id;
       tr.selected = sel;
-      tr.layers.forEach(function (l) { l.setStyle({ opacity: sel ? 1 : 0.15, weight: sel ? 4 : 3 }); });
+      tr.layer.setStyle({ opacity: sel ? 1 : 0.15, weight: sel ? 4 : 3 });
     });
     var tr = findTrailLayer(id);
     fillDetail(tr.data);
-    map.fitBounds(tr.bounds, { padding: [24, 24] });
+    if (focus !== false) map.fitBounds(tr.bounds, { padding: [24, 24] });
     document.querySelectorAll('.trail-card').forEach(function (c) {
       c.classList.toggle('selected', parseInt(c.dataset.id, 10) === id);
     });
@@ -197,7 +165,7 @@
     detailCard.hidden = true;
     trailLayers.forEach(function (tr) {
       tr.selected = false;
-      tr.layers.forEach(function (l) { l.setStyle({ opacity: 0.85, weight: 3 }); });
+      tr.layer.setStyle({ opacity: 0.85, weight: 3 });
     });
     if (allBounds.isValid()) map.fitBounds(allBounds, { padding: [24, 24] });
     document.querySelectorAll('.trail-card.selected').forEach(function (c) { c.classList.remove('selected'); });
@@ -242,6 +210,12 @@
         b3.className = 'trail-badge';
         b3.textContent = t.started_at.slice(0, 10);
         meta.appendChild(b3);
+      }
+      if (t.moving) {
+        var b4 = document.createElement('span');
+        b4.className = 'trail-badge';
+        b4.textContent = t.moving;
+        meta.appendChild(b4);
       }
       head.appendChild(name);
       head.appendChild(meta);
@@ -310,7 +284,7 @@
   });
   document.getElementById('trail-detail-close').addEventListener('click', clearSelection);
 
-  // 默认选中最近一条轨迹（列表按时间倒序，首条为最近）
+  // 默认选中最近一条轨迹并聚焦（高 zoom 完整渲染；noClip 保留其他轨迹线）
   if (trailLayers.length) {
     selectTrail(trailLayers[0].data.id);
   }

@@ -543,11 +543,11 @@ pub fn format_moving(secs: Option<i64>) -> String {
     let h = secs / 3600;
     let m = (secs % 3600) / 60;
     if h > 0 {
-        format!("{h} 小时 {m} 分")
+        format!("{h}h{m}m")
     } else if m > 0 {
-        format!("{m} 分钟")
+        format!("{m}m")
     } else {
-        "不足 1 分钟".into()
+        "<1m".into()
     }
 }
 

@@ -790,15 +790,22 @@ async fn trails_page(
         let trails = crate::services::trails::list_trails(&state.db).await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         // 地图数据：id/名称/颜色/简化坐标（safe_string 内嵌，避免 tera 转义 JSON）
+        let trails_dir = state.config.data_dir.join("trails");
         let map_trails: Vec<Value> = trails
             .iter()
             .enumerate()
             .map(|(i, t)| {
+                // 完整坐标优先（不抽稀，轨迹线更精细）；缺失时回退抽稀 simplified
+                let coords = crate::services::trails::load_full_coords(&trails_dir, t.id)
+                    .map(|c| json!(c))
+                    .unwrap_or_else(|| {
+                        serde_json::from_str::<Value>(&t.simplified).unwrap_or_else(|_| json!([]))
+                    });
                 json!({
                     "id": t.id,
                     "name": t.name,
                     "color": TRAIL_PALETTE[i % TRAIL_PALETTE.len()],
-                    "coords": serde_json::from_str::<Value>(&t.simplified).unwrap_or_else(|_| json!([])),
+                    "coords": coords,
                     "description": t.description,
                     "distance_km_str": t.distance_m.map(|m| format!("{:.1}", m / 1000.0)),
                     "elevation_gain_str": t.elevation_gain_m.map(|e| format!("{e:.0}")),
@@ -821,6 +828,7 @@ async fn trails_page(
             tera::Value::safe_string(&json!(map_trails).to_string()),
         );
         ctx.insert("trails", &trail_card_value(&trails));
+        ctx.insert("trail_count", &trails.len());
         ctx.insert("has_trails", &!trails.is_empty());
         Ok::<_, AppError>(ctx)
     }
