@@ -775,6 +775,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .trail-list-panel { max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
 .layout-side .trail-detail-card { margin-top: 0; max-height: calc(100vh - 8.5rem); overflow-y: auto; }
 .layout-side .trail-stats { grid-template-columns: repeat(2, 1fr); gap: .6rem .75rem; margin-top: .9rem; }
+.layout-side .trail-stat { border: none; background: none; padding: .3rem .4rem; border-radius: 0; }
 .layout-side .trail-stat-value { font-size: 1rem; }
 .layout-side .trail-stat-label { font-size: .7rem; }
 
