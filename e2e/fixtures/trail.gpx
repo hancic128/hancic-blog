@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="两步路">
+  <metadata><name>E2E 测试轨迹</name></metadata>
+  <trk>
+    <name>E2E 测试轨迹</name>
+    <trkseg>
+      <trkpt lat="31.2304" lon="121.4737"><ele>100</ele><time>2026-01-01T00:00:00Z</time></trkpt>
+      <trkpt lat="31.2394" lon="121.4737"><ele>150</ele><time>2026-01-01T00:01:00Z</time></trkpt>
+      <trkpt lat="31.2394" lon="121.4827"><ele>100</ele><time>2026-01-01T00:02:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

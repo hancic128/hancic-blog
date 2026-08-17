@@ -101,6 +101,25 @@ fetch assets/vendor/chart.umd.min.js \
   "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" \
   || fail "Chart.js 下载失败"
 
+# ---- Leaflet（前台徒步轨迹地图；js/css/images 全部本地化） ----
+LEAFLET_VERSION="1.9.4"
+mkdir -p assets/vendor/leaflet/images
+fetch "assets/vendor/leaflet/leaflet.js" \
+  "https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js" \
+  "https://cdn.jsdelivr.net/npm/leaflet@${LEAFLET_VERSION}/dist/leaflet.js" \
+  || fail "Leaflet js 下载失败"
+fetch "assets/vendor/leaflet/leaflet.css" \
+  "https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css" \
+  "https://cdn.jsdelivr.net/npm/leaflet@${LEAFLET_VERSION}/dist/leaflet.css" \
+  || fail "Leaflet css 下载失败"
+for img in layers.png layers-2x.png marker-icon.png marker-icon-2x.png marker-shadow.png; do
+  fetch "assets/vendor/leaflet/images/${img}" \
+    "https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/images/${img}" \
+    "https://cdn.jsdelivr.net/npm/leaflet@${LEAFLET_VERSION}/dist/images/${img}" \
+    || fail "Leaflet ${img} 下载失败"
+done
+echo "OK: Leaflet ${LEAFLET_VERSION}（js/css/images 本地化）"
+
 # ---- ip2region ----
 fetch assets/ip2region.xdb \
   "https://github.com/lionsoul2014/ip2region/raw/master/data/ip2region.xdb" \
