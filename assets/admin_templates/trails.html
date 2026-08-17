@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+{% block title %}徒步轨迹管理{% endblock %}
+{% block content %}
+<h1>徒步轨迹管理</h1>
+
+{% if error_msg %}
+<p class="error">{{ error_msg }}</p>
+{% endif %}
+
+<div class="panel">
+  <section class="panel-section">
+    <h2>上传 GPX</h2>
+    <p class="panel-tip">支持两步路导出的 .gpx 文件（自动解析里程/爬升/时长并入库，可同时填写名称与描述）。</p>
+    <form class="trail-upload-form" method="post" action="{{ base_path }}/admin/trails/upload" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="trail-upload-grid">
+        <label class="modal-label">名称（可选）<input class="modal-input" type="text" name="name" maxlength="100" placeholder="留空则用 GPX 内轨迹名"></label>
+        <label class="modal-label">描述（可选）<textarea class="modal-textarea" name="description" rows="2" maxlength="500" placeholder="路线说明、难度、推荐季节…"></textarea></label>
+        <label class="modal-label">GPX 文件 <input class="modal-input" type="file" name="file" accept=".gpx,application/gpx+xml" required></label>
+      </div>
+      <div class="trail-upload-actions">
+        <button class="btn btn-primary" type="submit">上传并解析</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="panel">
+  <section class="panel-section">
+    <h2>轨迹列表</h2>
+    {% if trails %}
+    <div class="trail-admin-list">
+      {% for t in trails %}
+      <div class="trail-admin-item" data-id="{{ t.id }}" data-name="{{ t.name }}" data-desc="{{ t.description }}">
+        <div class="trail-admin-info">
+          <div class="trail-admin-name">
+            <a class="trail-admin-link" href="{{ base_path }}/trails/{{ t.id }}" target="_blank" rel="noopener">{{ t.name }}</a>
+            <span class="muted trail-admin-stats">
+              {% if t.distance_km_str %}{{ t.distance_km_str }} km{% endif %}
+              {% if t.elevation_gain_str %} · 爬升 {{ t.elevation_gain_str }} m{% endif %}
+              · {{ t.point_count }} 点{% if t.started_at %} · {{ t.started_at }}{% endif %}
+              {% if t.moving_time %} · {{ t.moving_time }}{% endif %}
+            </span>
+          </div>
+          {% if t.description %}<div class="trail-admin-desc">{{ t.description }}</div>{% endif %}
+        </div>
+        <div class="trail-admin-actions">
+          <button class="icon-btn" type="button" data-act="edit" title="编辑名称/描述" aria-label="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <form class="inline-form" method="post" action="{{ base_path }}/admin/trails/{{ t.id }}/delete" data-confirm="确认删除该轨迹？GPX 原文件与完整坐标将一并删除，不可恢复。">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="icon-btn icon-btn-danger" type="submit" title="删除" aria-label="删除">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">暂无轨迹，上传 GPX 后在这里管理</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var base = "{{ base_path }}";
+  var csrf = "{{ csrf }}";
+
+  function openModal(html) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal-box">' + html + '</div>';
+    document.body.appendChild(overlay);
+    overlay.hidden = false;
+    function close() { overlay.remove(); }
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape' && document.body.contains(overlay)) { close(); document.removeEventListener('keydown', esc); }
+    });
+    return { overlay: overlay, close: close };
+  }
+
+  function post(action, data) {
+    var body = new URLSearchParams(data);
+    body.set('csrf', csrf);
+    return window.hancicFetch(base + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+  }
+
+  // 编辑名称/描述弹窗
+  document.querySelectorAll('[data-act="edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var item = btn.closest('.trail-admin-item');
+      var m = openModal(
+        '<h3 class="modal-title">编辑轨迹</h3>' +
+        '<div class="modal-msg modal-msg-left">' +
+        '  <label class="modal-label">名称<input class="modal-input" id="tf-name" maxlength="100"></label>' +
+        '  <label class="modal-label">描述<textarea class="modal-textarea" id="tf-desc" maxlength="500" rows="3"></textarea></label>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+        '  <button class="btn" type="button" data-x>取消</button>' +
+        '  <button class="btn btn-primary" type="button" data-save>保存</button>' +
+        '</div>'
+      );
+      m.overlay.querySelector('#tf-name').value = item.getAttribute('data-name');
+      m.overlay.querySelector('#tf-desc').value = item.getAttribute('data-desc') || '';
+      m.overlay.querySelector('#tf-name').focus();
+      m.overlay.querySelector('[data-x]').addEventListener('click', m.close);
+      m.overlay.querySelector('[data-save]').addEventListener('click', function () {
+        var name = m.overlay.querySelector('#tf-name').value.trim();
+        var desc = m.overlay.querySelector('#tf-desc').value.trim();
+        if (!name) { window.hancicToast('轨迹名称不能为空', 'error'); return; }
+        if (name.length > 100) { window.hancicToast('轨迹名称最多 100 字', 'error'); return; }
+        if (desc.length > 500) { window.hancicToast('轨迹描述最多 500 字', 'error'); return; }
+        post('/admin/trails/' + item.getAttribute('data-id') + '/update', { name: name, description: desc })
+          .then(function (res) {
+            if (!res.ok) { window.hancicToast('保存失败，请重试', 'error'); return; }
+            m.close();
+            window.location.reload();
+          }).catch(function () { window.hancicToast('网络错误，请重试', 'error'); });
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

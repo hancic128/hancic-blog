@@ -2179,3 +2179,37 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .col-dragging { opacity: 0.35; }
 .col-drop-before { box-shadow: inset 0 2px 0 0 var(--accent); }
 .col-drop-after { box-shadow: inset 0 -2px 0 0 var(--accent); }
+
+/* ---------- 徒步轨迹管理 ---------- */
+.panel-tip { margin: 4px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.trail-upload-form { display: flex; flex-direction: column; gap: 12px; }
+.trail-upload-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 900px) {
+  .trail-upload-grid { grid-template-columns: 1fr 1fr; }
+  .trail-upload-grid .modal-label:nth-child(2) { grid-column: 1 / -1; }
+}
+.trail-upload-actions { display: flex; justify-content: flex-end; }
+.trail-admin-list { display: flex; flex-direction: column; gap: 10px; }
+.trail-admin-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.trail-admin-info { flex: 1 1 240px; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+.trail-admin-name { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.trail-admin-link { font-weight: 600; font-size: 15px; color: var(--text); text-decoration: none; }
+.trail-admin-link:hover { color: var(--accent); }
+.trail-admin-stats { font-size: 13px; }
+.trail-admin-desc { font-size: 13px; color: var(--muted); word-break: break-word; }
+.trail-admin-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+@media (max-width: 720px) {
+  .trail-admin-item { flex-direction: column; }
+}

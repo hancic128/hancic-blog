@@ -34,6 +34,7 @@ pub mod columns;
 pub mod taxonomy;
 pub mod themes;
 pub mod tokens;
+pub mod trails;
 
 /// 后台时间显示时区偏移（Asia/Shanghai，UTC+8；T17 允许配置时区后再调整）。
 const TZ_OFFSET_SECS: i32 = 8 * 3600;
@@ -71,6 +72,15 @@ pub fn router() -> Router<AppState> {
         .route("/columns/{id}/posts/add", post(columns::add_post))
         .route("/columns/{id}/posts/remove", post(columns::remove_post))
         .route("/columns/{id}/posts/reorder", post(columns::reorder_posts))
+        .route("/trails", get(trails::list))
+        .route(
+            "/trails/upload",
+            post(trails::upload).layer(axum::extract::DefaultBodyLimit::max(
+                trails::GPX_MAX_BYTES + 1024 * 1024,
+            )),
+        )
+        .route("/trails/{id}/update", post(trails::update))
+        .route("/trails/{id}/delete", post(trails::delete))
         .route("/settings", get(settings::page))
         .route("/settings/save", post(settings::save))
         .route("/system", get(system::page))
@@ -124,6 +134,7 @@ pub fn build_tera() -> Tera {
         ("taxonomy.html", include_str!("../../assets/admin_templates/taxonomy.html")),
         ("columns.html", include_str!("../../assets/admin_templates/columns.html")),
         ("column_posts.html", include_str!("../../assets/admin_templates/column_posts.html")),
+        ("trails.html", include_str!("../../assets/admin_templates/trails.html")),
         ("settings.html", include_str!("../../assets/admin_templates/settings.html")),
         ("system.html", include_str!("../../assets/admin_templates/system.html")),
         ("themes.html", include_str!("../../assets/admin_templates/themes.html")),
@@ -190,16 +201,17 @@ struct NavItem {
     active: bool,
 }
 
-/// 侧边栏 9 个模块；active 按当前请求路径匹配。
+/// 侧边栏 12 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
     // (url, label, group)：内容管理 / 系统
-    let items: [(&str, &str, &str); 11] = [
+    let items: [(&str, &str, &str); 12] = [
         ("/admin", "仪表盘", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
         ("/admin/attachments", "附件库", "content"),
         ("/admin/taxonomy", "分类标签", "content"),
         ("/admin/columns", "专栏管理", "content"),
+        ("/admin/trails", "徒步轨迹", "content"),
         ("/admin/settings", "站点设置", "system"),
         ("/admin/themes", "主题管理", "system"),
         ("/admin/tokens", "API Token", "system"),
