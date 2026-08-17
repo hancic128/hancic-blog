@@ -9,6 +9,7 @@
 pub mod auth;
 pub mod backup;
 pub mod categories;
+pub mod columns;
 pub mod likes;
 pub mod moments;
 pub mod posts;
@@ -42,6 +43,19 @@ pub fn router() -> Router<AppState> {
         )
         .route("/tags", get(tags::list))
         .route("/tags/{id}", delete(tags::delete))
+        .route("/columns", get(columns::list).post(columns::create))
+        .route(
+            "/columns/{id}",
+            patch(columns::update).delete(columns::delete),
+        )
+        .route(
+            "/columns/{id}/posts",
+            get(columns::list_posts).post(columns::add_post),
+        )
+        .route(
+            "/columns/{id}/posts/{post_id}",
+            delete(columns::remove_post),
+        )
         .route("/stats/summary", get(stats::summary))
         .route("/backup", get(backup::backup))
 }

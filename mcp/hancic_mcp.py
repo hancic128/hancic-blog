@@ -210,7 +210,53 @@ def list_tags() -> list:
 def delete_tag(tag_id: int) -> dict:
     _request("DELETE", f"/tags/{tag_id}")
     return {"ok": True, "tag_id": tag_id}
-    return {"ok": True, "category_id": category_id}
+
+
+@mcp.tool(description="全量专栏列表（含各专栏已发布文章数）")
+def list_columns() -> list:
+    return _request("GET", "/columns")
+
+
+@mcp.tool(description="创建专栏（name 必填，≤8 字；description ≤50 字；slug 缺省由名称自动生成）")
+def create_column(name: str, slug: str = "", description: str = "", sort_order: int = 0) -> dict:
+    body = {"name": name, "sort_order": sort_order}
+    if slug:
+        body["slug"] = slug
+    if description:
+        body["description"] = description
+    return _request("POST", "/columns", json=body)
+
+
+@mcp.tool(description="更新专栏名称/描述（PATCH：只传要改的字段；slug 创建后不变）")
+def update_column(column_id: int, name: str = "", description: str = None) -> dict:
+    body = {}
+    if name:
+        body["name"] = name
+    if description is not None:
+        body["description"] = description
+    return _request("PATCH", f"/columns/{column_id}", json=body)
+
+
+@mcp.tool(description="删除专栏（关联文章自动变为无专栏，不可恢复）")
+def delete_column(column_id: int) -> dict:
+    _request("DELETE", f"/columns/{column_id}")
+    return {"ok": True, "column_id": column_id}
+
+
+@mcp.tool(description="专栏下文章列表（分页，仅已发布，按更新时间倒序）")
+def list_column_posts(column_id: int, page: int = 1, page_size: int = 10) -> dict:
+    return _request("GET", f"/columns/{column_id}/posts", params={"page": page, "page_size": page_size})
+
+
+@mcp.tool(description="把文章加入专栏（文章保留原分类/标签）")
+def add_post_to_column(column_id: int, post_id: int) -> dict:
+    return _request("POST", f"/columns/{column_id}/posts", json={"post_id": post_id})
+
+
+@mcp.tool(description="把文章移出专栏（文章不删除）")
+def remove_post_from_column(column_id: int, post_id: int) -> dict:
+    _request("DELETE", f"/columns/{column_id}/posts/{post_id}")
+    return {"ok": True, "column_id": column_id, "post_id": post_id}
 
 
 @mcp.tool(description="上传附件（multipart，字段名 files）；返回附件 id/path，可用于说说 attachment_ids 或文章引用")

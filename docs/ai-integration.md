@@ -199,7 +199,38 @@ curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/tags
 - 标签的创建/改名复用文章编辑的 `tags` 数组（同名自动建标签/复用）；本组端点只读与删
 - 删除不可恢复；常用于清理无文章的残留标签
 
-## 8. 统计
+## 8. 专栏（Columns）
+
+```bash
+# 列表（含各专栏已发布文章数）
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/columns
+# 创建（name 必填 ≤8 字；description ≤50 字；slug 缺省由名称自动生成，中文原样保留）
+curl -s -X POST https://example.com/api/columns \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "工程思维", "description": "把工程思维用到生活和决策里"}'
+# 更新名称/描述（PATCH 部分字段；slug 创建后不改，避免前台链接失效）
+curl -s -X PATCH https://example.com/api/columns/4 \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"description": "新的专栏描述"}'
+# 删除（关联文章自动变为无专栏，文章不删）
+curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/columns/4
+
+# 专栏下文章列表（分页，仅已发布，按更新时间倒序）
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://example.com/api/columns/4/posts?page=1&page_size=10"
+# 把文章加入专栏
+curl -s -X POST https://example.com/api/columns/4/posts \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"post_id": 42}'
+# 把文章移出专栏（文章保留）
+curl -s -X DELETE -H "Authorization: Bearer $TOKEN" \
+  https://example.com/api/columns/4/posts/42
+```
+
+- 一篇文章可属于 0/1 个专栏（`posts.column_id`）；加入/移出不触碰文章其他字段
+- 校验与后台一致：名称超 8 字、描述超 50 字 → 400；slug 冲突 → 409
+
+## 9. 统计
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -208,7 +239,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 响应 `{data: {total_views, total_posts, total_moments, total_attachments, trend: [{date, count}...]}}`。`from`/`to` 可选（UTC 日期）。
 
-## 8. 健康检查
+## 10. 健康检查
 
 ```bash
 curl -s https://example.com/api/health
@@ -217,7 +248,7 @@ curl -s https://example.com/api/health
 
 不鉴权，供监控/部署探测。
 
-## 9. 发布文章最佳实践（给 Agent 的推荐流程）
+## 11. 发布文章最佳实践（给 Agent 的推荐流程）
 
 1. **先查再写**：`GET /api/categories` 确认分类存在（或先 `POST /api/categories` 建分类）；标签同名自动复用，无需预建。
 2. **图片先传**：文章里的图片先 `POST /api/uploads` 拿到 `id`/URL，再写进 `content_md`。
@@ -229,11 +260,11 @@ curl -s https://example.com/api/health
    - `5xx`：服务端异常，稍后重试并保留请求体。
 5. **幂等注意**：POST 无幂等键，重复提交会重复建文章；如需保证只建一次，先 `GET /api/posts?page=1&page_size=1&status=draft` 核对或事后清理。
 
-## 10. 将来 MCP 封装说明
+## 12. 将来 MCP 封装说明
 
 后续 MCP server 将基于本文档实现，映射约定：
 
-- 每个端点 → 一个 tool（`create_post`、`list_posts`、`get_post`、`update_post`、`delete_post`、`create_moment`、`delete_moment`、`upload_attachment`、`list_categories`、`create_category`、`update_category`、`delete_category`、`stats_summary`、`health`）
+- 每个端点 → 一个 tool（`create_post`、`list_posts`、`get_post`、`update_post`、`delete_post`、`create_moment`、`delete_moment`、`upload_attachment`、`list_categories`、`create_category`、`update_category`、`delete_category`、`list_tags`、`delete_tag`、`list_columns`、`create_column`、`update_column`、`delete_column`、`list_column_posts`、`add_post_to_column`、`remove_post_from_column`、`stats_summary`、`health`）
 - 鉴权：Token 存于 MCP server 环境变量（如 `HANCIC_TOKEN`），所有请求统一注入 `Authorization` 头，不暴露给调用方
 - 入参校验在 tool 层做（title 非空、status 枚举、category_id 存在性），把 400 提前转成 tool 参数错误，减少对服务端的无效请求
 - 发布文章最佳实践（第 9 节）固化为一个组合 tool：`publish_article`（可传图 → 建草稿 → 补充字段 → 发布），对 AI 调用者提供"一步发布"体验

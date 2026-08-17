@@ -88,6 +88,17 @@ pub async fn get_column_by_slug(db: &Db, slug: &str) -> Result<Option<Column>, A
     Ok(row)
 }
 
+/// 按 id 查专栏（API 层校验用）。
+pub async fn get_column_by_id(db: &Db, id: i64) -> Result<Option<Column>, AppError> {
+    let row = sqlx::query_as::<_, Column>(
+        "SELECT id, slug, name, sort_order, description FROM columns WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(db)
+    .await?;
+    Ok(row)
+}
+
 /// 各专栏下已发布普通文章数（未发布/页面不计），专栏页排序与后台计数用。
 pub async fn count_columns_posts(db: &Db) -> Result<HashMap<i64, i64>, AppError> {
     let rows: Vec<(i64, i64)> = sqlx::query_as(
