@@ -213,7 +213,7 @@ fn validate_nav(s: &str) -> Option<String> {
     let Some(arr) = v.as_array() else {
         return Some("导航必须为 JSON 数组".into());
     };
-    const TYPES: [&str; 6] = ["home", "articles", "moments", "pages", "column", "link"];
+    const TYPES: [&str; 7] = ["home", "articles", "moments", "pages", "column", "trail", "link"];
     for (i, item) in arr.iter().enumerate() {
         let label = item.get("label").and_then(Value::as_str).unwrap_or("").trim();
         let url = item.get("url").and_then(Value::as_str).unwrap_or("").trim();

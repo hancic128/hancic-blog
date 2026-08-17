@@ -16,7 +16,12 @@
       <div class="trail-upload-grid">
         <label class="modal-label">名称（可选）<input class="modal-input" type="text" name="name" maxlength="100" placeholder="留空则用 GPX 内轨迹名"></label>
         <label class="modal-label">描述（可选）<textarea class="modal-textarea" name="description" rows="2" maxlength="500" placeholder="路线说明、难度、推荐季节…"></textarea></label>
-        <label class="modal-label">GPX 文件 <input class="modal-input" type="file" name="file" accept=".gpx,application/gpx+xml" required></label>
+        <label class="modal-label" for="trail-file">GPX 文件</label>
+        <input id="trail-file" class="file-input-sr" type="file" name="file" accept=".gpx,application/gpx+xml" required>
+        <div class="file-pick-row">
+          <label class="btn" for="trail-file">选择 GPX 文件</label>
+          <span class="muted" id="trail-file-name">未选择</span>
+        </div>
       </div>
       <div class="trail-upload-actions">
         <button class="btn btn-primary" type="submit">上传并解析</button>
