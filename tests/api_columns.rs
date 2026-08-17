@@ -72,7 +72,7 @@ async fn api_columns_walkthrough() {
     assert_eq!(body["data"]["name"], "工程思维");
     assert_eq!(body["data"]["slug"], "工程思维");
     assert_eq!(body["data"]["description"], "把工程思维用到生活和决策里");
-    assert_eq!(body["data"]["posts"], 0);
+    // 创建响应为原始 Column（无 posts 计数，计数仅在 list 端点富化，见步骤 7）
 
     // 3. 校验 400：空名 / 超长名 / 超长描述
     let (status, _) = send(
