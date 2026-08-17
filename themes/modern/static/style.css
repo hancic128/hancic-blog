@@ -676,3 +676,43 @@ button, a, [role="button"], label { cursor: pointer; }
   .moment-thumb { width: 60px; height: 60px; }
   .moment-thumb-more { width: 60px; height: 60px; }
 }
+
+/* ---------- 列表页排序切换（与 default 主题一致） ---------- */
+.sort-bar { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+  font-size: .875rem; color: var(--muted); margin: .2rem 0 1rem; }
+.sort-link { color: var(--muted); text-decoration: none; padding: .15rem .55rem;
+  border-radius: 999px; border: 1px solid var(--border); transition: all .2s; }
+.sort-link:hover { color: var(--accent); border-color: var(--accent); }
+.sort-link.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+
+/* ---------- 专栏卡片总览页（与 default 主题一致） ---------- */
+.column-list { display: flex; flex-direction: column; gap: 1.5rem; margin-top: .5rem; }
+.column-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem;
+  background: var(--card-bg);
+}
+.column-card-head { border-bottom: 1px solid var(--border); padding-bottom: .75rem; margin-bottom: .9rem; }
+.column-card-name { margin: 0 0 .35rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.column-card-name a { color: var(--fg); text-decoration: none; transition: color 200ms ease; }
+.column-card-name a:hover { color: var(--accent); }
+.column-card-desc { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.column-card-posts { list-style: none; margin: 0 0 .6rem; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.column-card-posts li { padding-left: 1rem; position: relative; }
+.column-card-posts li::before { content: ""; position: absolute; left: 0; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.column-card-posts a { color: var(--fg); text-decoration: none; transition: color 200ms ease; }
+.column-card-posts a:hover { color: var(--accent); }
+.column-more { color: var(--accent); text-decoration: none; font-size: .9rem; }
+.column-more:hover { text-decoration: underline; }
+.column-card-count { font-weight: 400; color: var(--muted); font-size: .8rem; margin-left: .6rem; }
+.archive-count { font-weight: 400; color: var(--muted); font-size: .85rem; margin-left: .5rem; }
+.archive-title .archive-cat { color: var(--accent); }
+
+/* ---------- 侧栏：专栏列表导航（与 default 主题一致） ---------- */
+.side-columns { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.side-columns li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.side-columns a { color: var(--muted); text-decoration: none; font-size: .9rem; line-height: 1.5; }
+.side-columns a:hover { color: var(--accent); }
+.side-columns .side-column-active a { color: var(--accent); font-weight: 600; }
+.side-column-count { color: var(--muted); font-size: .78rem; flex-shrink: 0; }
