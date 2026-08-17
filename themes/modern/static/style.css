@@ -773,7 +773,10 @@ button, a, [role="button"], label { cursor: pointer; }
 
 /* ---- 轨迹总览：列表（固定高滚动）+ 地图 + 右侧标准侧栏数字卡片 ---- */
 .trail-list-panel { max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
-.layout-side .trail-detail-card { margin-top: 0; }
+.layout-side .trail-detail-card { margin-top: 0; max-height: calc(100vh - 8.5rem); overflow-y: auto; }
+.layout-side .trail-stats { grid-template-columns: repeat(2, 1fr); gap: .6rem .75rem; margin-top: .9rem; }
+.layout-side .trail-stat-value { font-size: 1rem; }
+.layout-side .trail-stat-label { font-size: .7rem; }
 
 /* ===== 徒步轨迹 ===== */
 .trails-map-wrap { margin: 1.25rem 0 1.5rem; }
