@@ -1,9 +1,9 @@
 {# 徒步轨迹总览：轨迹列表（上，固定高滚动）+ 地图（速度着色/瓦片/全屏）+ 右侧数字卡片 #}
 {% include "partials/header.html" %}
-<h1 class="archive-title">徒步轨迹</h1>
-{% if trails %}
-<div class="trails-layout">
-  <div class="trails-main">
+<div class="layout-two-col">
+  <main class="layout-main">
+    <h1 class="archive-title">徒步轨迹</h1>
+    {% if trails %}
     <div class="trail-list-panel">
       <div class="trail-filter-row">
         <input class="trail-search" id="trail-search" type="search" placeholder="搜索轨迹名称/描述…" aria-label="搜索轨迹">
@@ -35,8 +35,11 @@
     <div class="trails-map-wrap">
       <div id="trails-map" class="trails-map" role="application" aria-label="徒步轨迹地图"></div>
     </div>
-  </div>
-  <aside class="trails-side">
+    {% else %}
+    <p class="empty">暂无轨迹</p>
+    {% endif %}
+  </main>
+  <aside class="layout-side">
     <div class="trail-detail-card" id="trail-detail" hidden>
       <div class="trail-detail-head">
         <div class="trail-detail-title">
@@ -52,9 +55,6 @@
     </div>
   </aside>
 </div>
-{% else %}
-<p class="empty">暂无轨迹</p>
-{% endif %}
 <link rel="stylesheet" href="{{ base_path }}/static/vendor/leaflet/leaflet.css">
 <script src="{{ base_path }}/static/vendor/leaflet/leaflet.js"></script>
 <script>

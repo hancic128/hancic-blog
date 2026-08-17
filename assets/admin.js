@@ -509,7 +509,7 @@
     var row = document.createElement('div');
     row.className = 'kv-row';
     // 内置导航项（首页/文章/说说）：固定存在、类型锁定、不可删除，仅可改名与排序
-    var builtin = format === 'nav' && ['home', 'articles', 'moments', 'column'].indexOf(typeVal) !== -1;
+    var builtin = format === 'nav' && ['home', 'articles', 'moments', 'column', 'trail'].indexOf(typeVal) !== -1;
     // 所有列表型编辑器均支持拖拽排序（导航/友情链接/社交链接/社交图标）
     var drag = document.createElement('span');
     drag.className = 'kv-drag';

@@ -771,15 +771,9 @@ button, a, [role="button"], label { cursor: pointer; }
 .trail-sort-btn:hover { color: var(--accent); border-color: var(--accent); }
 .trail-sort-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
-/* ---- 轨迹总览：列表（上，固定高滚动）+ 地图 + 右侧数字卡片 ---- */
-.trails-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
-.trails-main { flex: 1; min-width: 0; }
+/* ---- 轨迹总览：列表（固定高滚动）+ 地图 + 右侧标准侧栏数字卡片 ---- */
 .trail-list-panel { max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
-.trails-side { flex: 0 0 320px; max-width: 340px; position: sticky; top: 1rem; }
-@media (max-width: 860px) {
-  .trails-layout { flex-direction: column; }
-  .trails-side { flex: 1 1 auto; max-width: none; width: 100%; position: static; }
-}
+.layout-side .trail-detail-card { margin-top: 0; }
 
 /* ===== 徒步轨迹 ===== */
 .trails-map-wrap { margin: 1.25rem 0 1.5rem; }
