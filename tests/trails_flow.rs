@@ -269,7 +269,7 @@ async fn trail_pages_render_with_404() {
     let trails_dir = std::env::temp_dir()
         .join(format!("hancic-test-trails-pages-{}", std::process::id()))
         .join("trails");
-    let t = trails::import_gpx(&pool, &trails_dir, "", "", GPX_VALID.as_bytes())
+    let t = trails::import_gpx(&pool, &trails_dir, "", "", "", GPX_VALID.as_bytes())
         .await
         .unwrap();
 

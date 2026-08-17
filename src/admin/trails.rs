@@ -105,8 +105,14 @@ pub async fn upload(
     if data.is_empty() {
         return fail(&state.config.base_path, "文件内容为空");
     }
+    // 两步路导出 GPX 无 <name>：默认名称回退到上传文件名（去 .gpx）
+    let fallback_name = file_name
+        .strip_suffix(".gpx")
+        .or_else(|| file_name.strip_suffix(".GPX"))
+        .unwrap_or(&file_name)
+        .to_string();
     let trails_dir = state.config.data_dir.join("trails");
-    match trails::import_gpx(&state.db, &trails_dir, &name, &description, &data).await {
+    match trails::import_gpx(&state.db, &trails_dir, &name, &fallback_name, &description, &data).await {
         Ok(_) => super::redirect(&state.config.base_path, "/admin/trails"),
         Err(e) => {
             tracing::error!("导入轨迹失败: {e:?}");

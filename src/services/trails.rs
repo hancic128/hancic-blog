@@ -63,6 +63,7 @@ pub fn parse_gpx(data: &[u8]) -> Result<(Vec<TrailPoint>, Option<String>), Strin
     let mut trk_name: Option<String> = None; // <trk><name>（优先）
     let mut meta_name: Option<String> = None; // <metadata><name>（兜底）
     let mut in_metadata = false;
+    let mut in_author = false;
     let mut in_trk = false;
     let mut in_trkpt = false;
     let mut in_trk_name = false;
@@ -82,13 +83,14 @@ pub fn parse_gpx(data: &[u8]) -> Result<(Vec<TrailPoint>, Option<String>), Strin
             Ok(Event::Eof) => break,
             Ok(Event::Start(e)) => match e.name().as_ref() {
                 b"metadata" => in_metadata = true,
+                b"author" => in_author = true,
+                b"name" if in_metadata && !in_author => {
+                    in_meta_name = true;
+                    name_buf.clear();
+                }
                 b"trk" => {
                     in_trk = true;
                     in_trk_name = false;
-                }
-                b"name" if in_metadata => {
-                    in_meta_name = true;
-                    name_buf.clear();
                 }
                 b"name" if in_trk => {
                     in_trk_name = true;
@@ -125,6 +127,7 @@ pub fn parse_gpx(data: &[u8]) -> Result<(Vec<TrailPoint>, Option<String>), Strin
             }
             Ok(Event::End(e)) => match e.name().as_ref() {
                 b"metadata" => in_metadata = false,
+                b"author" => in_author = false,
                 b"trk" => {
                     in_trk = false;
                     in_trk_name = false;
@@ -347,6 +350,7 @@ pub async fn import_gpx(
     db: &Db,
     trails_dir: &Path,
     name: &str,
+    fallback_name: &str,
     description: &str,
     data: &[u8],
 ) -> Result<Trail, AppError> {
@@ -357,12 +361,15 @@ pub async fn import_gpx(
             "GPX 中有效轨迹点不足（至少 2 个点）".into(),
         ));
     }
-    let name = if name.trim().is_empty() {
-        gpx_name
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "未命名轨迹".to_string())
-    } else {
+    // 名称优先级：表单填写 > GPX <name> > 上传文件名（去 .gpx）> 兜底
+    let name = if !name.trim().is_empty() {
         name.trim().to_string()
+    } else if let Some(g) = gpx_name.filter(|s| !s.trim().is_empty()) {
+        g
+    } else if !fallback_name.trim().is_empty() {
+        fallback_name.trim().to_string()
+    } else {
+        "未命名轨迹".to_string()
     };
     let stats = compute_stats(&points);
     let simplified_json = coords_json(&stats.simplified);
