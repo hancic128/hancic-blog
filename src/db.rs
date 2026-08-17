@@ -17,6 +17,35 @@ CREATE TABLE IF NOT EXISTS columns (
 );
 "#;
 
+/// 徒步轨迹表（幂等，重复执行无副作用）。
+///
+/// 存元数据与统计：GPX 原文件与完整坐标 JSON 落在运行时 `data/trails/`（gitignore），
+/// `simplified` 为抽稀后坐标 JSON `[[lat,lon],...]`（总览地图直接嵌入，不读文件）。
+const MIGRATION_003: &str = r#"
+CREATE TABLE IF NOT EXISTS trails (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  name              TEXT NOT NULL,
+  description       TEXT NOT NULL DEFAULT '',
+  file_path         TEXT NOT NULL,
+  started_at        TEXT,
+  distance_m        REAL,
+  elevation_gain_m  REAL,
+  elevation_loss_m  REAL,
+  moving_seconds    INTEGER,
+  avg_speed_kmh     REAL,
+  max_elevation_m   REAL,
+  min_elevation_m   REAL,
+  start_lat         REAL,
+  start_lon         REAL,
+  end_lat           REAL,
+  end_lon           REAL,
+  simplified        TEXT NOT NULL DEFAULT '[]',
+  point_count       INTEGER NOT NULL DEFAULT 0,
+  created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+"#;
+
 pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     std::fs::create_dir_all(data_dir)
         .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?;
@@ -31,6 +60,7 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
         .connect_with(opts).await?;
     sqlx::raw_sql(MIGRATION_001).execute(&pool).await?;
     sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
+    sqlx::raw_sql(MIGRATION_003).execute(&pool).await?;
     ensure_column_id(&pool).await?;
     ensure_column_sort(&pool).await?;
     ensure_column_description(&pool).await?;

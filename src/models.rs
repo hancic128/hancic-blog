@@ -195,6 +195,44 @@ pub struct Column {
     pub description: String,
 }
 
+/// 徒步轨迹（`trails` 表）：GPX 导入后存元数据与统计，坐标 JSON 在运行时目录。
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct Trail {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
+    /// GPX 相对路径（data/trails/xxx.gpx）
+    pub file_path: String,
+    /// 开始时间（轨迹首点时间，ISO RFC3339）
+    pub started_at: Option<DateTime<Utc>>,
+    /// 里程（米）
+    pub distance_m: Option<f64>,
+    /// 累计爬升（米）
+    pub elevation_gain_m: Option<f64>,
+    /// 累计下降（米）
+    pub elevation_loss_m: Option<f64>,
+    /// 运动时长（秒）
+    pub moving_seconds: Option<i64>,
+    /// 平均速度（km/h）
+    pub avg_speed_kmh: Option<f64>,
+    /// 最高海拔（米）
+    pub max_elevation_m: Option<f64>,
+    /// 最低海拔（米）
+    pub min_elevation_m: Option<f64>,
+    /// 起点坐标
+    pub start_lat: Option<f64>,
+    pub start_lon: Option<f64>,
+    /// 终点坐标
+    pub end_lat: Option<f64>,
+    pub end_lon: Option<f64>,
+    /// 抽稀后坐标 JSON `[[lat,lon],...]`（总览地图用）
+    pub simplified: String,
+    /// 原始轨迹点数
+    pub point_count: i64,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct Tag {
     pub id: i64,
