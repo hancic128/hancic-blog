@@ -102,6 +102,26 @@
     });
   }
 
+  /* ---------- 移动端下拉手风琴（≤768px）：点父项展开/收起，桌面 hover 不受影响 ---------- */
+  var navDropdowns = document.querySelectorAll(".nav-dropdown");
+  if (navDropdowns.length && window.matchMedia) {
+    var isMobileNav = function () {
+      return window.matchMedia("(max-width: 768px)").matches;
+    };
+    navDropdowns.forEach(function (dd) {
+      var link = dd.querySelector(":scope > a");
+      if (!link) return;
+      link.addEventListener("click", function (e) {
+        if (!isMobileNav()) return;
+        var menu = dd.querySelector(".dropdown-menu");
+        if (!menu) return;
+        e.preventDefault();
+        e.stopPropagation(); // 防止冒泡关闭抽屉
+        dd.classList.toggle("open");
+      });
+    });
+  }
+
   /* ---------- 图片懒加载 + lightbox ---------- */
 
   function addLazyAndLightbox() {

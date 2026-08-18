@@ -158,7 +158,9 @@ button, a, [role="button"], label { cursor: pointer; }
   background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
   padding: .35rem 0; min-width: 150px; flex-direction: column;
   box-shadow: var(--shadow); z-index: 10; }
-.nav-dropdown:hover .dropdown-menu, .nav-dropdown:focus-within .dropdown-menu { display: flex; }
+@media (min-width: 769px) {
+  .nav-dropdown:hover .dropdown-menu, .nav-dropdown:focus-within .dropdown-menu { display: flex; }
+}
 .dropdown-menu a { padding: .45rem 1rem; border-radius: 0; color: var(--fg); font-size: .88rem; }
 .dropdown-menu a:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
 .theme-toggle, .nav-toggle {
@@ -635,11 +637,15 @@ button, a, [role="button"], label { cursor: pointer; }
 @media (max-width: 768px) {
   .site-header-inner { padding: .8rem 1rem; gap: .8rem; }
   .site-nav {
+    /* 注意：.site-header 的 backdrop-filter 会成为 fixed 后代的包含块，
+       不能依赖 top:0/bottom:0 拉伸，需显式高度（100dvh + 100vh 兜底） */
     position: fixed;
     top: 0;
     right: 0;
-    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
     width: 240px;
+    box-sizing: border-box;
     background: var(--card-bg);
     border-left: 1px solid var(--border);
     flex-direction: column;
@@ -650,13 +656,42 @@ button, a, [role="button"], label { cursor: pointer; }
     transition: transform .25s ease;
     box-shadow: -8px 0 30px rgba(0, 0, 0, .1);
     z-index: 55;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .site-nav.open { transform: translateX(0); }
   .site-nav a { padding: .7rem 1rem; font-size: 1rem; border-radius: 10px; }
   .nav-toggle { display: inline-flex; }
-  .nav-dropdown .dropdown-menu { position: static; display: flex; border: none;
-    box-shadow: none; padding: .25rem 0 .25rem 1rem; min-width: 0; }
-  .nav-dropdown > a::after { content: none; }
+  /* 移动端下拉改手风琴：默认收起，点父项展开 */
+  .nav-dropdown > a {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .nav-dropdown > a::after {
+    content: "▾";
+    margin-left: auto;
+    font-size: .8em;
+    opacity: .7;
+    transition: transform .2s ease;
+  }
+  .nav-dropdown.open > a::after { transform: rotate(180deg); }
+  .nav-dropdown .dropdown-menu {
+    position: static;
+    display: none;
+    border: none;
+    box-shadow: none;
+    padding: .25rem 0 .25rem 0;
+    min-width: 0;
+  }
+  .nav-dropdown.open .dropdown-menu { display: flex; }
+  /* 子链接与主链接同风格（整行圆角），左侧缩进区分层级 */
+  .nav-dropdown .dropdown-menu a {
+    padding: .55rem 1rem .55rem 1.6rem;
+    font-size: .92rem;
+    border-radius: 10px;
+    color: var(--muted);
+  }
   .moment-grid { grid-template-columns: repeat(3, 1fr); }
   .post-header h1 { font-size: 1.6rem; }
 }
@@ -801,7 +836,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .trail-card-name { font-weight: 700; font-size: 1.05rem; color: var(--fg); transition: color 200ms ease; }
 .trail-card:hover .trail-card-name { color: var(--accent); }
 .trail-card-meta { display: flex; gap: .5rem; flex-wrap: wrap; }
-.trail-badge { font-size: .78rem; color: var(--muted); background: var(--code-bg); padding: .15rem .55rem; border-radius: 999px; }
+.trail-badge { font-size: .78rem; color: var(--muted); background: color-mix(in srgb, var(--fg) 7%, transparent); padding: .15rem .55rem; border-radius: 999px; }
 .trail-card-desc { color: var(--muted); font-size: .875rem; line-height: 1.6; }
 .trail-stats {
   display: grid;
