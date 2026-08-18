@@ -260,26 +260,16 @@ button, a, [role="button"], label { cursor: pointer; }
   height: 12px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
+  cursor: default;
 }
 .heat-cell.l1 { background: var(--heat-1); }
 .heat-cell.l2 { background: var(--heat-2); }
 .heat-cell.l3 { background: var(--heat-3); }
 .heat-cell.l4 { background: var(--heat-4); }
-.heat-cell[data-tip] { position: relative; }
-.heat-cell[data-tip]:hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  background: var(--fg);
-  color: var(--bg);
-  font-size: .72rem;
-  padding: 3px 8px;
-  border-radius: 6px;
-  z-index: 30;
-}
+.heat-tooltip { position: fixed; z-index: 100; pointer-events: none;
+  background: var(--fg); color: var(--bg); font-size: .72rem; line-height: 1.5;
+  padding: .45rem .75rem; border-radius: 6px; white-space: pre-line;
+  min-width: 180px; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
 .heat-legend { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: .75rem; color: var(--muted); }
 
 /* ---------- 说说时间线 ---------- */
