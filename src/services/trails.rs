@@ -16,6 +16,7 @@ use chrono::{DateTime, Utc};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -374,6 +375,22 @@ pub async fn import_gpx(
             "GPX 中有效轨迹点不足（至少 2 个点）".into(),
         ));
     }
+    // 内容哈希去重：同一 GPX 文件（字节一致）拒绝重复上传
+    let sha256 = {
+        let mut h = Sha256::new();
+        h.update(data);
+        h.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
+    };
+    if let Some(existing) = sqlx::query_as::<_, (String,)>("SELECT name FROM trails WHERE sha256 = ? LIMIT 1")
+        .bind(&sha256)
+        .fetch_optional(db)
+        .await?
+    {
+        return Err(AppError::BadRequest(format!(
+            "已存在相同轨迹「{}」，请勿重复上传",
+            existing.0
+        )));
+    }
     // 名称优先级：表单填写 > GPX <name> > 上传文件名（去 .gpx）> 兜底
     let name = if !name.trim().is_empty() {
         name.trim().to_string()
@@ -394,14 +411,15 @@ pub async fn import_gpx(
     // 先插库拿 id，再写完整坐标 JSON（详情页直接加载）。插库失败回滚 GPX 文件。
     let insert = sqlx::query(
         "INSERT INTO trails \
-         (name, description, file_path, started_at, distance_m, elevation_gain_m, \
+         (name, description, file_path, sha256, started_at, distance_m, elevation_gain_m, \
           elevation_loss_m, moving_seconds, avg_speed_kmh, max_elevation_m, min_elevation_m, \
           start_lat, start_lon, end_lat, end_lon, simplified, point_count) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&name)
     .bind(description)
     .bind(file_name.as_str())
+    .bind(sha256.as_str())
     .bind(stats.started_at.map(|t| t.to_rfc3339()))
     .bind(stats.distance_m)
     .bind(stats.elevation_gain_m)
@@ -442,11 +460,50 @@ const TRAIL_COLUMNS: &str = "id, name, description, file_path, started_at, dista
      min_elevation_m, start_lat, start_lon, end_lat, end_lon, simplified, point_count, \
      created_at, updated_at";
 
-/// 轨迹列表：按开始时间倒序（无时间者排最后），同名按 id 倒序。
-pub async fn list_trails(db: &Db) -> Result<Vec<Trail>, AppError> {
+/// 轨迹列表排序方式（后台可切换；前台总览默认「最近」）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrailSort {
+    /// 按开始时间倒序（无时间者排最后）
+    Recent,
+    /// 按开始时间正序
+    Oldest,
+    /// 按里程倒序
+    Distance,
+    /// 按累计爬升倒序
+    Gain,
+    /// 按运动时长倒序
+    Duration,
+}
+
+impl TrailSort {
+    /// 解析 `?sort=` 查询参数，未知值回退「最近」。
+    pub fn parse(s: Option<&str>) -> Self {
+        match s {
+            Some("oldest") => Self::Oldest,
+            Some("distance") => Self::Distance,
+            Some("gain") => Self::Gain,
+            Some("duration") => Self::Duration,
+            _ => Self::Recent,
+        }
+    }
+
+    /// 对应 `ORDER BY` 片段（所有数值列先排 NULL 到末尾）。
+    pub fn order_by(self) -> &'static str {
+        match self {
+            Self::Recent => "started_at IS NULL, started_at DESC, id DESC",
+            Self::Oldest => "started_at IS NULL, started_at ASC, id ASC",
+            Self::Distance => "distance_m IS NULL, distance_m DESC, id DESC",
+            Self::Gain => "elevation_gain_m IS NULL, elevation_gain_m DESC, id DESC",
+            Self::Duration => "moving_seconds IS NULL, moving_seconds DESC, id DESC",
+        }
+    }
+}
+
+/// 轨迹列表：按指定排序（默认最近）。
+pub async fn list_trails(db: &Db, sort: TrailSort) -> Result<Vec<Trail>, AppError> {
     let rows = sqlx::query_as::<_, Trail>(&format!(
-        "SELECT {TRAIL_COLUMNS} FROM trails \
-         ORDER BY started_at IS NULL, started_at DESC, id DESC"
+        "SELECT {TRAIL_COLUMNS} FROM trails ORDER BY {}",
+        sort.order_by()
     ))
     .fetch_all(db)
     .await?;

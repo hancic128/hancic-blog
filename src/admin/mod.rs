@@ -76,7 +76,7 @@ pub fn router() -> Router<AppState> {
         .route(
             "/trails/upload",
             post(trails::upload).layer(axum::extract::DefaultBodyLimit::max(
-                trails::GPX_MAX_BYTES + 1024 * 1024,
+                trails::GPX_MAX_BYTES * trails::MAX_TRAIL_FILES + 1024 * 1024,
             )),
         )
         .route("/trails/{id}/update", post(trails::update))

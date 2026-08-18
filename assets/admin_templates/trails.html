@@ -10,17 +10,19 @@
 <div class="panel">
   <section class="panel-section">
     <h2>上传 GPX</h2>
-    <p class="panel-tip">支持两步路导出的 .gpx 文件（自动解析里程/爬升/时长并入库，可同时填写名称与描述）。</p>
+    <p class="panel-tip">支持两步路导出的 .gpx 文件（自动解析里程/爬升/时长并入库，可同时填写名称与描述）。可多选一次上传多条；相同轨迹（GPX 内容一致）会提示重复。</p>
     <form class="trail-upload-form" method="post" action="{{ base_path }}/admin/trails/upload" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="trail-upload-grid">
         <label class="modal-label">名称（可选）<input class="modal-input" type="text" name="name" maxlength="100" placeholder="留空则用 GPX 内轨迹名"></label>
         <label class="modal-label">描述（可选）<textarea class="modal-textarea" name="description" rows="2" maxlength="500" placeholder="路线说明、难度、推荐季节…"></textarea></label>
-        <label class="modal-label" for="trail-file">GPX 文件</label>
-        <input id="trail-file" class="file-input-sr" type="file" name="file" accept=".gpx,application/gpx+xml" required>
-        <div class="file-pick-row">
-          <label class="btn" for="trail-file">选择 GPX 文件</label>
-          <span class="muted" id="trail-file-name">未选择</span>
+        <div class="trail-file-row">
+          <label class="modal-label" for="trail-file">GPX 文件</label>
+          <input id="trail-file" class="file-input-sr" type="file" name="file" accept=".gpx,application/gpx+xml" multiple required>
+          <div class="file-pick-row">
+            <label class="btn" for="trail-file">选择 GPX 文件</label>
+            <span class="muted" id="trail-file-name">未选择</span>
+          </div>
         </div>
       </div>
       <div class="trail-upload-actions">
@@ -32,7 +34,15 @@
 
 <div class="panel">
   <section class="panel-section">
-    <h2>轨迹列表</h2>
+    <h2>轨迹列表
+      <span class="trail-sort" role="group" aria-label="轨迹排序">
+        <a class="{% if sort == 'recent' %}active{% endif %}" href="?sort=recent">最近</a>
+        <a class="{% if sort == 'oldest' %}active{% endif %}" href="?sort=oldest">最早</a>
+        <a class="{% if sort == 'distance' %}active{% endif %}" href="?sort=distance">里程</a>
+        <a class="{% if sort == 'gain' %}active{% endif %}" href="?sort=gain">爬升</a>
+        <a class="{% if sort == 'duration' %}active{% endif %}" href="?sort=duration">时长</a>
+      </span>
+    </h2>
     {% if trails %}
     <div class="trail-admin-list">
       {% for t in trails %}
@@ -76,6 +86,19 @@
   'use strict';
   var base = "{{ base_path }}";
   var csrf = "{{ csrf }}";
+
+  // 多选文件：更新选择提示（单个显示文件名，多个显示数量 + 前几个文件名）
+  var trailFile = document.getElementById('trail-file');
+  var trailFileName = document.getElementById('trail-file-name');
+  if (trailFile && trailFileName) {
+    trailFile.addEventListener('change', function () {
+      var files = trailFile.files;
+      if (!files.length) { trailFileName.textContent = '未选择'; return; }
+      if (files.length === 1) { trailFileName.textContent = files[0].name; return; }
+      var names = Array.prototype.slice.call(files, 0, 3).map(function (f) { return f.name; });
+      trailFileName.textContent = '已选择 ' + files.length + ' 个文件：' + names.join('、') + (files.length > 3 ? ' 等' : '');
+    });
+  }
 
   function openModal(html) {
     var overlay = document.createElement('div');

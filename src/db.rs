@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS columns (
 ///
 /// 存元数据与统计：GPX 原文件与完整坐标 JSON 落在运行时 `data/trails/`（gitignore），
 /// `simplified` 为抽稀后坐标 JSON `[[lat,lon],...]`（总览地图直接嵌入，不读文件）。
+/// `sha256` 为 GPX 文件内容哈希（上传去重用，由 `ensure_trail_sha256` 补齐）。
 const MIGRATION_003: &str = r#"
 CREATE TABLE IF NOT EXISTS trails (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,9 +65,32 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     ensure_column_id(&pool).await?;
     ensure_column_sort(&pool).await?;
     ensure_column_description(&pool).await?;
+    ensure_trail_sha256(&pool).await?;
     ensure_like_schema(&pool).await?;
     seed_default_settings(&pool).await?;
     Ok(pool)
+}
+
+/// trails 表加 `sha256` 列（幂等：GPX 文件内容哈希，上传去重用）。
+/// 附部分唯一索引：既有旧行（NULL）不受影响，新行同哈希拒绝。
+async fn ensure_trail_sha256(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('trails') WHERE name = 'sha256'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE trails ADD COLUMN sha256 TEXT")
+            .execute(pool)
+            .await?;
+    }
+    sqlx::raw_sql(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_trails_sha256 \
+         ON trails(sha256) WHERE sha256 IS NOT NULL",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 /// columns 表加 `description` 列（幂等：专栏卡片总览页展示用）。

@@ -24,10 +24,13 @@ pub async fn list(
     if session::require_admin(&session).await.is_err() {
         return super::redirect(&state.config.base_path, "/admin/login");
     }
-    let items = trails::list_trails(&state.db).await.unwrap_or_default();
+    let sort_key = sort_param(uri.query().unwrap_or("")).unwrap_or("recent");
+    let sort = trails::TrailSort::parse(Some(sort_key));
+    let items = trails::list_trails(&state.db, sort).await.unwrap_or_default();
     let (mut ctx, csrf) = super::base_ctx(&state, &session, uri.path()).await;
     ctx.insert("csrf", &csrf);
     ctx.insert("trails", &json!(items.iter().map(trail_admin_value).collect::<Vec<_>>()));
+    ctx.insert("sort", &sort_key);
     ctx.insert(
         "error_msg",
         &uri.query()
@@ -36,6 +39,11 @@ pub async fn list(
             .unwrap_or_default(),
     );
     super::render_admin(&state, "trails.html", &ctx)
+}
+
+/// 从查询串中取 `sort=` 参数值。
+fn sort_param(q: &str) -> Option<&str> {
+    q.split('&').find_map(|kv| kv.strip_prefix("sort="))
 }
 
 /// 列表项 JSON：原始字段 + 展示用格式化字段（里程 km、运动时长、日期）。
@@ -54,7 +62,10 @@ fn trail_admin_value(t: &crate::models::Trail) -> serde_json::Value {
     })
 }
 
-// ---------- 上传（multipart） ----------
+// ---------- 上传（multipart，支持多选） ----------
+
+/// 单次上传的文件数上限（与路由 body 上限配套）。
+pub const MAX_TRAIL_FILES: usize = 10;
 
 pub async fn upload(
     State(state): State<AppState>,
@@ -67,7 +78,7 @@ pub async fn upload(
     let mut csrf_ok = false;
     let mut name = String::new();
     let mut description = String::new();
-    let mut file_data: Option<(String, Vec<u8>)> = None;
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     let mut parts = multipart;
     loop {
         let field = match parts.next_field().await {
@@ -88,7 +99,7 @@ pub async fn upload(
             Some("file") => {
                 let file_name = field.file_name().map(str::to_string).unwrap_or_default();
                 let data = field.bytes().await.unwrap_or_default();
-                file_data = Some((file_name, data.to_vec()));
+                files.push((file_name, data.to_vec()));
             }
             _ => {}
         }
@@ -96,29 +107,59 @@ pub async fn upload(
     if !csrf_ok {
         return fail(&state.config.base_path, "安全校验失败，请刷新页面后重试");
     }
-    let Some((file_name, data)) = file_data else {
+    if files.is_empty() {
         return fail(&state.config.base_path, "请选择 GPX 文件");
-    };
-    if !file_name.to_lowercase().ends_with(".gpx") {
-        return fail(&state.config.base_path, "仅支持 .gpx 文件");
     }
-    if data.is_empty() {
-        return fail(&state.config.base_path, "文件内容为空");
+    if files.len() > MAX_TRAIL_FILES {
+        return fail(
+            &state.config.base_path,
+            &format!("单次最多上传 {MAX_TRAIL_FILES} 个文件"),
+        );
     }
-    // 两步路导出 GPX 无 <name>：默认名称回退到上传文件名（去 .gpx）
-    let fallback_name = file_name
-        .strip_suffix(".gpx")
-        .or_else(|| file_name.strip_suffix(".GPX"))
-        .unwrap_or(&file_name)
-        .to_string();
-    let trails_dir = state.config.data_dir.join("trails");
-    match trails::import_gpx(&state.db, &trails_dir, &name, &fallback_name, &description, &data).await {
-        Ok(_) => super::redirect(&state.config.base_path, "/admin/trails"),
-        Err(e) => {
-            tracing::error!("导入轨迹失败: {e:?}");
-            fail(&state.config.base_path, e.message())
+
+    // 逐个导入：汇总成功/失败，失败不中断其余文件
+    let mut ok = 0usize;
+    let mut errors: Vec<String> = Vec::new();
+    for (file_name, data) in files {
+        if !file_name.to_lowercase().ends_with(".gpx") {
+            errors.push(format!("{file_name}：仅支持 .gpx 文件"));
+            continue;
+        }
+        if data.is_empty() {
+            errors.push(format!("{file_name}：文件内容为空"));
+            continue;
+        }
+        // 两步路导出 GPX 无 <name>：默认名称回退到上传文件名（去 .gpx）
+        let fallback_name = file_name
+            .strip_suffix(".gpx")
+            .or_else(|| file_name.strip_suffix(".GPX"))
+            .unwrap_or(&file_name)
+            .to_string();
+        let trails_dir = state.config.data_dir.join("trails");
+        match trails::import_gpx(
+            &state.db,
+            &trails_dir,
+            &name,
+            &fallback_name,
+            &description,
+            &data,
+        )
+        .await
+        {
+            Ok(_) => ok += 1,
+            Err(e) => errors.push(format!("{file_name}：{}", e.message())),
         }
     }
+
+    let base = &state.config.base_path;
+    let msg = if ok == 0 {
+        format!("导入失败：{}", errors.join("；"))
+    } else if errors.is_empty() {
+        format!("成功导入 {ok} 条轨迹")
+    } else {
+        format!("成功导入 {ok} 条；失败 {} 条：{}", errors.len(), errors.join("；"))
+    };
+    super::redirect(base, &format!("/admin/trails?msg={}", urlencode(&msg)))
 }
 
 // ---------- 编辑（名称/描述） ----------

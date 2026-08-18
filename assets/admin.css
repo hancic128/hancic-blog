@@ -2192,7 +2192,36 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   .trail-upload-grid { grid-template-columns: 1fr 1fr; }
   .trail-upload-grid .modal-label:nth-child(2) { grid-column: 1 / -1; }
 }
+.trail-upload-grid > .trail-file-row { grid-column: 1 / -1; }
+/* GPX 文件：标签与「选择 GPX 文件」按钮同一行左对齐 */
+.trail-file-row { display: flex; align-items: center; gap: 14px; }
+.trail-file-row .modal-label { margin-bottom: 0; }
+.trail-file-row .file-pick-row { margin-bottom: 0; }
 .trail-upload-actions { display: flex; justify-content: flex-end; }
+/* 轨迹列表排序：与标题同行的链接组 */
+.trail-sort {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+}
+.trail-sort a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.trail-sort a:hover { color: var(--text); border-color: var(--muted); }
+.trail-sort a.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
 .trail-admin-list { display: flex; flex-direction: column; gap: 10px; }
 .trail-admin-item {
   border: 1px solid var(--border);

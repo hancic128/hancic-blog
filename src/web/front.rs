@@ -787,7 +787,11 @@ async fn trails_page(
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let trails = crate::services::trails::list_trails(&state.db).await?;
+        let trails = crate::services::trails::list_trails(
+            &state.db,
+            crate::services::trails::TrailSort::Recent,
+        )
+        .await?;
         let mut ctx = site_context(&state.db, &state.config.base_path, preview.clone()).await?;
         // 地图数据：id/名称/颜色/简化坐标（safe_string 内嵌，避免 tera 转义 JSON）
         let trails_dir = state.config.data_dir.join("trails");
