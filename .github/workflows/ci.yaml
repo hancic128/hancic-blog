@@ -1,10 +1,9 @@
 name: CI
 
+# 只在打 tag（v*）时触发：所有分支 push / PR 均不跑 Actions（省额度，日常构建走本地/上海 native）
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -72,7 +71,7 @@ jobs:
         run: cd e2e && npx playwright test
 
   docker:
-    # 仅在打 tag（v*）时构建镜像并部署上海主机；push main 只跑 test 作回归检查
+    # 打 tag（v*）时构建镜像并部署上海主机（workflow 仅 tag 触发，此条件保留作双重保险）
     # needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
