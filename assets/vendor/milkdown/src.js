@@ -33,6 +33,7 @@ import bash from "refractor/bash";
 import json from "refractor/json";
 import rust from "refractor/rust";
 import toml from "refractor/toml";
+import ini from "refractor/ini";
 import { $prose, $useKeymap } from "@milkdown/utils";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { setBlockType, toggleMark, wrapIn, lift } from "@milkdown/prose/commands";
@@ -120,7 +121,9 @@ function blockMarker(node) {
 function configurePrism(ctx) {
   ctx.set(prismConfig.key, {
     configureRefractor: function (r) {
-      [python, yaml, sql, bash, json, rust, toml].forEach(function (lang) { r.register(lang); });
+      [python, yaml, sql, bash, json, rust, toml, ini].forEach(function (lang) { r.register(lang); });
+      // env 是 ini 的常见别名（.env / dotenv 配置），映射到 ini 语法高亮
+      try { r.alias("ini", "env"); } catch (e) { /* 低版本 refractor 无 alias，忽略 */ }
     }
   });
 }

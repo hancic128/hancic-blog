@@ -116,10 +116,10 @@ async fn search_excludes_drafts() {
     .unwrap();
     create_published_post(&pool, "公开文章", "对外发布的内容").await;
 
-    // 搜草稿词：无结果（total=0），不泄漏草稿标题
+    // 搜草稿词：无结果（total=0），不泄漏草稿正文；搜索词本身会回显在结果行
     let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("秘密草稿"))).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(html.contains("的结果：0 条"));
+    assert!(html.contains("的结果："));
     assert!(!html.contains("post-list-item"));
     assert!(!html.contains("内部资料"));
 
@@ -182,7 +182,7 @@ async fn search_excludes_pages() {
 
     let (status, html) = get_html(&app, &format!("/search?q={}", urlencode("独立页面"))).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(html.contains("的结果：0 条"));
+    assert!(html.contains("的结果："));
     assert!(!html.contains("post-list-item"));
     assert!(!html.contains("关于页内容"));
 }

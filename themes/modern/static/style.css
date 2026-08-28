@@ -11,7 +11,7 @@
   --accent-2: #0ea5e9;      /* 渐变辅色：青 */
   --border: #e7e5e0;
   --primary: #27272a;
-  --code-bg: #18181b;
+  --code-bg: #f1f0ed;         /* 亮色代码块用浅暖灰背景（深色背景 + 深色文字会融合） */
   --content-width: 780px;
   --card-bg: #ffffff;
   --shadow: 0 1px 2px rgba(28, 25, 23, .04), 0 8px 24px rgba(28, 25, 23, .05);
@@ -179,6 +179,40 @@ button, a, [role="button"], label { cursor: pointer; }
 .theme-toggle:hover, .nav-toggle:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .nav-toggle { display: none; }
 
+/* ---------- 内容区顶部搜索框（全局搜索文章/说说） ---------- */
+.site-search { display: flex; align-items: center; position: relative; margin-bottom: 1.8rem; }
+.site-search input {
+  flex: 1;
+  padding: .55rem 1rem .55rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.site-search input::placeholder { color: var(--muted); }
+.site-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.site-search button {
+  position: absolute;
+  left: .8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.site-search button:hover { color: var(--accent); }
+
 .site-main {
   max-width: var(--content-width);
   margin: 0 auto;
@@ -255,11 +289,11 @@ button, a, [role="button"], label { cursor: pointer; }
 
 /* ---------- 热力图（更新日历） ---------- */
 .heatmap-section { margin-bottom: 1rem; }
-.heatmap { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
-.heatmap-col { display: flex; flex-direction: column; gap: 4px; }
+.heatmap { display: flex; gap: 4px; padding-bottom: 4px; }
+.heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .heat-cell {
-  width: 12px;
-  height: 12px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   border-radius: 3px;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   cursor: default;
@@ -272,6 +306,8 @@ button, a, [role="button"], label { cursor: pointer; }
   background: var(--fg); color: var(--bg); font-size: .72rem; line-height: 1.5;
   padding: .45rem .75rem; border-radius: 6px; white-space: pre-line;
   min-width: 180px; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+/* 图例色块保持原样小尺寸（热力图格子占满，图例不拉伸） */
+.heat-legend .heat-cell { width: 12px; height: 12px; flex: none; }
 .heat-legend { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: .75rem; color: var(--muted); }
 
 /* ---------- 说说时间线 ---------- */
@@ -399,6 +435,55 @@ button, a, [role="button"], label { cursor: pointer; }
 .like-count {
   color: inherit;
 }
+/* 文章页复制按钮（全文/摘要，发布到其他平台用；无背景色，hover/按下动画） */
+.copy-full {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .2rem .5rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: .8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .2s ease, transform .15s ease;
+  align-self: center;
+}
+.copy-full:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.copy-full:active { transform: scale(.94); }
+.copy-full.copied { animation: copy-pop .35s ease; }
+@keyframes copy-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.copy-full-icon { width: 14px; height: 14px; flex: none; }
+
+/* 前台轻提示（复制成功等） */
+.site-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2.5rem;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+  padding: .5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: .85rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.site-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* 文章列表 meta 中的点赞（静态展示，不可点击） */
 .post-like-count {
   display: inline-flex;
@@ -419,6 +504,14 @@ button, a, [role="button"], label { cursor: pointer; }
   transition: background .15s ease;
 }
 .tag-link:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* 标签过多折叠展开按钮：与标签胶囊同风格（不用浏览器原生控件） */
+.tag-more { display: inline-flex; align-items: center; font: inherit; font-size: .72rem;
+  padding: .15rem .55rem; border-radius: 999px; cursor: pointer;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--accent); border: 1px solid transparent; transition: background .15s ease; }
+.tag-more:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.post-header .meta .tag-more { align-self: center; }
 
 /* ---------- 标签云 ---------- */
 .tag-cloud { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -496,7 +589,7 @@ button, a, [role="button"], label { cursor: pointer; }
 }
 .md-body pre {
   margin: 1.2em 0;
-  padding: 1rem 1.2rem;
+  padding: 2.3rem 1.2rem 1rem;
   border-radius: 12px;
   background: var(--code-bg);
   border: 1px solid var(--border);
@@ -504,16 +597,60 @@ button, a, [role="button"], label { cursor: pointer; }
   position: relative;
 }
 .md-body pre code { background: none; padding: 0; color: var(--fg); font-size: .88rem; line-height: 1.7; }
+/* 代码块语言标记：左上角（复制按钮在右上角，互不冲突） */
 .md-body pre::before {
-  content: attr(data-lang);
+  content: attr(data-language);
   position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: .7rem;
+  top: .65rem;
+  left: 1.2rem;
+  font-size: .72rem;
+  font-weight: 600;
   letter-spacing: .06em;
   color: var(--muted);
   opacity: .7;
 }
+/* 代码块复制按钮：右上角悬浮，hover 代码块时显示（不用浏览器原生控件样式） */
+.md-body pre .code-copy { position: absolute; top: .5rem; right: .5rem;
+  font: inherit; font-size: .75rem; padding: .2rem .6rem; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  opacity: 0; transition: opacity .15s ease; }
+.md-body pre:hover .code-copy { opacity: 1; }
+.md-body pre .code-copy:hover { color: var(--accent); border-color: var(--accent); }
+.md-body pre .code-copy:focus-visible { opacity: 1; outline: 2px solid var(--accent); }
+.md-body pre .code-copy.copied { color: var(--accent); border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .md-body pre .code-copy { transition: none; } }
+/* 暗色模式：highlight.js GitHub 浅色主题颜色改为 GitHub Dark 配色 */
+html[data-mode="dark"] .md-body .hljs { color: #e6edf3; background: transparent; }
+html[data-mode="dark"] .md-body .hljs-keyword,
+html[data-mode="dark"] .md-body .hljs-doctag,
+html[data-mode="dark"] .md-body .hljs-template-tag,
+html[data-mode="dark"] .md-body .hljs-template-variable,
+html[data-mode="dark"] .md-body .hljs-type,
+html[data-mode="dark"] .md-body .hljs-variable.language_ { color: #ff7b72; }
+html[data-mode="dark"] .md-body .hljs-title,
+html[data-mode="dark"] .md-body .hljs-title.class_,
+html[data-mode="dark"] .md-body .hljs-title.class_.inherited__,
+html[data-mode="dark"] .md-body .hljs-title.function_ { color: #d2a8ff; }
+html[data-mode="dark"] .md-body .hljs-attr,
+html[data-mode="dark"] .md-body .hljs-attribute,
+html[data-mode="dark"] .md-body .hljs-literal,
+html[data-mode="dark"] .md-body .hljs-meta,
+html[data-mode="dark"] .md-body .hljs-number,
+html[data-mode="dark"] .md-body .hljs-operator,
+html[data-mode="dark"] .md-body .hljs-variable { color: #79c0ff; }
+html[data-mode="dark"] .md-body .hljs-regexp,
+html[data-mode="dark"] .md-body .hljs-string { color: #a5d6ff; }
+html[data-mode="dark"] .md-body .hljs-built_in,
+html[data-mode="dark"] .md-body .hljs-symbol { color: #ffa657; }
+html[data-mode="dark"] .md-body .hljs-comment,
+html[data-mode="dark"] .md-body .hljs-code,
+html[data-mode="dark"] .md-body .hljs-formula { color: #8b949e; }
+html[data-mode="dark"] .md-body .hljs-name,
+html[data-mode="dark"] .md-body .hljs-quote,
+html[data-mode="dark"] .md-body .hljs-selector-tag { color: #7ee787; }
+html[data-mode="dark"] .md-body .hljs-section { color: #79c0ff; }
+html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .md-body img { max-width: 100%; border-radius: 12px; }
 .md-body hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
 .md-body table { border-collapse: collapse; margin: 1.2em 0; width: 100%; font-size: .95em; }
@@ -549,6 +686,16 @@ button, a, [role="button"], label { cursor: pointer; }
 }
 .search-form button:hover { filter: brightness(1.1); }
 .search-result-info { font-size: .9rem; color: var(--muted); }
+
+/* 搜索页说说结果 */
+.search-section-title { font-size: 1.15rem; font-family: Georgia, "Songti SC", "SimSun", serif; margin: 1.5rem 0 .9rem; }
+.search-moments .search-section-title { margin-top: 2.2rem; }
+.search-moment-list { list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: .7rem; }
+.search-moment-item { padding: .9rem 1.1rem; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--bg); }
+.search-moment-content { margin: 0 0 .4rem; font-size: .95rem; line-height: 1.75; }
+.search-moments .more-link { margin-top: 1.2rem; }
 .search-page .post-list-item { box-shadow: none; }
 .error-page { text-align: center; padding: 4rem 1rem; }
 .error-code { font-family: Georgia, serif; font-size: 5rem; font-weight: 700; margin: 0; background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -635,6 +782,10 @@ button, a, [role="button"], label { cursor: pointer; }
   .page, .search-page { padding: 1.6rem 1.4rem; }
 }
 @media (max-width: 768px) {
+  /* 手机端搜索框：去掉提交按钮（回车搜索），输入框占满容器 */
+  .site-search { margin-bottom: 1.2rem; }
+  .site-search button { display: none; }
+  .site-search input { padding-left: 1.1rem; padding-right: 1.1rem; }
   .site-header-inner { padding: .8rem 1rem; gap: .8rem; }
   .site-nav {
     /* 注意：.site-header 的 backdrop-filter 会成为 fixed 后代的包含块，

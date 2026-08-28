@@ -33,6 +33,9 @@ const PAGE_SIZE: i64 = 10;
 const MOMENTS_PAGE_SIZE: i64 = 20;
 /// 静态资源缓存头：7 天（T17 允许配置后调整）。
 const STATIC_CACHE: &str = "public, max-age=604800";
+/// 主题静态资源（main.js/style.css 等）：部署会更新，必须 no-cache，
+/// 否则浏览器长缓存导致看不到新版（历史事故：复制按钮 toast 不弹）。
+const THEME_CACHE: &str = "no-cache";
 
 /// 前台路由（挂在 `/`），静态资源挂载点：
 /// - `/uploads/{*path}` 附件目录
@@ -233,8 +236,8 @@ async fn index(
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        // 更新日历（近 53 周，含发布/更新/说说详情）与最近说说（5 条）
-        let calendar = posts::activity_calendar(&state.db, 371).await?;
+        // 更新日历（近 26 周，含发布/更新/说说详情）与最近说说（5 条）
+        let calendar = posts::activity_calendar(&state.db, 182).await?;
         let (moments, _total) = moments::list_moments(&state.db, None, false, None, 1, 5).await?;
         // 最热专栏：文章数最多的专栏，最多取 3 个（按文章数降序）
         let hot_columns = {
@@ -774,6 +777,13 @@ async fn search_page(
         ctx.insert("search_query", &q);
         ctx.insert("posts", &search_hit_list_value(&state.config.base_path, &hits));
         ctx.insert("pagination", &search_pagination_value(&state.config.base_path, page, total, &q));
+        // 全局搜索：同时匹配说说（最多 20 条，按时间倒序）
+        let moments = if q.trim().is_empty() {
+            Vec::new()
+        } else {
+            moments::search_moments(&state.db, q.trim(), 20).await?
+        };
+        ctx.insert("moments", &moment_search_value(&moments));
         Ok::<_, AppError>(ctx)
     }
     .await;
@@ -952,7 +962,7 @@ pub async fn not_found(State(state): State<AppState>) -> Response {
 // ---------- 静态资源 ----------
 
 async fn serve_uploads(State(state): State<AppState>, req: Request<Body>) -> Response {
-    serve_from(state.config.data_dir.join("uploads"), "/uploads", req).await
+    serve_from(state.config.data_dir.join("uploads"), "/uploads", req, STATIC_CACHE).await
 }
 
 async fn serve_theme_static(
@@ -964,11 +974,11 @@ async fn serve_theme_static(
         return render_error(&state, AppError::NotFound("资源不存在".into())).await;
     }
     let base = state.config.data_dir.join("themes").join(&name).join("static");
-    serve_from(base, &format!("/theme/{name}/static"), req).await
+    serve_from(base, &format!("/theme/{name}/static"), req, THEME_CACHE).await
 }
 
 /// 去掉挂载前缀后用 ServeDir 服务目录，并附加缓存头。
-async fn serve_from(base: PathBuf, prefix: &str, req: Request<Body>) -> Response {
+async fn serve_from(base: PathBuf, prefix: &str, req: Request<Body>, cache: &'static str) -> Response {
     let uri = match strip_prefix_uri(req.uri(), prefix) {
         Some(u) => u,
         None => return (StatusCode::NOT_FOUND, "not found").into_response(),
@@ -981,7 +991,7 @@ async fn serve_from(base: PathBuf, prefix: &str, req: Request<Body>) -> Response
             if res.status().is_success() {
                 res.headers_mut().insert(
                     header::CACHE_CONTROL,
-                    header::HeaderValue::from_static(STATIC_CACHE),
+                    header::HeaderValue::from_static(cache),
                 );
             }
             res.map(Body::new)
@@ -1119,6 +1129,57 @@ fn search_hit_list_value(base: &str, hits: &[posts::SearchHit]) -> Value {
             "published_at": h.post.published_at.map(|d| d.to_rfc3339()),
             "views": h.post.views,
             "url": post_url(base, &h.post),
+        }))
+        .collect::<Vec<_>>())
+}
+
+/// 搜索页说说结果 JSON：`{ snippet, date }`。摘要去掉常见 markdown 标记后截断。
+fn moment_search_value(moments: &[(i64, String, String)]) -> Value {
+    fn clean(md: &str) -> String {
+        let mut s = md
+            .replace("```", "")
+            .replace("**", "")
+            .replace("__", "")
+            .replace("`", "");
+        // 行内链接 [text](url) → 整段移除（保留其余文字）
+        loop {
+            let Some(close) = s.find("](") else { break };
+            let Some(open) = s.rfind('[').filter(|&i| i < close) else { break };
+            let end = s[close + 2..].find(')').map(|e| close + 2 + e);
+            match end {
+                Some(end) => {
+                    s.replace_range(open..=end, "");
+                }
+                None => {
+                    s.replace_range(open..close + 2, "");
+                }
+            }
+        }
+        // 去掉行首 markdown 标记（标题 # / 列表 - / 引用 >）
+        let s: String = s
+            .lines()
+            .map(|l| {
+                let t = l.trim_start();
+                let t = t
+                    .trim_start_matches('#')
+                    .trim_start_matches('-')
+                    .trim_start_matches('>');
+                t.trim_start()
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let s = s.trim();
+        if s.chars().count() > 100 {
+            s.chars().take(100).collect::<String>() + "…"
+        } else {
+            s.to_string()
+        }
+    }
+    json!(moments
+        .iter()
+        .map(|(_, content, date)| json!({
+            "snippet": clean(content),
+            "date": date,
         }))
         .collect::<Vec<_>>())
 }
@@ -1325,7 +1386,7 @@ type CalendarDay = (String, i64, Vec<(String, String)>);
 type DayKey<'a> = &'a str;
 type DayVal<'a> = (i64, &'a [(String, String)]);
 
-/// GitHub 风格更新日历矩阵：53 周 × 7 天。
+/// GitHub 风格更新日历矩阵：26 周 × 7 天。
 /// 外层数组 = 周（列），内层 = 该周 7 天（行，周日→周六）。
 /// 每格：`{ date, count, level, tip }`，tip 为多行 tooltip（日期 + 动态标题）。
 fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
@@ -1335,10 +1396,10 @@ fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
         .map(|(d, c, items)| (d.as_str(), (*c, items.as_slice())))
         .collect();
     let today = chrono::Utc::now().date_naive();
-    let start = today - chrono::Days::new(370);
+    let start = today - chrono::Days::new(181);
     let mut weeks: Vec<Vec<Value>> = Vec::new();
     let mut week: Vec<Value> = Vec::new();
-    for i in 0..371 {
+    for i in 0..182 {
         let day = start + chrono::Days::new(i);
         let key = day.format("%Y-%m-%d").to_string();
         let (count, items) = map.get(key.as_str()).copied().unwrap_or((0, &[]));
