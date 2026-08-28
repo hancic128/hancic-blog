@@ -100,7 +100,7 @@ async fn record_view_and_query_summary() {
 #[tokio::test]
 async fn post_page_http_records_view() {
     let (addr, client, pool) = common::start_server("stats-http").await;
-    posts::create_post(&pool, posts::NewPost {
+    let p = posts::create_post(&pool, posts::NewPost {
         title: "HTTP 统计".into(),
         content_md: "# 标题\n正文".into(),
         excerpt: None,
@@ -115,7 +115,7 @@ async fn post_page_http_records_view() {
     .unwrap();
 
     let res = client
-        .get(format!("http://{addr}/post/http-stats"))
+        .get(format!("http://{addr}/post/{}", p.uuid))
         .header("x-real-ip", "114.114.114.114")
         .header("user-agent", "test-http-ua")
         .header("referer", "https://example.com/ref")

@@ -41,7 +41,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(index))
         .route("/archives", get(archives_page))
-        .route("/post/{slug}", get(post_page))
+        .route("/post/{id}", get(post_page))
         .route("/page/{slug}", get(page_page))
         .route("/category/{slug}", get(category_page))
         .route("/tag/{slug}", get(tag_page))
@@ -76,6 +76,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "friend_links",
             "contact_enabled",
             "contact_email",
+            "date_format",
         ],
     )
     .await?;
@@ -193,6 +194,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             "logo": s.get("site_logo").map(String::as_str).unwrap_or(""),
             "active_theme": active_theme,
             "mode": s.get("theme_mode").map(String::as_str).unwrap_or("auto"),
+            "date_format": s.get("date_format").map(String::as_str).unwrap_or("datetime"),
             "footer_text": s.get("footer_text").map(String::as_str).unwrap_or(""),
             "friend_links": parse_json_array(s.get("friend_links").map(String::as_str).unwrap_or("[]")),
             "contact": json!({
@@ -331,16 +333,26 @@ async fn archives_page(
 
 async fn post_page(
     State(state): State<AppState>,
-    Path(slug): Path<String>,
+    Path(id): Path<String>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        let post = posts::get_post_by_slug(&state.db, &slug)
+        let post = if let Some(post) = posts::get_post_by_uuid(&state.db, &id)
             .await?
             .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Post)
-            .ok_or_else(|| AppError::NotFound("文章不存在".into()))?;
+        {
+            post
+        } else if let Some(post) = posts::get_post_by_slug(&state.db, &id)
+            .await?
+            .filter(|p| p.status == PostStatus::Published && p.post_type == PostType::Post)
+        {
+            let target = format!("{}{}", state.config.base_path, posts::public_post_path(&post));
+            return Ok::<_, AppError>(axum::response::Redirect::permanent(&target).into_response());
+        } else {
+            return Err(AppError::NotFound("文章不存在".into()));
+        };
         let (prev, next) = posts::adjacent_posts(&state.db, &post).await?;
         let tags = posts::list_tags_of_post(&state.db, post.id).await?;
         let category = category_of(&state.db, post.category_id).await?;
@@ -361,7 +373,7 @@ async fn post_page(
             &post.title,
             post.excerpt.as_str(),
             &post.content_md,
-            &format!("/post/{}", post.slug),
+            &format!("/post/{}", post.uuid),
             site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
             &state.config.site_url,
             site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
@@ -389,7 +401,6 @@ async fn post_page(
         );
         ctx.insert("prev", &adjacent_value(prev.as_ref()));
         ctx.insert("next", &adjacent_value(next.as_ref()));
-        // 正文（带标题锚点）+ 1~3 级目录，供右侧栏导航
         let (content_html, toc) = crate::markdown::render_with_toc(&post.content_md);
         ctx.insert("content_html", &content_html);
         ctx.insert(
@@ -399,16 +410,15 @@ async fn post_page(
                 .map(|t| json!({ "level": t.level, "text": t.text, "id": format!("toc-{}", t.id) }))
                 .collect::<Vec<_>>()),
         );
-        // 字数统计 + 预计阅读时长（300 字/分钟，最少 1 分钟）
         let word_count = html_word_count(&content_html);
         ctx.insert("word_count", &word_count);
         ctx.insert("read_minutes", &word_count.div_ceil(300).max(1));
         record_view_once(&state, &post, &headers).await;
-        Ok::<_, AppError>(ctx)
+        Ok::<_, AppError>(render(&state, "post.html", &ctx, preview.as_deref()).await)
     }
     .await;
     match out {
-        Ok(ctx) => render(&state, "post.html", &ctx, preview.as_deref()).await,
+        Ok(resp) => resp,
         Err(e) => render_error(&state, e).await,
     }
 }
@@ -1045,13 +1055,13 @@ async fn listing_ctx(
     Ok(ctx)
 }
 
-/// 前台列表排序：`?sort=updated_at|published_at|views|like_count`，默认按更新时间倒序。
+/// 前台列表排序：`?sort=updated_at|published_at|views|like_count`，默认按发布时间倒序。
 fn list_sort(query: &HashMap<String, String>) -> posts::PostSort {
     let field = match query.get("sort").map(String::as_str) {
-        Some("published_at") => "published_at",
+        Some("updated_at") => "updated_at",
         Some("views") => "views",
         Some("like_count") => "like_count",
-        _ => "updated_at",
+        _ => "published_at",
     };
     posts::PostSort { field, asc: false }
 }
@@ -1299,12 +1309,12 @@ pub fn share_context(
     })
 }
 
-/// 文章链接：独立页走 `/page/`，普通文章走 `/post/`；`base` 为部署子路径前缀。
+/// 文章链接：独立页走 `/page/`，普通文章走 `/post/{uuid}`；`base` 为部署子路径前缀。
 fn post_url(base: &str, p: &Post) -> String {
     let path = if p.post_type == PostType::Page {
         format!("/page/{}", p.slug)
     } else {
-        format!("/post/{}", p.slug)
+        format!("/post/{}", p.uuid)
     };
     format!("{base}{path}")
 }
@@ -1362,7 +1372,7 @@ fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
 /// 上一篇/下一篇 JSON；无则为 null。
 fn adjacent_value(p: Option<&Post>) -> Value {
     match p {
-        Some(p) => json!({ "slug": p.slug, "title": p.title }),
+        Some(p) => json!({ "url": post_url("", p), "title": p.title }),
         None => json!(null),
     }
 }

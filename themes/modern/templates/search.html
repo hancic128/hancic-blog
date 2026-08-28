@@ -13,7 +13,7 @@
     <article class="post-list-item">
       <h2><a href="{{ hit.url }}">{{ hit.title }}</a></h2>
       <div class="meta">
-        {% if hit.published_at %}<time datetime="{{ hit.published_at }}">{{ hit.published_at | date }}</time>{% endif %}
+        {% if hit.published_at %}<time datetime="{{ hit.published_at }}">{{ hit.published_at | date(fmt=site.date_format) }}</time>{% endif %}
         <span>{{ hit.views }} 阅读</span>
       </div>
       {% if hit.snippet %}<p class="excerpt">{{ hit.snippet | safe }}</p>{% endif %}

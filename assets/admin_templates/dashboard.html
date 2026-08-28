@@ -161,6 +161,26 @@
   <p class="empty">期间无地区数据</p>
   {% endif %}
   </section>
+
+  <section class="panel-section">
+  <h2>跳转来源 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
+  {% if sources %}
+  <table class="data-table">
+    <thead><tr><th>来源</th><th>阅读</th></tr></thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td>{{ s.label }}</td>
+        <td class="muted">{{ s.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">按 HTTP Referer 平台分类（微信公众号 / 知乎 / CSDN / 掘金 / 微博 / 搜索引擎等）</p>
+  {% else %}
+  <p class="empty">期间无跳转来源数据</p>
+  {% endif %}
+  </section>
 </div>
 {% endblock %}
 

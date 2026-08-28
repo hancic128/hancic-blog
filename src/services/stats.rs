@@ -36,6 +36,53 @@ pub struct RegionStat {
     pub count: i64,
 }
 
+/// 跳转来源聚合行（按 source 分类分组）。
+#[derive(Debug, Clone)]
+pub struct SourceStat {
+    pub source: String,
+    pub count: i64,
+}
+
+/// 跳转来源分类：按 referer 域名识别平台。key 存库（`classify_referer` 返回值），
+/// 中文名映射见 `admin::stats::source_view`；无 referer 记直接访问，未知域名归其他。
+pub fn classify_referer(referer: &str) -> &'static str {
+    let r = referer.to_ascii_lowercase();
+    if r.is_empty() {
+        return "direct";
+    }
+    if r.contains("mp.weixin.qq.com") || r.contains("weixin") {
+        return "wechat";
+    }
+    if r.contains("zhihu.com") {
+        return "zhihu";
+    }
+    if r.contains("csdn.net") {
+        return "csdn";
+    }
+    if r.contains("juejin.cn") {
+        return "juejin";
+    }
+    if r.contains("weibo.com") {
+        return "weibo";
+    }
+    if r.contains("jianshu.com") {
+        return "jianshu";
+    }
+    if r.contains("github.com") {
+        return "github";
+    }
+    if r.contains("google.") {
+        return "google";
+    }
+    if r.contains("bing.com") {
+        return "bing";
+    }
+    if r.contains("baidu.com") {
+        return "baidu";
+    }
+    "other"
+}
+
 /// 记录一次阅读：事务内写入 page_views（含解析地区）并累加 posts.views。
 pub async fn record_view(
     db: &Db,
@@ -51,13 +98,14 @@ pub async fn record_view(
     };
     let mut tx = db.begin().await?;
     sqlx::query(
-        "INSERT INTO page_views(post_id, ip, ua, referer, country, province, city)
-         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO page_views(post_id, ip, ua, referer, source, country, province, city)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(post_id)
     .bind(ip)
     .bind(ua)
     .bind(referer)
+    .bind(classify_referer(referer))
     .bind(&region.country)
     .bind(&region.province)
     .bind(&region.city)
@@ -169,6 +217,32 @@ pub async fn by_region(
         .collect())
 }
 
+/// 跳转来源分布：按 source 分类分组，阅读降序（direct 无 referer 通常最多）。
+pub async fn by_source(
+    db: &Db,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> AppResult<Vec<SourceStat>> {
+    let (where_sql, binds) = range_filter("created_at", from, to);
+    let sql = format!(
+        "SELECT source, COUNT(*) AS count \
+         FROM page_views {where_sql} \
+         GROUP BY source ORDER BY count DESC, source"
+    );
+    let mut q = sqlx::query(&sql);
+    for b in &binds {
+        q = q.bind(b);
+    }
+    let rows = q.fetch_all(db).await?;
+    Ok(rows
+        .iter()
+        .map(|r| SourceStat {
+            source: r.get("source"),
+            count: r.get("count"),
+        })
+        .collect())
+}
+
 /// 清空阅读明细日志（page_views 表；posts.views 累计计数保留）。
 pub async fn clear_logs(db: &Db) -> AppResult<()> {
     sqlx::query("DELETE FROM page_views").execute(db).await?;
@@ -198,7 +272,7 @@ fn range_filter(col: &str, from: Option<&str>, to: Option<&str>) -> (String, Vec
 }
 
 /// posts 表列（带 `p.` 前缀，与 `PostStatRow` 字段顺序一致）。
-const POST_COLUMNS: &str = "p.id, p.slug, p.title, p.content_md, p.excerpt, p.status, \
+const POST_COLUMNS: &str = "p.id, p.uuid, p.slug, p.title, p.content_md, p.excerpt, p.status, \
     p.post_type, p.published_at, p.created_at, p.updated_at, p.views, p.like_count, p.category_id";
 
 /// 排行榜行：13 个 post 字段（view_count 不在此结构内，另行 `Row::get` 读取，
@@ -206,6 +280,7 @@ const POST_COLUMNS: &str = "p.id, p.slug, p.title, p.content_md, p.excerpt, p.st
 #[derive(FromRow)]
 struct PostStatRow {
     id: i64,
+    uuid: String,
     slug: String,
     title: String,
     content_md: String,
@@ -224,6 +299,7 @@ impl From<PostStatRow> for Post {
     fn from(r: PostStatRow) -> Self {
         Post {
             id: r.id,
+            uuid: r.uuid,
             slug: r.slug,
             title: r.title,
             content_md: r.content_md,
@@ -239,5 +315,39 @@ impl From<PostStatRow> for Post {
             column_id: None,
             column_sort: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::classify_referer;
+
+    #[test]
+    fn classify_wechat() {
+        assert_eq!(classify_referer("https://mp.weixin.qq.com/s/abc"), "wechat");
+        assert_eq!(classify_referer("https://weixin.qq.com/x"), "wechat");
+    }
+
+    #[test]
+    fn classify_platforms() {
+        assert_eq!(classify_referer("https://www.zhihu.com/question/1"), "zhihu");
+        assert_eq!(classify_referer("https://blog.csdn.net/abc/article/1"), "csdn");
+        assert_eq!(classify_referer("https://juejin.cn/post/1"), "juejin");
+        assert_eq!(classify_referer("https://weibo.com/u/123"), "weibo");
+        assert_eq!(classify_referer("https://www.jianshu.com/p/abc"), "jianshu");
+        assert_eq!(classify_referer("https://github.com/Angryshark128/hancic-blog"), "github");
+    }
+
+    #[test]
+    fn classify_search_engines() {
+        assert_eq!(classify_referer("https://www.google.com/search?q=x"), "google");
+        assert_eq!(classify_referer("https://cn.bing.com/search?q=x"), "bing");
+        assert_eq!(classify_referer("https://www.baidu.com/s?wd=x"), "baidu");
+    }
+
+    #[test]
+    fn classify_direct_and_other() {
+        assert_eq!(classify_referer(""), "direct");
+        assert_eq!(classify_referer("https://example.com/page"), "other");
     }
 }

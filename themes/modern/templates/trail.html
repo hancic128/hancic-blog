@@ -1,7 +1,7 @@
 {# 徒步轨迹详情：完整轨迹地图 + 数据卡片 + 描述 #}
 {% include "partials/header.html" %}
 <h1 class="archive-title">{{ trail.name }}</h1>
-{% if trail.started_at %}<p class="trail-date">{{ trail.started_at | date }}</p>{% endif %}
+{% if trail.started_at %}<p class="trail-date">{{ trail.started_at | date(fmt=site.date_format) }}</p>{% endif %}
 {% if trail.description %}<div class="trail-desc">{{ trail.description }}</div>{% endif %}
 <div class="trails-map-wrap">
   <div id="trail-map" class="trails-map" role="application" aria-label="轨迹地图"></div>

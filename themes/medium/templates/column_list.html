@@ -1,0 +1,35 @@
+{# 专栏总览：全部专栏卡片（名称+描述+文章链接）；右侧：专栏列表导航 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <h1 class="archive-title">专栏</h1>
+    {% if columns %}
+    <div class="column-list">
+      {% for c in columns %}
+      <section class="column-card">
+        <header class="column-card-head">
+          <h2 class="column-card-name"><a href="{{ base_path }}/column/{{ c.slug }}">{{ c.name }}</a><span class="column-card-count">{{ c.total }} 篇</span></h2>
+          {% if c.description %}<p class="column-card-desc">{{ c.description }}</p>{% endif %}
+        </header>
+        {% if c.posts %}
+        <ul class="column-card-posts">
+          {% for p in c.posts %}
+          <li><a href="{{ p.url }}">{{ p.title }}</a></li>
+          {% endfor %}
+        </ul>
+        <a class="column-more" href="{{ base_path }}/column/{{ c.slug }}">查看全部文章 →</a>
+        {% else %}
+        <p class="empty">暂无文章</p>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">暂无专栏</p>
+    {% endif %}
+  </main>
+  <aside class="layout-side">
+    {% include "partials/side_columns.html" %}
+  </aside>
+</div>
+{% include "partials/footer.html" %}

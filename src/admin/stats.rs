@@ -148,3 +148,30 @@ pub fn region_view(rows: &[stats::RegionStat]) -> Vec<Value> {
         })
         .collect()
 }
+
+/// 跳转来源中文名映射（key 见 `services::stats::classify_referer`）。
+pub fn source_label(source: &str) -> &'static str {
+    match source {
+        "direct" => "直接访问",
+        "wechat" => "微信公众号",
+        "zhihu" => "知乎",
+        "csdn" => "CSDN",
+        "juejin" => "掘金",
+        "weibo" => "微博",
+        "jianshu" => "简书",
+        "github" => "GitHub",
+        "google" => "Google 搜索",
+        "bing" => "Bing 搜索",
+        "baidu" => "百度搜索",
+        _ => "其他",
+    }
+}
+
+/// 跳转来源视图：key + 中文名 + 计数，阅读降序。
+pub fn source_view(rows: &[stats::SourceStat]) -> Vec<Value> {
+    rows.iter()
+        .map(|r| {
+            json!({ "key": r.source, "label": source_label(&r.source), "count": r.count })
+        })
+        .collect()
+}

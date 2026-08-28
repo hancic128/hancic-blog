@@ -1,0 +1,82 @@
+{# 首页：更新日历 + 最近说说 + 最新文章（右侧目录） #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+
+  <main class="layout-main">
+    {# 1. 更新日历（近一年，GitHub Contribution 风格，hover 显示动态详情） #}
+    {% if calendar %}
+    <section class="heatmap-section" id="calendar">
+      <h1 class="section-title">更新日历 <small>近一年发布/更新动态</small></h1>
+      <div class="heatmap">
+        {% for week in calendar %}
+        <div class="heatmap-col">
+          {% for day in week %}
+          <span class="heat-cell l{{ day.level }}" data-tip="{{ day.tip }}"
+                aria-label="{{ day.tip }}"></span>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="heat-legend">
+        <span>少</span>
+        {% for i in [0,1,2,3,4] %}<span class="heat-cell l{{ i }}"></span>{% endfor %}
+        <span>多</span>
+      </div>
+    </section>
+    {% endif %}
+
+    {# 1. 最近说说（时间线，每条可折叠，含缩略图） #}
+    {% if moments %}
+    <section class="activity-section" id="moments">
+      <h1 class="section-title">最近说说</h1>
+      <div class="moment-timeline">
+        {% include "partials/moment_item.html" %}
+      </div>
+      <p class="more-link"><a href="{{ base_path }}/moments">更多说说 →</a></p>
+    </section>
+    {% endif %}
+
+    {# 3. 最新文章列表（支持按发布/更新时间切换排序） #}
+    <section class="post-list" id="posts">
+      <h1 class="section-title">最新文章
+        <span class="section-sort" role="group" aria-label="文章排序">
+          <a class="{% if current_sort == 'published_at' %}active{% endif %}" href="?sort=published_at">按发布时间</a>
+          <a class="{% if current_sort == 'updated_at' %}active{% endif %}" href="?sort=updated_at">按更新时间</a>
+        </span>
+      </h1>
+      {% set_global show_like = true %}
+      {% include "partials/post_list.html" %}
+      {% if post_total > 5 %}
+      <p class="more-link"><a href="{{ base_path }}/archives">查看更多文章（共 {{ post_total }} 篇）→</a></p>
+      {% endif %}
+    </section>
+  </main>
+
+  {# 右侧导航：最热专栏 + 本页锚点 #}
+  <aside class="layout-side">
+    {% if hot_columns %}
+    <div class="side-card">
+      <h4 class="side-title">最热专栏</h4>
+      <ul class="side-columns">
+        {% for c in hot_columns %}
+        <li>
+          <a href="{{ base_path }}/column/{{ c.slug }}">{{ c.name }}</a>
+          <span class="side-column-count">{{ c.count }} 篇</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="more-link"><a href="{{ base_path }}/columns">更多专栏 →</a></p>
+    </div>
+    {% endif %}
+    <div class="side-card">
+      <h4 class="side-title">本页导航</h4>
+      <ul class="side-toc">
+        <li><a href="#calendar">更新日历</a></li>
+        <li><a href="#moments">最近说说</a></li>
+        <li><a href="#posts">最新文章</a></li>
+      </ul>
+    </div>
+  </aside>
+
+</div>
+{% include "partials/footer.html" %}

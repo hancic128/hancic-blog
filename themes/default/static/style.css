@@ -1165,3 +1165,44 @@ html { scroll-behavior: smooth; }
 }
 .trail-stat-value { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
 .trail-stat-label { font-size: .78rem; color: var(--muted); }
+
+/* 阅读模式：隐藏站点导航/侧栏/页脚，正文限宽居中 */
+.reading-mode .site-header,
+.reading-mode .layout-side,
+.reading-mode .site-footer { display: none !important; }
+.reading-mode .layout-two-col { display: block; }
+.reading-mode .layout-main { max-width: 46rem; margin-left: auto; margin-right: auto; padding-left: 1.5rem; padding-right: 1.5rem; }
+.reading-mode .post,
+.reading-mode .page { font-size: 1.0625rem; line-height: 1.85; }
+.reading-mode .post-adjacent { display: none; }
+
+/* 阅读模式按钮：正文内为普通胶囊按钮，进入阅读模式后悬浮右下角 */
+.reading-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font-size: .8rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.reading-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.reading-mode .reading-toggle {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 99;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  border-color: transparent;
+  padding: .5rem 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+}
+[data-mode="dark"] .reading-mode .reading-toggle { background: rgba(255, 255, 255, .85); color: #111; }
+
+/* 独立页顶部工具栏：阅读模式按钮右对齐 */
+.page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }

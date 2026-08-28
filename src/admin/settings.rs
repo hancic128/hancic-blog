@@ -19,7 +19,7 @@ use tower_sessions::Session;
 
 /// 设置表单字段（settings 表键名，与前台 `site_context` 读取一致）。
 /// 站点信息 + 页脚/友情链接 + 悬浮联系方式卡片。
-const FORM_KEYS: [&str; 10] = [
+const FORM_KEYS: [&str; 11] = [
     "site_name",
     "site_desc",
     "site_nav",
@@ -30,6 +30,7 @@ const FORM_KEYS: [&str; 10] = [
     "friend_links",
     "contact_enabled",
     "contact_email",
+    "date_format",
 ];
 
 // ---------- 设置页 ----------

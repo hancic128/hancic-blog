@@ -36,6 +36,11 @@ async fn create_published_post(
     .id
 }
 
+/// 按 id 查文章 UUID（用于 UUID 路由断言）。
+async fn post_id_uuid(pool: &db::Db, id: i64) -> String {
+    posts::get_post(pool, id).await.unwrap().unwrap().uuid
+}
+
 async fn get_html(app: &axum::Router, uri: &str) -> (StatusCode, String) {
     let res = app
         .clone()
@@ -64,10 +69,14 @@ async fn homepage_lists_published_posts() {
 #[tokio::test]
 async fn post_page_renders_markdown() {
     let (app, pool) = test_app("front-post").await;
-    create_published_post(&pool, "第一篇文章", None, vec!["rust".into()]).await;
+    let id = create_published_post(&pool, "第一篇文章", None, vec!["rust".into()]).await;
+    let post = posts::get_post(&pool, id).await.unwrap().unwrap();
 
-    // slug 由标题生成：slugify 保留 CJK，故为「第一篇文章」
-    let (status, html) = get_html(&app, "/post/第一篇文章").await;
+    // 旧 slug 链接现在应永久重定向到 UUID 链接
+    let (status, _html) = get_html(&app, "/post/第一篇文章").await;
+    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+
+    let (status, html) = get_html(&app, &format!("/post/{}", post.uuid)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("<h1"));
     assert!(html.contains("正文内容"));
@@ -76,9 +85,10 @@ async fn post_page_renders_markdown() {
 #[tokio::test]
 async fn post_page_renders_share_meta_tags() {
     let (app, pool) = test_app("front-post-share-meta").await;
-    create_published_post(&pool, "分享文章", None, vec![]).await;
+    let id = create_published_post(&pool, "分享文章", None, vec![]).await;
+    let post = posts::get_post(&pool, id).await.unwrap().unwrap();
 
-    let (status, html) = get_html(&app, "/post/分享文章").await;
+    let (status, html) = get_html(&app, &format!("/post/{}", post.uuid)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains(r#"<link rel="canonical" href="https://example.test/post/"#));
     assert!(html.contains(r#"property="og:type" content="article""#));
@@ -93,10 +103,10 @@ async fn post_page_uses_site_logo_as_absolute_share_image() {
         .execute(&pool)
         .await
         .unwrap();
-    create_published_post(&pool, "Logo 分享文章", None, vec![]).await;
+    let id = create_published_post(&pool, "Logo 分享文章", None, vec![]).await;
+    let post = posts::get_post(&pool, id).await.unwrap().unwrap();
 
-    // slugify 会把空格转 '-' 并转小写：「Logo 分享文章」→ logo-分享文章
-    let (status, html) = get_html(&app, "/post/logo-分享文章").await;
+    let (status, html) = get_html(&app, &format!("/post/{}", post.uuid)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains(r#"property="og:image" content="https://example.test/uploads/site/logo.png""#));
     assert!(html.contains(r#"name="twitter:image" content="https://example.test/uploads/site/logo.png""#));
@@ -106,10 +116,10 @@ async fn post_page_uses_site_logo_as_absolute_share_image() {
 #[tokio::test]
 async fn post_page_omits_share_image_when_logo_missing() {
     let (app, pool) = test_app("front-share-no-logo").await;
-    create_published_post(&pool, "无 Logo 分享文章", None, vec![]).await;
+    let id = create_published_post(&pool, "无 Logo 分享文章", None, vec![]).await;
+    let post = posts::get_post(&pool, id).await.unwrap().unwrap();
 
-    // slugify 会把空格转 '-' 并转小写：「无 Logo 分享文章」→ 无-logo-分享文章
-    let (status, html) = get_html(&app, "/post/无-logo-分享文章").await;
+    let (status, html) = get_html(&app, &format!("/post/{}", post.uuid)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(!html.contains(r#"property="og:image""#));
     assert!(!html.contains(r#"name="twitter:image""#));
@@ -369,7 +379,7 @@ async fn post_page_shows_like_button_and_count() {
         .await
         .unwrap();
 
-    let (status, html) = get_html(&app, "/post/点赞详情文章").await;
+    let (status, html) = get_html(&app, &format!("/post/{}", post_id_uuid(&pool, post_id).await)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("like-toggle"));
     assert!(html.contains("aria-label=\"点赞这篇文章\""), "文章点赞按钮应带可访问名称");
@@ -399,12 +409,12 @@ async fn moments_page_shows_like_button_and_count() {
 #[tokio::test]
 async fn front_pages_include_like_toggle_script() {
     let (app, pool) = test_app("front-like-script").await;
-    create_published_post(&pool, "脚本文章", None, vec![]).await;
+    let post_id = create_published_post(&pool, "脚本文章", None, vec![]).await;
     hancic::services::moments::create_moment(&pool, "脚本说说", &[])
         .await
         .unwrap();
 
-    let (post_status, post_html) = get_html(&app, "/post/脚本文章").await;
+    let (post_status, post_html) = get_html(&app, &format!("/post/{}", post_id_uuid(&pool, post_id).await)).await;
     assert_eq!(post_status, StatusCode::OK);
     assert!(post_html.contains("/api/likes/toggle"));
     assert!(post_html.contains("[data-like-toggle]"));

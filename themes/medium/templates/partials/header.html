@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="{{ site.mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ site.name }}{% endblock title %}</title>
+<meta name="description" content="{{ site.desc }}">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/style.css">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/github.min.css">
+{% if share %}
+{# 分享卡片元数据：canonical + Open Graph + Twitter Card（share 对象由 Rust 注入，可选字段缺省不输出） #}
+{% if share.canonical_url %}<link rel="canonical" href="{{ share.canonical_url }}">{% endif %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ share.title }}">
+<meta property="og:description" content="{{ share.description }}">
+{% if share.og_url %}<meta property="og:url" content="{{ share.og_url }}">{% endif %}
+<meta property="og:site_name" content="{{ share.site_name }}">
+{% if share.og_image %}<meta property="og:image" content="{{ share.og_image }}">{% endif %}
+<meta name="twitter:card" content="{{ share.twitter_card }}">
+<meta name="twitter:title" content="{{ share.title }}">
+<meta name="twitter:description" content="{{ share.description }}">
+{% if share.og_image %}<meta name="twitter:image" content="{{ share.og_image }}">{% endif %}
+{% endif %}
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+  <a class="site-brand" href="{{ base_path }}/">
+    {% if site.logo %}<img class="site-logo" src="{{ site.logo }}" alt="{{ site.name }} 标志">{% endif %}
+    {{ site.name }}
+  </a>
+  <nav class="site-nav" id="site-nav">
+    {% for item in site.nav %}
+      {% if item.type == "pages" and item.url %}
+      <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+      {% elif item.type == "pages" %}
+      <div class="nav-dropdown">
+        <a href="{{ base_path }}/page/{% if site.pages %}{{ site.pages[0].slug }}{% endif %}">{{ item.label }}</a>
+        {% if site.pages %}
+        <div class="dropdown-menu">
+          {% for p in site.pages %}<a href="{{ base_path }}/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% elif item.type == "articles" %}
+      <div class="nav-dropdown">
+        <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+        {% if site.categories %}
+        <div class="dropdown-menu">
+          {% for c in site.categories %}<a href="{{ base_path }}/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% elif item.type == "column" %}
+      <a href="{{ base_path }}{% if item.url %}{{ item.url }}{% else %}/columns{% endif %}">{{ item.label }}</a>
+      {% else %}
+      <a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换亮暗" title="切换亮暗色">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <div class="accent-wrap">
+    <button class="theme-toggle" id="accent-toggle" type="button" aria-label="选择配色" title="选择主题配色" aria-expanded="false" aria-controls="accent-panel">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-2a3 3 0 0 0-3 3c0 1.5 1 3 3 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="11" cy="7.5" r="1"/><circle cx="15.5" cy="9.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>
+    </button>
+    <div class="accent-panel" id="accent-panel" hidden>
+      <button class="accent-swatch" type="button" data-accent="indigo" aria-label="靛蓝" title="靛蓝"></button>
+      <button class="accent-swatch" type="button" data-accent="blue" aria-label="蓝色" title="蓝色"></button>
+      <button class="accent-swatch" type="button" data-accent="green" aria-label="绿色" title="绿色"></button>
+      <button class="accent-swatch" type="button" data-accent="purple" aria-label="紫色" title="紫色"></button>
+      <button class="accent-swatch" type="button" data-accent="orange" aria-label="橙色" title="橙色"></button>
+    </div>
+  </div>
+  <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+  </button>
+  </div>
+</header>
+<main class="site-main">

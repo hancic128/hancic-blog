@@ -1,0 +1,14 @@
+{# 标签归档页：当前标签徽章 + 文章分页列表（右侧：该标签下按月份筛选） #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <h1 class="archive-title tag-archive-title">标签：<a class="tag-badge tag-current" href="{{ base_path }}/tag/{{ tag.slug }}">{{ tag.name }}</a></h1>
+    <section class="post-list">
+      {% if current_month %}<p class="month-filter-note">「{{ current_month }}」的文章 <a class="archive-clear" href="{{ base_path }}/tag/{{ tag.slug }}">清除筛选</a></p>{% endif %}
+      {% include "partials/post_list.html" %}
+    </section>
+    {% include "partials/pagination.html" %}
+  </main>
+  {% include "partials/month_sidebar.html" %}
+</div>
+{% include "partials/footer.html" %}

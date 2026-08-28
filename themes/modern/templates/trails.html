@@ -24,7 +24,7 @@
             <span class="trail-card-meta">
               {% if t.distance_km_str %}<span class="trail-badge">{{ t.distance_km_str }} km</span>{% endif %}
               {% if t.elevation_gain_str %}<span class="trail-badge">爬升 {{ t.elevation_gain_str }} m</span>{% endif %}
-              {% if t.started_at %}<span class="trail-badge">{{ t.started_at | date }}</span>{% endif %}
+              {% if t.started_at %}<span class="trail-badge">{{ t.started_at | date(fmt=site.date_format) }}</span>{% endif %}
               {% if t.moving %}<span class="trail-badge">{{ t.moving }}</span>{% endif %}
             </span>
           </span>

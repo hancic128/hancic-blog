@@ -473,6 +473,10 @@ async fn fill_dashboard(
     let regions = stats_service::by_region(&state.db, from.as_deref(), to.as_deref()).await?;
     ctx.insert("regions", &stats::region_view(&regions));
 
+    // 跳转来源：按 referer 平台分类分组，阅读降序
+    let sources = stats_service::by_source(&state.db, from.as_deref(), to.as_deref()).await?;
+    ctx.insert("sources", &stats::source_view(&sources));
+
     let recent_like_count_7d = crate::services::likes::recent_like_count(&state.db, 7)
         .await
         .unwrap_or(0);

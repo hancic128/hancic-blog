@@ -204,14 +204,25 @@ fn markdown_breaks_filter(value: String, _kwargs: Kwargs, _state: &State) -> Ter
 }
 
 /// date 过滤器：把 RFC3339 时间字符串按站点时区（当前固定 Asia/Shanghai = UTC+8）
-/// 格式化为 `YYYY-MM-DD HH:MM`。tera 上下文中 chrono DateTime<Utc> 经 serde 序列化为
-/// RFC3339 字符串，故入参为字符串。
-fn date_filter(value: &str, _kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
+/// 格式化为 `YYYY-MM-DD HH:MM`（默认）。支持 `fmt` 参数映射 settings 的
+/// `date_format`：`date` = 仅日期（`YYYY-MM-DD`），其余值回退含时间。
+/// tera 上下文中 chrono DateTime<Utc> 经 serde 序列化为 RFC3339 字符串，故入参为字符串。
+fn date_filter(value: &str, kwargs: Kwargs, _state: &State) -> TeraResult<Value> {
     let dt = chrono::DateTime::parse_from_rfc3339(value)
         .map_err(|e| TeraError::message(format!("date 过滤器无法解析 {value:?}: {e}")))?;
     // Asia/Shanghai 全年为 UTC+8（无夏令时），T17 允许配置时区后再支持任意 tz。
     let tz = FixedOffset::east_opt(8 * 3600).expect("UTC+8 偏移量合法");
+    let fmt = match kwargs
+        .get("fmt")
+        .ok()
+        .flatten()
+        .and_then(Value::as_str)
+        .unwrap_or("datetime")
+    {
+        "date" => "%Y-%m-%d",
+        _ => "%Y-%m-%d %H:%M",
+    };
     Ok(Value::from(
-        dt.with_timezone(&tz).format("%Y-%m-%d %H:%M").to_string(),
+        dt.with_timezone(&tz).format(fmt).to_string(),
     ))
 }

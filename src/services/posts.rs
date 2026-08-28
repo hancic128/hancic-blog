@@ -7,6 +7,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use sqlx::FromRow;
 use sqlx::Row;
 use std::str::FromStr;
+use uuid::Uuid;
 
 /// 动态 SQL 的绑定值（`SqliteArgumentValue` 在 sqlx 0.8.6 不支持 `Type`，故用本地枚举）。
 enum BindVal {
@@ -92,6 +93,7 @@ pub(crate) fn order_by_clause(sort: Option<PostSort>) -> String {
 #[derive(FromRow)]
 pub(crate) struct PostRow {
     id: i64,
+    uuid: String,
     slug: String,
     title: String,
     content_md: String,
@@ -112,6 +114,7 @@ impl From<PostRow> for Post {
     fn from(r: PostRow) -> Self {
         Post {
             id: r.id,
+            uuid: r.uuid,
             slug: r.slug,
             title: r.title,
             content_md: r.content_md,
@@ -131,7 +134,7 @@ impl From<PostRow> for Post {
 }
 
 /// `pub(crate)`：后台文章管理复用。
-pub(crate) const POST_COLUMNS: &str = "id, slug, title, content_md, excerpt, status, post_type, \
+pub(crate) const POST_COLUMNS: &str = "id, uuid, slug, title, content_md, excerpt, status, post_type, \
     published_at, created_at, updated_at, views, like_count, category_id, column_id, column_sort";
 
 pub async fn slugify(input: &str) -> String {
@@ -188,10 +191,12 @@ pub async fn create_post(db: &Db, input: NewPost) -> Result<Post, AppError> {
     } else {
         None
     };
+    let uuid = Uuid::new_v4().to_string();
     let id = sqlx::query(
-        "INSERT INTO posts(slug,title,content_md,excerpt,status,post_type,published_at,category_id,column_id)
-         VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO posts(uuid,slug,title,content_md,excerpt,status,post_type,published_at,category_id,column_id)
+         VALUES (?,?,?,?,?,?,?,?,?,?)",
     )
+    .bind(&uuid)
     .bind(&slug)
     .bind(&input.title)
     .bind(&input.content_md)
@@ -228,6 +233,22 @@ pub async fn get_post_by_slug(db: &Db, slug: &str) -> Result<Option<Post>, AppEr
         .fetch_optional(db)
         .await?;
     Ok(row.map(Post::from))
+}
+
+pub async fn get_post_by_uuid(db: &Db, uuid: &str) -> Result<Option<Post>, AppError> {
+    let sql = format!("SELECT {POST_COLUMNS} FROM posts WHERE uuid = ?");
+    let row = sqlx::query_as::<_, PostRow>(&sql)
+        .bind(uuid)
+        .fetch_optional(db)
+        .await?;
+    Ok(row.map(Post::from))
+}
+
+pub fn public_post_path(post: &Post) -> String {
+    match post.post_type {
+        PostType::Post => format!("/post/{}", post.uuid),
+        PostType::Page => format!("/page/{}", post.slug),
+    }
 }
 
 /// 依据 opts 拼接 WHERE 子句（全部参数化，`?` 按 status/post_type/category/tag 顺序）。

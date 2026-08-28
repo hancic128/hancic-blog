@@ -2,6 +2,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use std::path::Path;
 use std::str::FromStr;
+use uuid::Uuid;
 
 pub type Db = SqlitePool;
 
@@ -62,11 +63,13 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     sqlx::raw_sql(MIGRATION_001).execute(&pool).await?;
     sqlx::raw_sql(MIGRATION_002).execute(&pool).await?;
     sqlx::raw_sql(MIGRATION_003).execute(&pool).await?;
+    ensure_post_uuid(&pool).await?;
     ensure_column_id(&pool).await?;
     ensure_column_sort(&pool).await?;
     ensure_column_description(&pool).await?;
     ensure_trail_sha256(&pool).await?;
     ensure_like_schema(&pool).await?;
+    ensure_page_view_source(&pool).await?;
     seed_default_settings(&pool).await?;
     Ok(pool)
 }
@@ -105,6 +108,34 @@ async fn ensure_column_description(pool: &Db) -> Result<(), sqlx::Error> {
             .execute(pool)
             .await?;
     }
+    Ok(())
+}
+
+/// posts 表加 `uuid`（幂等：旧库补列，历史文章自动回填随机 UUID，并建唯一索引）。
+async fn ensure_post_uuid(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('posts') WHERE name = 'uuid'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql("ALTER TABLE posts ADD COLUMN uuid TEXT")
+            .execute(pool)
+            .await?;
+    }
+    let ids: Vec<(i64,)> = sqlx::query_as("SELECT id FROM posts WHERE uuid IS NULL OR uuid = ''")
+        .fetch_all(pool)
+        .await?;
+    for (id,) in ids {
+        sqlx::query("UPDATE posts SET uuid = ? WHERE id = ?")
+            .bind(Uuid::new_v4().to_string())
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    sqlx::raw_sql("CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_uuid ON posts(uuid)")
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -186,6 +217,23 @@ CREATE INDEX IF NOT EXISTS idx_content_likes_target ON content_likes(content_typ
     Ok(())
 }
 
+/// page_views 表加 `source` 列（幂等：旧库补列，跳转来源分类，历史数据置 'other'）。
+async fn ensure_page_view_source(pool: &Db) -> Result<(), sqlx::Error> {
+    let has: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM pragma_table_info('page_views') WHERE name = 'source'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if has.0 == 0 {
+        sqlx::raw_sql(
+            "ALTER TABLE page_views ADD COLUMN source TEXT NOT NULL DEFAULT 'other'",
+        )
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
+
 async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
     let defaults: &[(&str, &str)] = &[
         ("site_name", "寒蝉 Hancic"),
@@ -203,6 +251,8 @@ async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
         // 站点 Logo / 社交图标（空默认，后台设置页填）
         ("site_logo", ""),
         ("social_logos", r#"{}"#),
+        // 前台日期展示格式：datetime = YYYY-MM-DD HH:MM（默认）/ date = 仅日期
+        ("date_format", "datetime"),
     ];
     for (k, v) in defaults {
         sqlx::query("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)")

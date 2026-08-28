@@ -7,14 +7,18 @@
         <h1>{{ post.title }}</h1>
         <div class="meta">
           <div class="meta-line">
-            {% if post.published_at %}<time datetime="{{ post.published_at }}">发布于 {{ post.published_at | date }}</time>{% endif %}
-            {% if post.updated_at %}<time datetime="{{ post.updated_at }}" title="更新时间">更新于 {{ post.updated_at | date }}</time>{% endif %}
+            {% if post.published_at %}<time datetime="{{ post.published_at }}">发布于 {{ post.published_at | date(fmt=site.date_format) }}</time>{% endif %}
+            {% if post.updated_at %}<time datetime="{{ post.updated_at }}" title="更新时间">更新于 {{ post.updated_at | date(fmt=site.date_format) }}</time>{% endif %}
             <span>{{ post.views }} 阅读</span>
             <button class="like-toggle" type="button" data-like-toggle data-content-type="post" data-content-id="{{ post.id }}" aria-pressed="{{ post.liked }}" aria-label="点赞这篇文章">
               <svg class="like-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z" fill="currentColor"/></svg>
               <span class="like-count">{{ post.like_count }}</span>
             </button>
             {% if word_count %}<span>{{ word_count }} 字 · 约 {{ read_minutes }} 分钟</span>{% endif %}
+            <button class="reading-toggle" type="button" data-reading-toggle aria-pressed="false" title="隐藏菜单栏与侧栏，专注阅读">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span data-reading-label>阅读模式</span>
+            </button>
           </div>
           <div class="meta-line">
             {% if category %}<span>分类：</span><a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
@@ -26,8 +30,8 @@
       {{ content_html | safe }}
       {% if prev or next %}
       <nav class="post-adjacent">
-        {% if prev %}<span class="adjacent-prev">← <a href="{{ base_path }}/post/{{ prev.slug }}">{{ prev.title }}</a></span>{% endif %}
-        {% if next %}<span class="adjacent-next"><a href="{{ base_path }}/post/{{ next.slug }}">{{ next.title }}</a> →</span>{% endif %}
+        {% if prev %}<span class="adjacent-prev">← <a href="{{ base_path }}{{ prev.url }}">{{ prev.title }}</a></span>{% endif %}
+        {% if next %}<span class="adjacent-next"><a href="{{ base_path }}{{ next.url }}">{{ next.title }}</a> →</span>{% endif %}
       </nav>
       {% endif %}
     </article>
