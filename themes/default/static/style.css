@@ -207,6 +207,40 @@ button, a, [role="button"], label { cursor: pointer; }
 .nav-toggle { display: none; }
 .theme-toggle { margin-left: auto; }
 
+/* ---------- 内容区顶部搜索框（全局搜索文章/说说） ---------- */
+.site-search { display: flex; align-items: center; position: relative; margin-bottom: 1.6rem; }
+.site-search input {
+  flex: 1;
+  padding: .5rem 1rem .5rem 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  color: var(--fg);
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.site-search input::placeholder { color: var(--muted); }
+.site-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.site-search button {
+  position: absolute;
+  left: .75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.site-search button:hover { color: var(--accent); }
+
 /* ---------- 文章列表 ---------- */
 
 .post-list-item {
@@ -300,6 +334,55 @@ button, a, [role="button"], label { cursor: pointer; }
 .like-count {
   color: inherit;
 }
+/* 文章页复制按钮（全文/摘要，发布到其他平台用；无背景色，hover/按下动画） */
+.copy-full {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .2rem .5rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: .8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .2s ease, transform .15s ease;
+  align-self: center;
+}
+.copy-full:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.copy-full:active { transform: scale(.94); }
+.copy-full.copied { animation: copy-pop .35s ease; }
+@keyframes copy-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.copy-full-icon { width: 14px; height: 14px; flex: none; }
+
+/* 前台轻提示（复制成功等） */
+.site-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2.5rem;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+  padding: .5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: .85rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.site-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* 文章列表 meta 中的点赞（静态展示，不可点击） */
 .post-like-count {
   display: inline-flex;
@@ -583,6 +666,16 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 
 .search-result-info { color: var(--muted); font-size: .9375rem; }
 
+/* 搜索页说说结果 */
+.search-section-title { font-size: 1.1rem; margin: 1.5rem 0 .8rem; }
+.search-moments .search-section-title { margin-top: 2rem; }
+.search-moment-list { list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: .6rem; }
+.search-moment-item { padding: .8rem 1rem; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--card-bg); }
+.search-moment-content { margin: 0 0 .35rem; font-size: .95rem; line-height: 1.7; }
+.search-moments .more-link { margin-top: 1.1rem; }
+
 .error-page { text-align: center; padding: 4rem 0; }
 
 .error-code { font-size: 4rem; margin: 0; color: var(--accent); }
@@ -701,6 +794,10 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 /* ---------- 移动端 ---------- */
 
 @media (max-width: 768px) {
+  /* 手机端搜索框：去掉提交按钮（回车搜索），输入框占满容器 */
+  .site-search { margin-bottom: 1.1rem; }
+  .site-search button { display: none; }
+  .site-search input { padding-left: 1rem; padding-right: 1rem; }
   .site-header-inner {
     gap: .5rem;
     padding: 1rem 1rem;
@@ -746,10 +843,10 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .section-sort a:hover { color: var(--accent); border-color: var(--accent); }
 .section-sort a.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
-/* 热力图：53 列 × 7 行，GitHub Contribution 风格 */
-.heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
-.heatmap-col { display: flex; flex-direction: column; gap: 3px; }
-.heat-cell { width: 10px; height: 10px; border-radius: 2px; background: var(--border); }
+/* 热力图：26 列 × 7 行，GitHub Contribution 风格，列均分占满容器宽度 */
+.heatmap { display: flex; gap: 3px; padding-bottom: 4px; }
+.heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.heat-cell { width: 100%; aspect-ratio: 1 / 1; border-radius: 2px; background: var(--border); }
 html[data-mode="dark"] .heat-cell.l0, .heat-cell.l0 { background: var(--border); }
 .heat-cell.l1 { background: var(--heat-1); }
 .heat-cell.l2 { background: var(--heat-2); }
@@ -757,6 +854,9 @@ html[data-mode="dark"] .heat-cell.l0, .heat-cell.l0 { background: var(--border);
 .heat-cell.l4 { background: var(--heat-4); }
 .heat-legend { display: flex; align-items: center; gap: 3px; margin-top: .5rem;
   font-size: .7rem; color: var(--muted); }
+
+/* 图例色块保持原样小尺寸（热力图格子占满，图例不拉伸） */
+.heat-legend .heat-cell { width: 10px; height: 10px; flex: none; }
 
 /* 活动时间轴 */
 .activity-timeline { border-left: 2px solid var(--border); margin-left: 5px;
@@ -785,7 +885,6 @@ html[data-mode="dark"] .heat-cell.l0, .heat-cell.l0 { background: var(--border);
 .more-link a:hover { text-decoration: underline; }
 .post-list-item .post-tags { margin-top: .6rem; }
 @media (max-width: 768px) {
-  .heat-cell { width: 8px; height: 8px; }
   .heatmap { gap: 2px; }
   .heatmap-col { gap: 2px; }
 }

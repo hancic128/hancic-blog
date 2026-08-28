@@ -160,6 +160,28 @@ pub async fn list_moment_attachments(
         .collect())
 }
 
+/// 全局搜索：按关键词 LIKE 匹配说说内容（moments 无 FTS，量小走 LIKE）。
+/// 转义 `%`/`_`/`\`，返回最近 `limit` 条 `(id, content, 日期 YYYY-MM-DD)`。
+pub async fn search_moments(
+    db: &Db,
+    q: &str,
+    limit: i64,
+) -> Result<Vec<(i64, String, String)>, AppError> {
+    let escaped = q.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    let like = format!("%{escaped}%");
+    Ok(sqlx::query_as::<_, (i64, String, String)>(
+        "SELECT id, content, substr(created_at, 1, 10) AS d
+         FROM moments
+         WHERE content LIKE ? ESCAPE '\\'
+         ORDER BY created_at DESC
+         LIMIT ?",
+    )
+    .bind(like)
+    .bind(limit)
+    .fetch_all(db)
+    .await?)
+}
+
 /// 删除说说：moment_attachments 由外键级联清空，attachments 记录保留。
 pub async fn delete_moment(db: &Db, moment_id: i64) -> Result<(), AppError> {
     let r = sqlx::query("DELETE FROM moments WHERE id = ?")

@@ -238,6 +238,56 @@
     }
   }
 
+  /* ---------- 文章页复制全文（Markdown 原文，方便发布到其他平台） ---------- */
+
+  function showToast(msg) {
+    var t = document.createElement("div");
+    t.className = "site-toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add("show"); });
+    setTimeout(function () {
+      t.classList.remove("show");
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+    }, 1800);
+  }
+
+  function initCopyFull() {
+    var btns = document.querySelectorAll(".copy-full[data-copy-md]");
+    if (!btns.length) return;
+    for (var i = 0; i < btns.length; i++) {
+      (function (btn) {
+        var md = btn.getAttribute("data-copy-md");
+        var label = btn.querySelector(".copy-full-label");
+        var what = label ? label.textContent : "内容";
+        btn.addEventListener("click", function () {
+          var done = function (ok) {
+            if (ok) {
+              btn.classList.add("copied");
+              showToast("已复制" + what);
+              setTimeout(function () { btn.classList.remove("copied"); }, 450);
+            } else {
+              showToast("复制失败");
+            }
+          };
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(md).then(
+              function () { done(true); },
+              function () { fallbackCopy(md, done); }
+            );
+          } else {
+            fallbackCopy(md, done);
+          }
+        });
+      })(btns[i]);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", initCopyFull);
+  if (document.readyState !== "loading") {
+    initCopyFull();
+  }
+
   document.addEventListener("DOMContentLoaded", initCodeCopy);
   if (document.readyState !== "loading") {
     initCodeCopy();
@@ -271,6 +321,12 @@
       var pre = code.closest("pre");
       var m = (code.className || "").match(/language-([\w+-]+)/);
       var lang = m ? m[1] : "";
+      var displayLang = lang;
+      // env（.env 配置）是 ini 语法的常见别名：高亮按 ini，标签仍显示 env
+      if (lang === "env") {
+        code.className = code.className.replace(/\blanguage-env\b/, "language-ini");
+        lang = "ini";
+      }
       if (lang === "mermaid") {
         renderMermaid(pre, code);
         continue;
@@ -278,7 +334,7 @@
       try {
         hljs.highlightElement(code);
       } catch (e) { /* 单块失败不影响其它 */ }
-      if (lang && pre) pre.setAttribute("data-language", lang);
+      if (displayLang && pre) pre.setAttribute("data-language", displayLang);
     }
   }
   document.addEventListener("DOMContentLoaded", initCodeHighlight);

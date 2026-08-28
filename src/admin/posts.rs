@@ -32,7 +32,9 @@ fn short_slug() -> String {
 }
 
 /// 从查询参数解析文章列表排序：`sort=字段` + `dir=asc|desc`；字段白名单校验，
-/// 非法字段回退 None（默认时间倒序）。
+/// 非法字段回退默认。无 sort 参数时默认按更新时间倒序（updated_at desc）——
+/// 若沿用 `order_by_clause(None)` 的 published_at DESC，草稿（published_at 为 NULL）
+/// 会被 SQLite 排到最后一页，「全部状态」下看起来就像没有草稿文章。
 fn admin_sort(query: &HashMap<String, String>) -> Option<posts::PostSort> {
     let field: &'static str = match query.get("sort").map(String::as_str).unwrap_or("") {
         "title" => "title",
@@ -41,7 +43,7 @@ fn admin_sort(query: &HashMap<String, String>) -> Option<posts::PostSort> {
         "updated_at" => "updated_at",
         "published_at" => "published_at",
         "status" => "status",
-        _ => return None,
+        _ => return Some(posts::PostSort { field: "updated_at", asc: false }),
     };
     let asc = query.get("dir").map(String::as_str).unwrap_or("desc") == "asc";
     Some(posts::PostSort { field, asc })
@@ -133,7 +135,7 @@ pub async fn list(
             "type": query.get("type").map(String::as_str).unwrap_or("all"),
             "category": category_slug.unwrap_or_default(),
             "q": q,
-            "sort": query.get("sort").map(String::as_str).unwrap_or(""),
+            "sort": query.get("sort").map(String::as_str).unwrap_or("updated_at"),
             "dir": query.get("dir").map(String::as_str).unwrap_or("desc"),
         }),
     );
