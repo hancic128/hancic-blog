@@ -12,7 +12,7 @@ use std::str::FromStr;
 use tower_sessions::Session;
 
 /// 设置表单字段（settings 表键名，与前台 `site_context` 读取一致）。
-const FORM_KEYS: [&str; 2] = ["theme_mode", "timezone"];
+const FORM_KEYS: [&str; 3] = ["theme_mode", "timezone", "date_format"];
 
 /// 允许的主题模式。
 const THEME_MODES: [&str; 3] = ["auto", "light", "dark"];
@@ -213,6 +213,11 @@ fn validate(form: &HashMap<String, String>) -> Vec<String> {
     if let Some(timezone) = form.get("timezone") {
         if chrono_tz::Tz::from_str(timezone.trim()).is_err() {
             errors.push("时区不合法".into());
+        }
+    }
+    if let Some(date_format) = form.get("date_format") {
+        if !matches!(date_format.trim(), "datetime" | "date") {
+            errors.push("日期格式不合法".into());
         }
     }
     errors

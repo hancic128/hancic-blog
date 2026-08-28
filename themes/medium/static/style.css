@@ -895,3 +895,89 @@ button, a, [role="button"], label { cursor: pointer; }
 
 /* 独立页顶部工具栏：阅读模式按钮右对齐 */
 .page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+
+/* ---------- 顶部搜索框（与其他主题同布局，颜色随本主题） ---------- */
+.site-search { display: flex; align-items: center; position: relative; margin-bottom: 1.6rem; }
+.site-search input {
+  flex: 1;
+  padding: .5rem 1rem .5rem 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  color: var(--fg);
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.site-search input::placeholder { color: var(--muted); }
+.site-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.site-search button {
+  position: absolute;
+  left: .75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.site-search button:hover { color: var(--accent); }
+
+/* ---------- 复制全文/摘要（无边框无背景，文字与图标水平排列） ---------- */
+.copy-full {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .2rem .5rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: .8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s ease, transform .15s ease;
+}
+.copy-full:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.copy-full:active { transform: scale(.94); }
+.copy-full.copied { animation: copy-pop .35s ease; }
+@keyframes copy-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.copy-full-icon { width: 14px; height: 14px; flex: none; }
+
+/* 前台轻提示（复制成功等） */
+.site-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2.5rem;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+  padding: .5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: .85rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.site-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 阅读模式：隐藏右下角悬浮按钮（返回顶部 / 联系卡片），保持界面干净 */
+.reading-mode .back-top,
+.reading-mode .contact-fab { display: none !important; }

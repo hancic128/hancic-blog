@@ -1047,3 +1047,7 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 
 /* 独立页顶部工具栏：阅读模式按钮右对齐 */
 .page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+
+/* 阅读模式：隐藏右下角悬浮按钮（返回顶部 / 联系卡片），保持界面干净 */
+.reading-mode .back-top,
+.reading-mode .contact-fab { display: none !important; }

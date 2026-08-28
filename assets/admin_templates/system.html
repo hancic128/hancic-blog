@@ -37,6 +37,17 @@
     </div>
       <p class="muted">影响后台时间显示与前台日期格式化</p>
     </div>
+    <div class="field">
+      <label for="date-format">日期格式</label>
+      <div class="cs" data-select="#date-format">
+      <button class="cs-btn" type="button" aria-label="日期格式" aria-haspopup="listbox" aria-expanded="false"></button>
+      <select id="date-format" name="date_format" class="cs-hidden">
+        <option value="datetime"{% if form.date_format == "datetime" %} selected{% endif %}>日期+时间</option>
+        <option value="date"{% if form.date_format == "date" %} selected{% endif %}>仅日期</option>
+      </select>
+    </div>
+      <p class="muted">前台日期展示：含时间（2026-08-28 13:29）或仅日期（2026-08-28）</p>
+    </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
     </div>

@@ -484,3 +484,53 @@
   try { saved = localStorage.getItem("reading-mode"); } catch (e) {}
   if (saved === "1") apply(true);
 })();
+
+/* ---------- 文章页复制全文（Markdown 原文，方便发布到其他平台） ---------- */
+
+function showToast(msg) {
+  var t = document.createElement("div");
+  t.className = "site-toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(function () { t.classList.add("show"); });
+  setTimeout(function () {
+    t.classList.remove("show");
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+  }, 1800);
+}
+
+function initCopyFull() {
+  var btns = document.querySelectorAll(".copy-full[data-copy-md]");
+  if (!btns.length) return;
+  for (var i = 0; i < btns.length; i++) {
+    (function (btn) {
+      var md = btn.getAttribute("data-copy-md");
+      var label = btn.querySelector(".copy-full-label");
+      var what = label ? label.textContent : "内容";
+      btn.addEventListener("click", function () {
+        var done = function (ok) {
+          if (ok) {
+            btn.classList.add("copied");
+            showToast("已复制" + what);
+            setTimeout(function () { btn.classList.remove("copied"); }, 450);
+          } else {
+            showToast("复制失败");
+          }
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(md).then(
+            function () { done(true); },
+            function () { fallbackCopy(md, done); }
+          );
+        } else {
+          fallbackCopy(md, done);
+        }
+      });
+    })(btns[i]);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initCopyFull);
+if (document.readyState !== "loading") {
+  initCopyFull();
+}

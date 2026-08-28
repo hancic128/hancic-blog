@@ -40,7 +40,7 @@
   </form>
 
   {% if posts %}
-  <table class="data-table">
+  <table class="data-table table-posts">
     <thead>
       <tr>
         <th><a class="th-sort{% if filters.sort == 'title' %} active{% endif %}" href="?sort=title&amp;dir={% if filters.sort == 'title' and filters.dir == 'asc' %}desc{% else %}asc{% endif %}&amp;status={{ filters.status }}&amp;type={{ filters.type }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}">标题{% if filters.sort == 'title' %}<span class="sort-arrow">{{ '↑' if filters.dir == 'asc' else '↓' }}</span>{% endif %}</a></th>

@@ -45,14 +45,6 @@
       <button type="button" class="kv-add" data-add="friend">+ 添加友情链接</button>
       <input type="hidden" id="friend_links" name="friend_links" value="{{ form.friend_links }}">
     </div>
-    <div class="field field-inline">
-      <label for="date-format">日期格式</label>
-      <select id="date-format" name="date_format">
-        <option value="datetime"{% if form.date_format == "datetime" %} selected{% endif %}>日期+时间（2026-08-28 13:29）</option>
-        <option value="date"{% if form.date_format == "date" %} selected{% endif %}>仅日期（2026-08-28）</option>
-      </select>
-      <p class="muted">前台文章/列表/说说的日期展示方式</p>
-    </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存设置</button>
     </div>

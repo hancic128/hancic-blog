@@ -2242,3 +2242,15 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 @media (max-width: 720px) {
   .trail-admin-item { flex-direction: column; }
 }
+
+/* ---- 文章管理列表：固定列宽，标题自适应截断（类型/分类/状态/更新时间不再换行） ---- */
+.table-posts { table-layout: fixed; }
+.table-posts th, .table-posts td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table-posts th:nth-child(2),  .table-posts td:nth-child(2)  { width: 64px; }
+.table-posts th:nth-child(3),  .table-posts td:nth-child(3)  { width: 116px; }
+.table-posts th:nth-child(4),  .table-posts td:nth-child(4)  { width: 76px; }
+.table-posts th:nth-child(5),  .table-posts td:nth-child(5)  { width: 56px; }
+.table-posts th:nth-child(6),  .table-posts td:nth-child(6)  { width: 64px; }
+.table-posts th:nth-child(7),  .table-posts td:nth-child(7)  { width: 148px; }
+.table-posts th:nth-child(8),  .table-posts td:nth-child(8)  { width: 88px; }
+.table-posts td:nth-child(1) { overflow: hidden; text-overflow: ellipsis; }
