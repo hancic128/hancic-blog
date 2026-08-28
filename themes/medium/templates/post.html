@@ -25,10 +25,6 @@
               <span class="like-count">{{ post.like_count }}</span>
             </button>
             {% if word_count %}<span>{{ word_count }} 字 · 约 {{ read_minutes }} 分钟</span>{% endif %}
-            <button class="reading-toggle" type="button" data-reading-toggle aria-pressed="false" title="隐藏菜单栏与侧栏，专注阅读">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-              <span data-reading-label>阅读模式</span>
-            </button>
           </div>
           <div class="meta-line">
             {% if category %}<span>分类：</span><a href="{{ base_path }}/category/{{ category.slug }}">{{ category.name }}</a>{% endif %}
@@ -60,4 +56,8 @@
     {% endif %}
   </aside>
 </div>
+<button class="reading-float" type="button" data-reading-toggle aria-pressed="false" title="阅读模式" aria-label="切换阅读模式">
+  <svg class="reading-float-icon icon-reading-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+  <svg class="reading-float-icon icon-reading-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+</button>
 {% include "partials/footer.html" %}

@@ -528,11 +528,9 @@
 (function initReadingMode() {
   const btn = document.querySelector("[data-reading-toggle]");
   if (!btn) return; // 仅文章页/独立页存在
-  const label = btn.querySelector("[data-reading-label]");
   const apply = (on) => {
     document.body.classList.toggle("reading-mode", on);
     btn.setAttribute("aria-pressed", on ? "true" : "false");
-    if (label) label.textContent = on ? "退出阅读" : "阅读模式";
     try { localStorage.setItem("reading-mode", on ? "1" : "0"); } catch (e) {}
   };
   btn.addEventListener("click", () => apply(!document.body.classList.contains("reading-mode")));

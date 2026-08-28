@@ -2243,14 +2243,12 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   .trail-admin-item { flex-direction: column; }
 }
 
-/* ---- 文章管理列表：固定列宽，标题自适应截断（类型/分类/状态/更新时间不再换行） ---- */
-.table-posts { table-layout: fixed; }
-.table-posts th, .table-posts td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.table-posts th:nth-child(2),  .table-posts td:nth-child(2)  { width: 64px; }
-.table-posts th:nth-child(3),  .table-posts td:nth-child(3)  { width: 116px; }
-.table-posts th:nth-child(4),  .table-posts td:nth-child(4)  { width: 76px; }
-.table-posts th:nth-child(5),  .table-posts td:nth-child(5)  { width: 56px; }
-.table-posts th:nth-child(6),  .table-posts td:nth-child(6)  { width: 64px; }
-.table-posts th:nth-child(7),  .table-posts td:nth-child(7)  { width: 148px; }
-.table-posts th:nth-child(8),  .table-posts td:nth-child(8)  { width: 88px; }
-.table-posts td:nth-child(1) { overflow: hidden; text-overflow: ellipsis; }
+/* ---- 文章管理列表：auto 布局 + 合理列宽（类型/分类/状态/更新时间不换行，标题/分类超长截断） ---- */
+.table-posts th, .table-posts td { white-space: nowrap; }
+.table-posts th:first-child, .table-posts td:first-child { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.table-posts td:nth-child(2) { width: 74px; }
+.table-posts td:nth-child(3) { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.table-posts td:nth-child(4) { width: 88px; }
+.table-posts td:nth-child(5) { width: 60px; }
+.table-posts td:nth-child(6) { width: 68px; }
+.table-posts td:nth-child(7) { width: 160px; }

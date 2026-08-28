@@ -289,15 +289,16 @@ button, a, [role="button"], label { cursor: pointer; }
 
 /* ---------- 热力图（更新日历） ---------- */
 .heatmap-section { margin-bottom: 1rem; }
-.heatmap { display: flex; gap: 4px; padding-bottom: 4px; }
-.heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.heatmap { display: flex; gap: 3px; padding-bottom: 4px; }
+.heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .heat-cell {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  border-radius: 2px;
+  background: var(--border);
   cursor: default;
 }
+.heat-cell.l0 { background: var(--border); }
 .heat-cell.l1 { background: var(--heat-1); }
 .heat-cell.l2 { background: var(--heat-2); }
 .heat-cell.l3 { background: var(--heat-3); }
@@ -399,7 +400,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; font-size: .82rem; color: var(--muted); }
 /* 文章详情页 meta：时间 / 分类专栏标签 / 统计 各占一行 */
 .post-header .meta { flex-direction: column; align-items: flex-start; gap: .35rem; }
-.post-header .meta-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; }
+.post-header .meta-line { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; }
 .meta a { color: var(--muted); text-decoration: none; }
 .meta a:hover { color: var(--accent); }
 .excerpt { margin: .7rem 0 0; font-size: .94rem; color: var(--muted); line-height: 1.75; }
@@ -1017,36 +1018,37 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .reading-mode .page { font-size: 1.0625rem; line-height: 1.85; }
 .reading-mode .post-adjacent { display: none; }
 
-/* 阅读模式按钮：正文内为普通胶囊按钮，进入阅读模式后悬浮右下角 */
-.reading-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  padding: .3rem .75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--fg);
-  font-size: .8rem;
-  line-height: 1.4;
-  cursor: pointer;
-}
-.reading-toggle:hover { border-color: var(--accent); color: var(--accent); }
-.reading-mode .reading-toggle {
+/* 阅读模式悬浮图标按钮：右下角圆形（与 back-top 同风格），仅文章/独立页存在 */
+.reading-float {
   position: fixed;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  z-index: 99;
-  background: rgba(0, 0, 0, .72);
-  color: #fff;
-  border-color: transparent;
-  padding: .5rem 1rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+  right: 5.5rem;
+  bottom: 1.25rem;
+  z-index: 60;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
 }
-[data-mode="dark"] .reading-mode .reading-toggle { background: rgba(255, 255, 255, .85); color: #111; }
-
-/* 独立页顶部工具栏：阅读模式按钮右对齐 */
-.page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.reading-float:hover { color: var(--accent); border-color: var(--accent); }
+.reading-float:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reading-float-icon { width: 20px; height: 20px; }
+.reading-float .icon-reading-off { display: none; }
+.reading-mode .reading-float {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.reading-mode .reading-float .icon-reading-on { display: none; }
+.reading-mode .reading-float .icon-reading-off { display: block; }
 
 /* 阅读模式：隐藏右下角悬浮按钮（返回顶部 / 联系卡片），保持界面干净 */
 .reading-mode .back-top,
