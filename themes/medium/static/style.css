@@ -255,17 +255,18 @@ button, a, [role="button"], label { cursor: pointer; }
 .more-link a { color: var(--accent); text-decoration: none; }
 .more-link a:hover { text-decoration: underline; }
 
-/* ---------- 热力图（更新日历） ---------- */
+/* ---------- 热力图（更新日历，占满容器宽度，与 default 主题一致） ---------- */
 .heatmap-section { margin-bottom: 1rem; }
-.heatmap { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
-.heatmap-col { display: flex; flex-direction: column; gap: 4px; }
+.heatmap { display: flex; gap: 3px; padding-bottom: 4px; }
+.heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .heat-cell {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+  background: var(--border);
   cursor: default;
 }
+.heat-cell.l0 { background: var(--border); }
 .heat-cell.l1 { background: var(--heat-1); }
 .heat-cell.l2 { background: var(--heat-2); }
 .heat-cell.l3 { background: var(--heat-3); }
@@ -274,6 +275,8 @@ button, a, [role="button"], label { cursor: pointer; }
   background: var(--fg); color: var(--bg); font-size: .72rem; line-height: 1.5;
   padding: .45rem .75rem; border-radius: 6px; white-space: pre-line;
   min-width: 180px; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+/* 图例色块保持原样小尺寸（热力图格子占满，图例不拉伸） */
+.heat-legend .heat-cell { width: 10px; height: 10px; flex: none; }
 .heat-legend { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: .75rem; color: var(--muted); }
 
 /* ---------- 说说时间线 ---------- */
