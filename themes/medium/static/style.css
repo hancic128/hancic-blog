@@ -868,8 +868,8 @@ button, a, [role="button"], label { cursor: pointer; }
 /* 阅读模式悬浮图标按钮：右下角圆形（与 back-top 同风格），仅文章/独立页存在 */
 .reading-float {
   position: fixed;
-  right: 5.5rem;
-  bottom: 1.25rem;
+  right: 1.25rem;
+  bottom: calc(5rem + 3.375rem); /* 联系卡片（bottom 5rem）上方 */
   z-index: 60;
   width: 42px;
   height: 42px;
@@ -886,6 +886,28 @@ button, a, [role="button"], label { cursor: pointer; }
   transition: color .15s ease, border-color .15s ease, background .15s ease;
 }
 .reading-float:hover { color: var(--accent); border-color: var(--accent); }
+.reading-float::after {
+  content: "阅读模式";
+  position: absolute;
+  right: calc(100% + .6rem);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  padding: .3rem .6rem;
+  border-radius: 6px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: .75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.reading-float:hover::after { opacity: 1; visibility: visible; transform: translateY(-50%) translateX(0); }
+.reading-mode .reading-float::after { content: "退出阅读"; }
+
 .reading-float:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .reading-float-icon { width: 20px; height: 20px; }
 .reading-float .icon-reading-off { display: none; }
