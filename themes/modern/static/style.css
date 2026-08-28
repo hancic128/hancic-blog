@@ -1072,6 +1072,5 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
 .reading-mode .reading-float .icon-reading-on { display: none; }
 .reading-mode .reading-float .icon-reading-off { display: block; }
 
-/* 阅读模式：隐藏右下角悬浮按钮（返回顶部 / 联系卡片），保持界面干净 */
-.reading-mode .back-top,
-.reading-mode .contact-fab { display: none !important; }
+/* 阅读模式：隐藏右下角悬浮按钮（仅返回顶部；联系方式卡片保留不隐藏） */
+.reading-mode .back-top { display: none !important; }

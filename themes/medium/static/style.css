@@ -1001,6 +1001,5 @@ button, a, [role="button"], label { cursor: pointer; }
 }
 .site-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* 阅读模式：隐藏右下角悬浮按钮（返回顶部 / 联系卡片），保持界面干净 */
-.reading-mode .back-top,
-.reading-mode .contact-fab { display: none !important; }
+/* 阅读模式：隐藏右下角悬浮按钮（仅返回顶部；联系方式卡片保留不隐藏） */
+.reading-mode .back-top { display: none !important; }
