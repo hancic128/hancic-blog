@@ -872,7 +872,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .reading-float {
   position: fixed;
   right: 1.25rem;
-  bottom: calc(5rem + 3.375rem); /* 联系卡片（bottom 5rem）上方 */
+  bottom: calc(5.9rem + 46px + .75rem); /* 联系卡片（bottom 5.9rem + 高 46px）上方，间距 12px */
   z-index: 60;
   width: 42px;
   height: 42px;

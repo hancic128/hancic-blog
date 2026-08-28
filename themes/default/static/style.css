@@ -1279,7 +1279,7 @@ html { scroll-behavior: smooth; }
 .reading-float {
   position: fixed;
   right: 1.25rem;
-  bottom: calc(5rem + 3.375rem); /* 联系卡片（bottom 5rem）上方 */
+  bottom: calc(5rem + 42px + .75rem); /* 联系卡片（bottom 5rem + 高 42px）上方，间距 12px */
   z-index: 60;
   width: 42px;
   height: 42px;
