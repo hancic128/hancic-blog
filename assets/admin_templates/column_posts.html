@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}专栏文章管理{% endblock %}
 {% block content %}
-<h1><a class="back-link" href="{{ base_path }}/admin/columns">← 专栏管理</a> · {{ column.name }}</h1>
+<h1><a class="back-link" href="{{ base_path }}/admin/columns"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>专栏管理</a> · {{ column.name }}</h1>
 
 {% if error_msg %}
 <p class="error">{{ error_msg }}</p>

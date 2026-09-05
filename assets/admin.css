@@ -1,14 +1,8 @@
 /* 管理后台样式：明暗双模式——
-   暗色默认，绿色主色，侧栏可折叠，≤768px 抽屉导航。
-   data-mode="dark"(默认) / data-mode="light" 切换。
-   视觉基调：深色侧栏渐变 + 圆角卡片 + 图标统计卡 + 渐变主按钮。 */
-
-/* 管理后台样式：明暗双模式——
-   暗色默认，侧栏可折叠，≤768px 抽屉导航。
-   data-mode="dark"(默认) / data-mode="light" 切换。
-   令牌体系遵循 Trilium「前端约束规范」02/03（品牌色 brand×明暗 + surface/ink 中性 +
-   4px 网格 + 4 档圆角 + 5 级字号 + 3 档阴影）；默认主题色 indigo（规范 03 默认）。
-   兼容策略：--bg/--panel/--text/--accent 等旧变量保留为别名，渐进迁移后删除。 */
+   暗色默认（data-mode="dark"/"light"），侧栏可折叠，≤768px 抽屉导航。
+   令牌体系遵循 Trilium「前端约束规范」02/03/10：品牌色 brand×明暗（默认 indigo，
+   data-accent 5 主题）+ surface/ink 中性 + 4px 网格 + 4 档圆角 + 5 级字号 + 3 档阴影。
+   兼容策略：--bg/--panel/--text/--accent 等旧变量保留为别名，迁移完成后删除；勿新增引用。 */
 
 /* ===== 设计令牌 ===== */
 
@@ -20,7 +14,7 @@
   --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 18px; --text-xl: 20px;
 }
 
-/* -- 品牌色阶 brand：随 html[data-accent] 切换（默认 emerald；规范 5 主题见下） -- */
+/* -- 品牌色阶 brand：随 html[data-accent] 切换（默认 indigo；规范 5 主题见下） -- */
 :root {
   --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-500: #6366f1;
   --brand-600: #4f46e5; --brand-700: #4338ca; --brand-900: #312e81;
@@ -167,7 +161,7 @@
   color-scheme: light;
 }
 
-/* ---- 内置主题色 5 套（规范 03：indigo/emerald/rose/amber/slate，默认 emerald） ----
+/* ---- 内置主题色 5 套（规范 03：indigo/emerald/rose/amber/slate，默认 indigo） ----
    覆盖完整 brand 色阶；--accent 系与侧栏指示等一律经 var(--brand-*) 派生，全站联动。 */
 html[data-accent="indigo"] { --brand-50:#eef2ff; --brand-100:#e0e7ff; --brand-300:#a5b4fc; --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca; --brand-900:#312e81; }
 html[data-accent="emerald"] { --brand-50:#ecfdf5; --brand-100:#d1fae5; --brand-300:#6ee7b7; --brand-500:#10b981; --brand-600:#059669; --brand-700:#047857; --brand-900:#064e3b; }
@@ -432,6 +426,9 @@ a:hover { text-decoration: underline; }
 .page-head-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 h1 { font-size: var(--text-xl); margin: 0 0 20px; font-weight: 700; letter-spacing: -0.01em; }
 .page-head h1 { margin-bottom: 0; }
+.back-link { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--muted); text-decoration: none; }
+.back-link:hover { color: var(--accent); text-decoration: none; }
+.msg-icon { vertical-align: -3px; margin-right: var(--space-1); }
 .page-sub { color: var(--muted); font-size: var(--text-sm); margin-top: 3px; }
 h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .muted { color: var(--muted); }
@@ -694,20 +691,6 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 
 .chart-wrap { position: relative; height: 160px; }
 
-/* ---- 最近草稿列表 ---- */
-.draft-list { list-style: none; margin: 0; padding: 0; }
-.draft-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--border);
-}
-.draft-item:last-child { border-bottom: none; }
-.draft-item .draft-title { font-size: 14.5px; font-weight: 500; }
-.draft-meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
-
 /* ---- 表格 ---- */
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -949,14 +932,12 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-size: 14px;
-  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.moment-pick .moment-pick-del:hover { background: var(--danger, #EF4444); }
+.moment-pick .moment-pick-del:hover { background: var(--danger); }
 /* 编辑区按钮行 */
 .moment-edit-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .moment-edit-form { margin: 10px 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); }
@@ -1400,7 +1381,9 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .th-sort { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .th-sort:hover { color: var(--accent); text-decoration: none; }
 .th-sort.active { color: var(--accent); }
-.sort-arrow { font-size: 11px; line-height: 1; }
+.sort-arrow { display: inline-flex; margin-left: 2px; }
+.sort-arrow svg { display: block; }
+.sort-arrow.up svg { transform: rotate(180deg); }
 
 .icon-btn {
   display: inline-flex;
@@ -1627,7 +1610,6 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 ::-webkit-scrollbar-track { background: transparent; }
 .admin-nav::-webkit-scrollbar { width: 6px; }
 .admin-nav::-webkit-scrollbar-thumb { background: var(--side-scroll-thumb); }
-@media (prefers-reduced-motion: reduce) { .topbar-link { transition: none; } }
 
 /* ---- 自定义下拉组件（替代原生 select） ---- */
 .cs { position: relative; display: inline-block; }
@@ -1681,11 +1663,6 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .field-row .field-inline.field-cs-auto .cs { width: auto; }
 .field-row .field-inline.field-cs-auto .cs .cs-btn { width: auto; min-width: 96px; }
 @media (prefers-reduced-motion: reduce) { .cs-btn { transition: none; } }
-
-/* ---- 数据统计页 ---- */
-.stat-row-block { display: flex; flex-wrap: wrap; gap: 20px; }
-.stat-block { flex: 1; min-width: 200px; }
-.stat-block .stat-num { font-size: 24px; }
 
 /* ---- 文章编辑页：元信息行（标题+操作按钮 / 分类+标签） ---- */
 .meta-row {
@@ -2121,28 +2098,6 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 .filter-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-.stats-tabs { display: flex; gap: 8px; margin: 0 0 18px; flex-wrap: wrap; }
-.stats-section { padding-bottom: 20px; }
-.stats-section + .stats-section {
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-.stats-section:last-child { padding-bottom: 0; }
-.stats-section > h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0 0 12px;
-}
-.stats-section > h2::before {
-  content: "";
-  width: 4px;
-  height: 15px;
-  border-radius: 2px;
-  background: var(--accent);
-}
 /* 阅读趋势：固定低高度（原 240px 太高） */
 .trend-wrap { position: relative; height: 160px; }
 
