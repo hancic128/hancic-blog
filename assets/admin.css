@@ -2302,7 +2302,7 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .table-posts td:nth-child(6) { width: 68px; }
 .table-posts td:nth-child(7) { width: 160px; }
 
-/* ===== 登录 / 初始化页（规范 07 §3.2 居中卡片 + 7.16 悬浮控制组；admin.css 令牌体系） ===== */
+/* ===== 登录 / 初始化页（规范 07 §3.2 居中卡片 + 7.4.3 密码可见切换 + 7.16 悬浮按钮组） ===== */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -2314,7 +2314,7 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 }
 .auth-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 384px;
   background: var(--surface-0);
   border: 1px solid var(--surface-3);
   border-radius: var(--radius-xl);
@@ -2330,10 +2330,21 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--space-4);
+  margin: 0 auto var(--space-6);
 }
-.auth-title { font-size: var(--text-xl); font-weight: 700; margin: 0 0 var(--space-1); letter-spacing: -0.01em; }
-.auth-sub { font-size: var(--text-sm); color: var(--ink-500); margin: 0 0 var(--space-6); }
+.auth-title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-1);
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+.auth-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+  margin: 0 auto var(--space-6);
+  text-align: center;
+}
 .auth-error {
   font-size: var(--text-sm);
   color: var(--danger);
@@ -2342,24 +2353,67 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   padding: var(--space-2) var(--space-3);
   margin: 0 0 var(--space-4);
 }
-.auth-label { display: block; font-size: var(--text-sm); font-weight: 500; color: var(--ink-700); margin-bottom: var(--space-1); }
+.auth-tip {
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+  margin: 0 0 var(--space-4);
+  text-align: center;
+}
+.auth-tip a { color: var(--brand-600); }
+.auth-tip a:hover { color: var(--brand-700); }
+.auth-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-700);
+  margin-bottom: var(--space-1);
+}
+/* 输入控件基础样式（规范 7.4）：默认 surface-2 无边框底，聚焦转 surface-0 + brand 边框 */
 .auth-input {
   font: inherit;
   font-size: var(--text-sm);
   width: 100%;
   padding: var(--space-2) var(--space-3);
   color: var(--ink-900);
-  background: var(--surface-0);
-  border: 1px solid var(--surface-3);
-  border-radius: var(--radius-md);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .auth-input::placeholder { color: var(--ink-400); }
 .auth-input:focus {
   outline: none;
-  border-color: var(--accent);
+  background: var(--surface-0);
+  border-color: var(--brand-500);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+/* 密码可见切换（规范 7.4.3：Eye/EyeOff 右侧按钮，内边距给按钮留位） */
+.auth-input-wrap { position: relative; }
+.auth-input-wrap .auth-input { padding-right: var(--space-12); }
+.auth-eye {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-400);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.auth-eye:hover { color: var(--ink-900); }
+.auth-eye:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-eye .icon-eye { display: block; }
+.auth-eye .icon-eye-off { display: none; }
+.auth-eye.visible .icon-eye { display: none; }
+.auth-eye.visible .icon-eye-off { display: block; }
 .auth-btn {
   font: inherit;
   font-size: var(--text-sm);
@@ -2386,14 +2440,11 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   text-decoration: none;
 }
 .auth-back:hover { color: var(--brand-600); text-decoration: none; }
-.auth-tip { font-size: var(--text-sm); color: var(--ink-500); margin: 0 0 var(--space-4); }
-.auth-tip a { color: var(--brand-600); }
-.auth-tip a:hover { color: var(--brand-700); }
-/* 右下角悬浮控制组（明暗 / 主题色气泡） */
+/* 右下角悬浮按钮组（规范 7.16：独立圆钮 + 主题色气泡；位置/尺寸沿用 7.8 fixed bottom-6 right-6 48px） */
 .auth-floating {
   position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
+  right: var(--space-6);
+  bottom: var(--space-6);
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
@@ -2402,28 +2453,31 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .auth-floating .accent-panel {
   left: auto;
   right: 0;
+  bottom: calc(100% + var(--space-2));
 }
 .auth-fab {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--surface-3);
+  border: 0;
   border-radius: 50%;
-  background: var(--surface-0);
-  color: var(--ink-700);
-  box-shadow: var(--shadow-md);
+  background: #18181b; /* 规范 7.8.1：bg-ink-900（物理深色） */
+  color: #ffffff;
+  box-shadow: var(--shadow-lg);
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.auth-fab:hover { color: var(--brand-600); border-color: var(--accent-soft); background: var(--accent-soft); }
+[data-mode="dark"] .auth-fab { background: #ffffff; color: #18181b; } /* 规范 7.8.1：dark:bg-surface-0 */
+.auth-fab:hover { transform: scale(1.05); }
+.auth-fab:active { transform: scale(0.95); }
 .auth-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .auth-fab .icon-sun { display: none; }
 .auth-fab .icon-moon { display: block; }
 [data-mode="light"] .auth-fab .icon-sun { display: block; }
 [data-mode="light"] .auth-fab .icon-moon { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .auth-input, .auth-btn, .auth-fab { transition: none; }
+  .auth-input, .auth-btn, .auth-fab, .auth-eye { transition: none; }
 }

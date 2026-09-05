@@ -5,6 +5,20 @@
 
   // ---- 明暗模式切换：localStorage 持久化，Chart.js 联动 ----
   var MODE_KEY = 'admin-mode';
+
+  // ---- 密码可见切换（规范 7.4.3）：事件委托，任意 .auth-eye 生效（登录/初始化/后台改密） ----
+  document.addEventListener('click', function (e) {
+    var eye = e.target.closest('.auth-eye');
+    if (!eye) return;
+    var wrap = eye.closest('.auth-input-wrap');
+    var input = wrap ? wrap.querySelector('input[type="password"], input[type="text"]') : null;
+    if (!input) return;
+    var show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    eye.classList.toggle('visible', show);
+    eye.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+    input.focus();
+  });
   function currentMode() {
     return document.documentElement.getAttribute('data-mode') || 'dark';
   }
