@@ -20,7 +20,10 @@ fi
 
 echo "==> [2/5] 打包源码并上传上海"
 PKG="/tmp/hancic-src-local.tar.gz"
-tar czf "$PKG" --exclude=.git --exclude=.superpowers --exclude=target \
+# COPYFILE_DISABLE=1：macOS tar 不把 xattr 编码成 AppleDouble（._* 条目），
+# 否则解包进构建上下文后会随 COPY . . 进镜像、被 entrypoint 同步进数据卷，
+# Tera 会把 ._*.html 当模板导致主题加载失败（8-28 遗留 54 个 ._ 文件的教训）。
+COPYFILE_DISABLE=1 tar czf "$PKG" --exclude=.git --exclude=.superpowers --exclude=target \
   --exclude=data --exclude=data-e2e --exclude="data*" --exclude=e2e \
   --exclude=.cargo -C "$(dirname "$0")/.." . 2>/dev/null
 scp -o BatchMode=yes -o ConnectTimeout=10 "$PKG" "root@${SH_HOST}:${SH_DIR}/" >/dev/null

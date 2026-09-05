@@ -1,4 +1,7 @@
 # Docker 构建上下文排除项（构建产物越小越好；与 .gitignore 职责不同，两者并存）
+# macOS AppleDouble 元数据（tar 打包误入），绝不允许进镜像
+._*
+.DS_Store
 # Rust 构建产物
 target/
 # 本地数据（开发/测试），绝不进镜像
