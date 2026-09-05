@@ -3,38 +3,89 @@
    data-mode="dark"(默认) / data-mode="light" 切换。
    视觉基调：深色侧栏渐变 + 圆角卡片 + 图标统计卡 + 渐变主按钮。 */
 
+/* 管理后台样式：明暗双模式——
+   暗色默认，侧栏可折叠，≤768px 抽屉导航。
+   data-mode="dark"(默认) / data-mode="light" 切换。
+   令牌体系遵循 Trilium「前端约束规范」02/03（品牌色 brand×明暗 + surface/ink 中性 +
+   4px 网格 + 4 档圆角 + 5 级字号 + 3 档阴影）；默认主题色 emerald（映射旧 green）。
+   兼容策略：--bg/--panel/--text/--accent 等旧变量保留为别名，渐进迁移后删除。 */
+
+/* ===== 设计令牌 ===== */
+
+/* -- 尺度：间距（4px 网格）/ 圆角（4 档）/ 字号（5 级）/ 阴影（3 档） -- */
 :root {
-  /* ---- 暗色（默认）---- */
-  --bg: #0B1220;
-  --bg-soft: #0E1626;
-  --panel: #111A2C;
-  --panel-2: #16223A;
-  --text: #E5E9F2;
-  --muted: #7E8BA6;
-  --border: #1E2A40;
-  --accent: #22C55E;
-  --accent-2: #34D399;
-  --accent-soft: rgba(34, 197, 94, 0.10);
-  --accent-glow: rgba(34, 197, 94, 0.25);
-  --danger: #EF4444;
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+  --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 18px; --text-xl: 20px;
+}
+
+/* -- 品牌色阶 brand：随 html[data-accent] 切换（默认 emerald；规范 5 主题见下） -- */
+:root {
+  --brand-50: #ecfdf5; --brand-100: #d1fae5; --brand-500: #10b981;
+  --brand-600: #059669; --brand-700: #047857; --brand-900: #064e3b;
+}
+
+/* -- 中性面 surface（背景/边框，随明暗切换） -- */
+:root {
+  --surface-0: #111A2C;   /* 卡片/弹窗背景 */
+  --surface-1: #16223A;   /* 表头/次级面 */
+  --surface-2: #0B1220;   /* 页面背景 */
+  --surface-3: #1E2A40;   /* 边框/分隔线 */
+  --surface-4: #2C3E5F;   /* hover 边框/滚动条 */
+}
+
+/* -- 文字 ink（随明暗切换） -- */
+:root {
+  --ink-900: #E5E9F2;   /* 标题/主要文字 */
+  --ink-700: #A9B7CE;   /* 正文/导航 */
+  --ink-500: #7E8BA6;   /* 次要文字/描述 */
+  --ink-400: #5B6B8C;   /* 占位/时间戳 */
+}
+
+/* ---- 暗色（默认）：主题驱动色 + 语义色 + 旧变量兼容别名 ---- */
+:root {
+  /* 主题驱动：accent 系全部派生自 brand（--accent 随明暗在 500/600 间取，兼顾对比） */
+  --accent: var(--brand-500);
+  --accent-2: color-mix(in srgb, var(--brand-500) 78%, white);
+  --accent-soft: color-mix(in srgb, var(--brand-500) 12%, transparent);
+  --accent-glow: color-mix(in srgb, var(--brand-500) 25%, transparent);
+  /* 语义色：危险 rose / 警告 amber / 成功 emerald（brand 同名时复用其阶） */
+  --rose-500: #F43F5E; --rose-600: #E11D48; --rose-700: #BE123C;
+  --amber-500: #F59E0B; --amber-600: #D97706; --amber-700: #B45309;
+  --danger: var(--rose-500);
   --danger-2: #F87171;
   --danger-soft: rgba(239, 68, 68, 0.10);
-  --warn: #F59E0B;
+  --warn: var(--amber-500);
   --warn-soft: rgba(245, 158, 11, 0.12);
   --info: #38BDF8;
   --info-soft: rgba(56, 189, 248, 0.12);
+  /* 旧背景/文字别名（保留作兼容；迁移完成后删除，勿新增引用） */
+  --bg: var(--surface-2);
+  --bg-soft: #0E1626;
+  --panel: var(--surface-0);
+  --panel-2: var(--surface-1);
+  --text: var(--ink-900);
+  --muted: var(--ink-500);
+  --border: var(--surface-3);
+  /* 侧栏（品牌驱动；渐变侧栏底色仍独立） */
   --side-bg-top: #0A0F1C;
   --side-bg-bottom: #101A2E;
   --side-text: #64748B;
   --side-active: #F0F6FF;
-  --side-active-bg: rgba(34, 197, 94, 0.12);
-  --side-indicator: #22C55E;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.28);
-  --shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
-  --shadow-accent: 0 0 14px rgba(34, 197, 94, 0.16);
+  --side-active-bg: var(--accent-soft);
+  --side-indicator: var(--accent);
+  /* 阴影（规范 3 档；--shadow-accent 为 legacy 彩色光晕，迁移后删） */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow: var(--shadow-md);
+  --shadow-hover: var(--shadow-lg);
+  --shadow-accent: color-mix(in srgb, var(--brand-500) 16%, transparent);
+  /* 表格/滚动条等专项（badge 语义化留 Phase 5） */
   --table-head-bg: rgba(255, 255, 255, 0.03);
   --row-even-bg: rgba(255, 255, 255, 0.015);
-  --row-hover-bg: rgba(34, 197, 94, 0.055);
+  --row-hover-bg: color-mix(in srgb, var(--accent) 6%, transparent);
   --scrollbar-thumb: #243450;
   --scrollbar-thumb-hover: #34476B;
   --side-scroll-thumb: rgba(255, 255, 255, 0.10);
@@ -47,27 +98,29 @@
   --badge-draft-color: #94A3B8;
   --badge-page-color: #60A5FA;
   --badge-post-color: #A78BFA;
-  --stat-tint: rgba(34, 197, 94, 0.10);
+  --stat-tint: var(--accent-soft);
   color-scheme: dark;
 }
 
-/* ---- 亮色 ---- */
+/* ---- 亮色：中性面/文字换浅色，主题驱动色取更深一档（--accent=brand-600） ---- */
 [data-mode="light"] {
-  --bg: #F3F5F9;
-  --bg-soft: #EDF0F6;
-  --panel: #FFFFFF;
-  --panel-2: #F8FAFC;
-  --text: #1E293B;
-  --muted: #64748B;
-  --border: #E4E9F1;
-  --accent: #16A34A;
-  --accent-2: #059669;
-  --accent-soft: rgba(22, 163, 74, 0.08);
-  --accent-glow: rgba(22, 163, 74, 0.20);
-  --danger: #DC2626;
+  --surface-0: #FFFFFF;
+  --surface-1: #F8FAFC;
+  --surface-2: #F3F5F9;
+  --surface-3: #E4E9F1;
+  --surface-4: #CBD5E1;
+  --ink-900: #1E293B;
+  --ink-700: #334155;
+  --ink-500: #64748B;
+  --ink-400: #94A3B8;
+  --accent: var(--brand-600);
+  --accent-2: color-mix(in srgb, var(--brand-600) 82%, black);
+  --accent-soft: color-mix(in srgb, var(--brand-600) 8%, transparent);
+  --accent-glow: color-mix(in srgb, var(--brand-600) 20%, transparent);
+  --danger: var(--rose-600);
   --danger-2: #EF4444;
   --danger-soft: rgba(220, 38, 38, 0.07);
-  --warn: #D97706;
+  --warn: var(--amber-600);
   --warn-soft: rgba(217, 119, 6, 0.10);
   --info: #0284C7;
   --info-soft: rgba(2, 132, 199, 0.09);
@@ -75,14 +128,15 @@
   --side-bg-bottom: #F6F8FB;
   --side-text: #64748B;
   --side-active: #0F172A;
-  --side-active-bg: rgba(22, 163, 74, 0.08);
-  --side-indicator: #16A34A;
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.045);
-  --shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 10px 26px rgba(15, 23, 42, 0.08);
-  --shadow-accent: 0 0 12px rgba(22, 163, 74, 0.12);
+  --side-active-bg: var(--accent-soft);
+  --side-indicator: var(--accent);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.045);
+  --shadow-lg: 0 2px 4px rgba(15, 23, 42, 0.05), 0 10px 26px rgba(15, 23, 42, 0.08);
+  --shadow-accent: color-mix(in srgb, var(--brand-600) 12%, transparent);
   --table-head-bg: #F1F5F9;
   --row-even-bg: rgba(15, 23, 42, 0.015);
-  --row-hover-bg: rgba(22, 163, 74, 0.045);
+  --row-hover-bg: color-mix(in srgb, var(--accent) 5%, transparent);
   --scrollbar-thumb: #CBD5E1;
   --scrollbar-thumb-hover: #94A3B8;
   --side-scroll-thumb: rgba(15, 23, 42, 0.10);
@@ -95,22 +149,17 @@
   --badge-draft-color: #64748B;
   --badge-page-color: #2563EB;
   --badge-post-color: #7C3AED;
-  --stat-tint: rgba(22, 163, 74, 0.07);
+  --stat-tint: var(--accent-soft);
   color-scheme: light;
 }
 
-/* ---- 内置配色（与前台博客一致 5 色；green 为后台默认） ----
-   优先顺序：亮色专用规则 > 通用 data-accent 规则 > :root / [data-mode=light] 默认 */
-html[data-accent="pink"]   { --accent: #f472b6; --accent-2: #e879f9; --accent-soft: rgba(244, 114, 182, 0.12); --accent-glow: rgba(244, 114, 182, 0.28); }
-html[data-accent="blue"]   { --accent: #60a5fa; --accent-2: #3b82f6; --accent-soft: rgba(96, 165, 250, 0.12); --accent-glow: rgba(96, 165, 250, 0.28); }
-html[data-accent="green"]  { --accent: #22c55e; --accent-2: #34d399; --accent-soft: rgba(34, 197, 94, 0.10); --accent-glow: rgba(34, 197, 94, 0.25); }
-html[data-accent="purple"] { --accent: #a78bfa; --accent-2: #8b5cf6; --accent-soft: rgba(167, 139, 250, 0.12); --accent-glow: rgba(167, 139, 250, 0.28); }
-html[data-accent="orange"] { --accent: #fb923c; --accent-2: #f97316; --accent-soft: rgba(251, 146, 60, 0.12); --accent-glow: rgba(251, 146, 60, 0.28); }
-html[data-mode="light"][data-accent="pink"]   { --accent: #be185d; --accent-2: #db2777; --accent-soft: rgba(190, 24, 93, 0.09); --accent-glow: rgba(190, 24, 93, 0.22); }
-html[data-mode="light"][data-accent="blue"]   { --accent: #1d4ed8; --accent-2: #2563eb; --accent-soft: rgba(29, 78, 216, 0.09); --accent-glow: rgba(29, 78, 216, 0.22); }
-html[data-mode="light"][data-accent="green"]  { --accent: #16a34a; --accent-2: #059669; --accent-soft: rgba(22, 163, 74, 0.08); --accent-glow: rgba(22, 163, 74, 0.20); }
-html[data-mode="light"][data-accent="purple"] { --accent: #7c3aed; --accent-2: #8b5cf6; --accent-soft: rgba(124, 58, 237, 0.09); --accent-glow: rgba(124, 58, 237, 0.22); }
-html[data-mode="light"][data-accent="orange"] { --accent: #c2410c; --accent-2: #ea580c; --accent-soft: rgba(194, 65, 12, 0.09); --accent-glow: rgba(194, 65, 12, 0.22); }
+/* ---- 内置主题色 5 套（规范 03：indigo/emerald/rose/amber/slate，默认 emerald） ----
+   覆盖完整 brand 色阶；--accent 系与侧栏指示等一律经 var(--brand-*) 派生，全站联动。 */
+html[data-accent="indigo"] { --brand-50:#eef2ff; --brand-100:#e0e7ff; --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca; --brand-900:#312e81; }
+html[data-accent="emerald"] { --brand-50:#ecfdf5; --brand-100:#d1fae5; --brand-500:#10b981; --brand-600:#059669; --brand-700:#047857; --brand-900:#064e3b; }
+html[data-accent="rose"]   { --brand-50:#fff1f2; --brand-100:#ffe4e6; --brand-500:#f43f5e; --brand-600:#e11d48; --brand-700:#be123c; --brand-900:#881337; }
+html[data-accent="amber"]  { --brand-50:#fffbeb; --brand-100:#fef3c7; --brand-500:#f59e0b; --brand-600:#d97706; --brand-700:#b45309; --brand-900:#78350f; }
+html[data-accent="slate"]  { --brand-50:#f8fafc; --brand-100:#f1f5f9; --brand-500:#64748b; --brand-600:#475569; --brand-700:#334155; --brand-900:#0f172a; }
 
 * { box-sizing: border-box; }
 
@@ -256,11 +305,11 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   transition: transform 0.12s ease;
 }
-.accent-swatch[data-accent="pink"]   { background: #be185d; }
-.accent-swatch[data-accent="blue"]   { background: #1d4ed8; }
-.accent-swatch[data-accent="green"]  { background: #16a34a; }
-.accent-swatch[data-accent="purple"] { background: #7c3aed; }
-.accent-swatch[data-accent="orange"] { background: #c2410c; }
+.accent-swatch[data-accent="indigo"]  { background: #4f46e5; }
+.accent-swatch[data-accent="emerald"] { background: #059669; }
+.accent-swatch[data-accent="rose"]    { background: #e11d48; }
+.accent-swatch[data-accent="amber"]   { background: #d97706; }
+.accent-swatch[data-accent="slate"]   { background: #475569; }
 .accent-swatch:hover { transform: scale(1.12); }
 .accent-swatch.current {
   outline: 2px solid var(--accent);

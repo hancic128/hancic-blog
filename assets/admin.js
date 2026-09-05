@@ -40,11 +40,13 @@
     }
   });
 
-  // ---- 主题配色切换：与前台博客一致的内置 5 色（localStorage 持久化） ----
+  // ---- 主题配色切换：内置 5 主题（规范 03：indigo/emerald/rose/amber/slate，默认 emerald）
+  // localStorage 持久化；旧版 5 色名（pink/blue/green/purple/orange）自动迁移映射 ----
   var ACCENT_KEY = 'admin-accent';
-  var ACCENTS = ['pink', 'blue', 'green', 'purple', 'orange'];
+  var ACCENTS = ['indigo', 'emerald', 'rose', 'amber', 'slate'];
+  var ACCENT_LEGACY = { pink: 'rose', blue: 'indigo', green: 'emerald', purple: 'indigo', orange: 'amber' };
   function currentAccent() {
-    return document.documentElement.getAttribute('data-accent') || 'green';
+    return document.documentElement.getAttribute('data-accent') || 'emerald';
   }
   function markCurrentSwatch() {
     var cur = currentAccent();
@@ -59,7 +61,11 @@
   }
   var savedAccent;
   try { savedAccent = localStorage.getItem(ACCENT_KEY); } catch (e) { savedAccent = null; }
-  if (savedAccent && ACCENTS.indexOf(savedAccent) !== -1) {
+  if (savedAccent) {
+    if (ACCENT_LEGACY.hasOwnProperty(savedAccent)) savedAccent = ACCENT_LEGACY[savedAccent]; // 旧名迁移
+    if (ACCENTS.indexOf(savedAccent) === -1) savedAccent = null; // 未知值回落默认
+  }
+  if (savedAccent) {
     document.documentElement.setAttribute('data-accent', savedAccent);
   }
   markCurrentSwatch();
