@@ -426,7 +426,7 @@ a:hover { text-decoration: underline; }
   flex-wrap: wrap;
 }
 .page-head-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-h1 { font-size: 22px; margin: 0 0 20px; font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: var(--text-xl); margin: 0 0 20px; font-weight: 700; letter-spacing: -0.01em; }
 .page-head h1 { margin-bottom: 0; }
 .page-sub { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
 h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
@@ -472,16 +472,14 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .theme-actions { display: flex; gap: 8px; margin-top: 14px; }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  transition: border-color 0.2s ease;
 }
-.panel:hover { box-shadow: var(--shadow-hover); }
-/* panel 内筛选栏：底部分隔线与下方内容区隔开 */
+/* 卡片类默认无阴影（规范 7.2.7）；仅可交互卡片 hover 抬升（见 .stat-card 等） */
 .panel > .filter-bar {
   margin: -4px 0 14px;
   padding-bottom: 14px;
@@ -493,7 +491,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   width: 4px;
   height: 15px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  background: var(--accent);
 }
 
 /* 按钮体系（规范 7.1，4 变体）：默认 .btn = Secondary（surface 底描边）；
@@ -534,8 +532,8 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   font-weight: 500;
 }
 .btn-danger:hover { background: color-mix(in srgb, var(--danger) 84%, black); color: #fff; }
-.btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
-.btn-ghost:hover { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--brand-600); box-shadow: none; }
+.btn-ghost:hover { border-color: transparent; background: var(--accent-soft); color: var(--brand-700); }
 /* 危险小操作（行内红字，如附件/列表删除）：Ghost + Danger 组合覆盖实底 */
 .btn-ghost.btn-danger { color: var(--danger); }
 .btn-ghost.btn-danger:hover { background: var(--danger-soft); color: var(--danger-2); }
@@ -619,11 +617,10 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .stat-card {
   position: relative;
   overflow: hidden;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 20px;
-  box-shadow: var(--shadow);
+  background: var(--surface-0);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-6);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .stat-card:hover {
@@ -2554,4 +2551,37 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .auth-floating .accent-swatch { width: 28px; height: 28px; }
 @media (prefers-reduced-motion: reduce) {
   .auth-fab-main, .auth-fab-main svg, .fab-btn, .fab-item, .auth-input, .auth-btn, .auth-eye { transition: none; }
+}
+
+/* 输入控件统一（规范 7.4 基础样式）：默认 surface-2 底 + 透明边框，聚焦转 brand 边框 + 品牌 ring
+   （各原 :focus 规则均已品牌化，保持一致；此块只统一默认态） */
+.field input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.field select,
+.field textarea,
+.filter-bar input[type="text"],
+.search-box input,
+.modal-input,
+.modal-textarea,
+.tag-input,
+.kv-row input:not([type="hidden"]),
+.kv-page-search,
+.cs-search,
+.date-input {
+  background: var(--surface-2);
+  border-color: transparent;
+}
+.field input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"])::placeholder,
+.field textarea::placeholder,
+.filter-bar input[type="text"]::placeholder,
+.modal-input::placeholder,
+.modal-textarea::placeholder,
+.tag-input::placeholder,
+.kv-row input:not([type="hidden"])::placeholder,
+.date-input::placeholder {
+  color: var(--ink-400);
+}
+.field input:disabled, .field select:disabled, .field textarea:disabled,
+.modal-input:disabled, .modal-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
