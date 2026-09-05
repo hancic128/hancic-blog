@@ -50,9 +50,17 @@
   --accent-2: color-mix(in srgb, var(--brand-500) 78%, white);
   --accent-soft: color-mix(in srgb, var(--brand-500) 12%, transparent);
   --accent-glow: color-mix(in srgb, var(--brand-500) 25%, transparent);
-  /* 语义色：危险 rose / 警告 amber / 成功 emerald（brand 同名时复用其阶） */
-  --rose-500: #F43F5E; --rose-600: #E11D48; --rose-700: #BE123C;
-  --amber-500: #F59E0B; --amber-600: #D97706; --amber-700: #B45309;
+  /* 语义色：危险 rose / 警告 amber / 成功 emerald（独立常量，不随主题；badge 用 50/300/700/900） */
+  --rose-50: #FFF1F2; --rose-300: #FDA4AF; --rose-500: #F43F5E; --rose-600: #E11D48; --rose-700: #BE123C; --rose-900: #881337;
+  --amber-50: #FFFBEB; --amber-300: #FCD34D; --amber-500: #F59E0B; --amber-600: #D97706; --amber-700: #B45309; --amber-900: #78350F;
+  --emerald-50: #ECFDF5; --emerald-300: #6EE7B7; --emerald-600: #059669; --emerald-700: #047857; --emerald-900: #064E3B;
+  --brand-300: #A5B4FC; /* 默认 indigo；随 data-accent 主题块覆盖 */
+  /* 状态徽章配色（规范 7.5：暗色=深 900 底 + 300 字；亮色见 [data-mode=light] 覆盖） */
+  --badge-emerald-bg: var(--emerald-900); --badge-emerald-text: var(--emerald-300);
+  --badge-amber-bg: var(--amber-900); --badge-amber-text: var(--amber-300);
+  --badge-rose-bg: var(--rose-900); --badge-rose-text: var(--rose-300);
+  --badge-brand-bg: var(--brand-900); --badge-brand-text: var(--brand-300);
+  --badge-neutral-bg: #334155; --badge-neutral-text: #D4D4D8; /* 暗色中性徽章（物理 ink-700/surface-4） */
   --danger: var(--rose-500);
   --danger-2: #F87171;
   --danger-soft: rgba(239, 68, 68, 0.10);
@@ -124,6 +132,12 @@
   --warn-soft: rgba(217, 119, 6, 0.10);
   --info: #0284C7;
   --info-soft: rgba(2, 132, 199, 0.09);
+  /* 状态徽章亮色：浅 50 底 + 700 字（规范 7.5.6） */
+  --badge-emerald-bg: var(--emerald-50); --badge-emerald-text: var(--emerald-700);
+  --badge-amber-bg: var(--amber-50); --badge-amber-text: var(--amber-700);
+  --badge-rose-bg: var(--rose-50); --badge-rose-text: var(--rose-700);
+  --badge-brand-bg: var(--brand-50); --badge-brand-text: var(--brand-700);
+  --badge-neutral-bg: var(--surface-2); --badge-neutral-text: var(--ink-700);
   --side-bg-top: #FFFFFF;
   --side-bg-bottom: #F6F8FB;
   --side-text: #64748B;
@@ -155,11 +169,11 @@
 
 /* ---- 内置主题色 5 套（规范 03：indigo/emerald/rose/amber/slate，默认 emerald） ----
    覆盖完整 brand 色阶；--accent 系与侧栏指示等一律经 var(--brand-*) 派生，全站联动。 */
-html[data-accent="indigo"] { --brand-50:#eef2ff; --brand-100:#e0e7ff; --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca; --brand-900:#312e81; }
-html[data-accent="emerald"] { --brand-50:#ecfdf5; --brand-100:#d1fae5; --brand-500:#10b981; --brand-600:#059669; --brand-700:#047857; --brand-900:#064e3b; }
-html[data-accent="rose"]   { --brand-50:#fff1f2; --brand-100:#ffe4e6; --brand-500:#f43f5e; --brand-600:#e11d48; --brand-700:#be123c; --brand-900:#881337; }
-html[data-accent="amber"]  { --brand-50:#fffbeb; --brand-100:#fef3c7; --brand-500:#f59e0b; --brand-600:#d97706; --brand-700:#b45309; --brand-900:#78350f; }
-html[data-accent="slate"]  { --brand-50:#f8fafc; --brand-100:#f1f5f9; --brand-500:#64748b; --brand-600:#475569; --brand-700:#334155; --brand-900:#0f172a; }
+html[data-accent="indigo"] { --brand-50:#eef2ff; --brand-100:#e0e7ff; --brand-300:#a5b4fc; --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca; --brand-900:#312e81; }
+html[data-accent="emerald"] { --brand-50:#ecfdf5; --brand-100:#d1fae5; --brand-300:#6ee7b7; --brand-500:#10b981; --brand-600:#059669; --brand-700:#047857; --brand-900:#064e3b; }
+html[data-accent="rose"]   { --brand-50:#fff1f2; --brand-100:#ffe4e6; --brand-300:#fda4af; --brand-500:#f43f5e; --brand-600:#e11d48; --brand-700:#be123c; --brand-900:#881337; }
+html[data-accent="amber"]  { --brand-50:#fffbeb; --brand-100:#fef3c7; --brand-300:#fcd34d; --brand-500:#f59e0b; --brand-600:#d97706; --brand-700:#b45309; --brand-900:#78350f; }
+html[data-accent="slate"]  { --brand-50:#f8fafc; --brand-100:#f1f5f9; --brand-300:#cbd5e1; --brand-500:#64748b; --brand-600:#475569; --brand-700:#334155; --brand-900:#0f172a; }
 
 * { box-sizing: border-box; }
 
@@ -438,7 +452,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 2px 10px;
   font-size: 12px;
   margin-left: 6px;
@@ -482,36 +496,49 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
 }
 
+/* 按钮体系（规范 7.1，4 变体）：默认 .btn = Secondary（surface 底描边）；
+   .btn-primary = brand 实底；.btn-danger = rose 实底（危险主操作/确认框）；
+   .btn-ghost = 透明底 brand 文字（行内操作，与 .btn-danger 组合为红字 ghost） */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: 14px;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  color: var(--ink-900);
+  font-size: var(--text-sm);
   font-weight: 500;
+  line-height: 1.5;
   cursor: pointer;
   text-decoration: none;
-  line-height: 1.5;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
-.btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.btn:hover { border-color: var(--brand-500); color: var(--brand-600); text-decoration: none; }
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  background: var(--brand-600);
   border-color: transparent;
   color: #fff;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  font-weight: 500;
 }
-.btn-primary:hover { opacity: 0.92; color: #fff; box-shadow: var(--shadow-accent); }
-.btn-sm { padding: 4px 11px; font-size: 13px; border-radius: 8px; }
-.btn-danger { color: var(--logout-color); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
-.btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.btn-primary:hover { background: var(--brand-700); color: #fff; }
+.btn-sm { padding: var(--space-2) var(--space-3); font-size: var(--text-xs); border-radius: var(--radius-md); }
+.btn-danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 500;
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 84%, black); color: #fff; }
 .btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
-.btn-ghost:hover { border-color: transparent; }
+.btn-ghost:hover { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+/* 危险小操作（行内红字，如附件/列表删除）：Ghost + Danger 组合覆盖实底 */
+.btn-ghost.btn-danger { color: var(--danger); }
+.btn-ghost.btn-danger:hover { background: var(--danger-soft); color: var(--danger-2); }
 
 .field { display: block; margin-bottom: 14px; color: var(--muted); }
 .field label { display: block; margin-bottom: 5px; font-size: 13.5px; font-weight: 500; }
@@ -1320,22 +1347,29 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   .kv-row .kv-key, .kv-row .kv-url { flex: 1 1 100%; }
 }
 
-/* ---- 状态徽章 / 排序表头 / 图标操作按钮 ---- */
+/* 状态徽章（规范 7.5）：4 语义组合浅底深字 + 圆点（-600 级）；Small 默认。
+   映射：badge-published=成功 emerald / badge-draft=警告 amber / badge-page=品牌 brand /
+   badge-post=中性 neutral（文章类型，弱化）；backup/tokens 复用 published/draft 语义 */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 1.5;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  line-height: 1.7;
   font-weight: 500;
+  white-space: nowrap;
 }
-.badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.badge-published { background: var(--accent-soft); color: var(--badge-published-color); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
-.badge-draft { background: rgba(148, 163, 184, 0.10); color: var(--badge-draft-color); border: 1px solid color-mix(in srgb, var(--muted) 30%, transparent); }
-.badge-page { background: color-mix(in srgb, var(--badge-page-color) 12%, transparent); color: var(--badge-page-color); border: 1px solid color-mix(in srgb, var(--badge-page-color) 30%, transparent); }
-.badge-post { background: color-mix(in srgb, var(--badge-post-color) 12%, transparent); color: var(--badge-post-color); border: 1px solid color-mix(in srgb, var(--badge-post-color) 30%, transparent); }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.badge-published { background: var(--badge-emerald-bg); color: var(--badge-emerald-text); }
+.badge-published::before { background: var(--emerald-600); }
+.badge-draft { background: var(--badge-amber-bg); color: var(--badge-amber-text); }
+.badge-draft::before { background: var(--amber-600); }
+.badge-page { background: var(--badge-brand-bg); color: var(--badge-brand-text); }
+.badge-page::before { background: var(--brand-600); }
+.badge-post { background: var(--badge-neutral-bg); color: var(--badge-neutral-text); }
+.badge-post::before { display: none; }
 
 .th-sort { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .th-sort:hover { color: var(--accent); text-decoration: none; }
