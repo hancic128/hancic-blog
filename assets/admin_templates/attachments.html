@@ -57,7 +57,11 @@
   </div>
   <p class="muted">共 {{ total }} 个</p>
   {% else %}
-  <p class="empty">暂无附件</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+    <p class="empty-title">暂无附件</p>
+    <p class="empty-desc">上传的图片、视频与文件都会收纳在这里，供文章与说说引用。</p>
+  </div>
   {% endif %}
 </div>
 

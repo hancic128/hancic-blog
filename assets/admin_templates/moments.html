@@ -81,7 +81,11 @@
     {% endfor %}
     <p class="muted">共 {{ total }} 条</p>
   {% else %}
-  <p class="empty">暂无说说</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    <p class="empty-title">暂无说说</p>
+    <p class="empty-desc">随手记点什么吧，说说会以时间线的形式展示在首页。</p>
+  </div>
   {% endif %}
 </div>
 

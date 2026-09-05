@@ -452,6 +452,29 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   margin: 0 0 16px;
 }
 .empty { color: var(--muted); padding: 28px 0; text-align: center; font-size: 14px; }
+/* 空状态组件（规范 8）：居中图标 + 标题 + 描述 + 可选操作 */
+.empty-state {
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+}
+.empty-state .empty-icon {
+  display: inline-flex;
+  color: var(--ink-400);
+  margin-bottom: var(--space-4);
+}
+.empty-state .empty-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.empty-state .empty-desc {
+  margin: 0 auto var(--space-4);
+  max-width: 360px;
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+}
+.empty-state .empty-action { display: inline-flex; }
 .badge-current {
   background: var(--accent-soft);
   color: var(--accent);

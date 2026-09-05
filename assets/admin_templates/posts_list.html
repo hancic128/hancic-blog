@@ -82,7 +82,12 @@
   </table>
   <p class="muted">共 {{ total }} 篇</p>
   {% else %}
-  <p class="empty">暂无文章</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+    <p class="empty-title">暂无文章</p>
+    <p class="empty-desc">还没有发布任何文章，写下第一篇开始记录吧。</p>
+    <a class="btn btn-primary empty-action" href="{{ base_path }}/admin/posts/new">写文章</a>
+  </div>
   {% endif %}
 </div>
 
