@@ -2,7 +2,7 @@
 # =============================================================================
 # deploy-sh.sh —— 上海主机 hancic 部署 / 回滚脚本
 #
-# 在部署目标（上海 172.81.241.149）上执行。本脚本只做本地容器编排与镜像
+# 在部署目标（上海主机）上执行。本脚本只做本地容器编排与镜像
 # 拉取，不触碰 halo（保留 8090 可回滚），也不连接生产环境外部服务。
 #
 # 用法：
@@ -19,7 +19,7 @@
 #   HANCIC_IMAGE            镜像全名（默认 ghcr.io/angryshark128/hancic:latest）
 #   HANCIC_PULL_MODE        拉取方案 a|b（默认 b，等价于 --pull-mode）
 #   HANCIC_PULL_A_IMAGE     方案 A 实际拉取的镜像名（如国内镜像源地址）
-#   HANCIC_RELAY            usa 中转机 ssh 目标（默认 root@170.106.103.36）
+#   HANCIC_RELAY            usa 中转机 ssh 目标（必填，方案 B 用：root@<USA_IP>）
 #   HANCIC_PORT             宿主机映射端口（默认 8091；halo 保留 8090 不动）
 #   HANCIC_CONTAINER_PORT   容器内监听端口（默认 8090，须与 config.toml 一致）
 #   HANCIC_DATA_DIR         宿主机数据目录（默认 /data/hancic，绑定容器 /data）
@@ -33,7 +33,7 @@ set -euo pipefail
 # ---- 默认值（可被环境变量覆盖） ----
 HANCIC_IMAGE="${HANCIC_IMAGE:-ghcr.io/angryshark128/hancic:latest}"
 HANCIC_PULL_MODE="${HANCIC_PULL_MODE:-b}"
-HANCIC_RELAY="${HANCIC_RELAY:-root@170.106.103.36}"
+HANCIC_RELAY="${HANCIC_RELAY:-}"
 HANCIC_PORT="${HANCIC_PORT:-8091}"
 HANCIC_CONTAINER_PORT="${HANCIC_CONTAINER_PORT:-8090}"
 HANCIC_DATA_DIR="${HANCIC_DATA_DIR:-/data/hancic}"
@@ -155,6 +155,7 @@ pull_image() {
       fi
       ;;
     b|B)
+      [ -n "$HANCIC_RELAY" ] || die "方案 B 需要 HANCIC_RELAY（usa 中转机 ssh 目标，如 root@<USA_IP>）"
       log "方案 B：经 ${HANCIC_RELAY} 中转拉取 ${HANCIC_IMAGE}"
       ssh -o BatchMode=yes -o ConnectTimeout=10 "$HANCIC_RELAY" "docker pull $HANCIC_IMAGE"
       log "usa 拉取完成，docker save 经 ssh 管道传回并 docker load（按镜像大小需数分钟）"

@@ -2798,7 +2798,7 @@ CMD ["/app/hancic", "/data/config.toml"]
 services:
   hancic:
     build: .
-    image: ghcr.io/angryshark708/hancic:latest
+    image: ghcr.io/angryshark128/hancic:latest
     container_name: hancic
     restart: unless-stopped
     ports:
@@ -2837,7 +2837,7 @@ git add -A && git commit -m "build: Docker 多阶段镜像与 docker-compose"
 
 **Interfaces:**
 - Consumes: T24（e2e）、T25（docker）
-- Produces: push main 时自动跑 test + lint + build + docker push ghcr.io/angryshark708/hancic
+- Produces: push main 时自动跑 test + lint + build + docker push ghcr.io/angryshark128/hancic
 
 - [ ] **Step 1: 写 workflow**
 
@@ -2878,7 +2878,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ghcr.io/angryshark708/hancic:latest
+          tags: ghcr.io/angryshark128/hancic:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 ```
@@ -2900,7 +2900,7 @@ git add -A && git commit -m "ci: GitHub Actions（test/lint/docker 推送）"
 
 **Files:**
 - Create: `scripts/deploy-sh.sh`, `docs/deploy-sh.md`（上线手册）
-- 操作对象：上海 172.81.241.149（4C8G，无 GitHub 访问）、北京 nginx、hancic.site 域名
+- 操作对象：上海 <SH_IP>（4C8G，无 GitHub 访问）、北京 nginx、hancic.site 域名
 
 **Interfaces:**
 - Consumes: T25/T26（镜像）、T23（数据迁移）
@@ -2910,7 +2910,7 @@ git add -A && git commit -m "ci: GitHub Actions（test/lint/docker 推送）"
 
 `docs/deploy-sh.md` 记录（沿用现有 server-monitor/my-nginx 先例）：
 - 方案 A：sh 主机 docker daemon 配置国内镜像加速（阿里云/腾讯云容器镜像服务）拉 `ghcr.io/...`（ghcr 国内直连不稳，**优先方案 B**）
-- 方案 B：经 usa（170.106.103.36，可访问 GitHub）中转——在 usa 上 `docker pull ghcr.io/angryshark708/hancic:latest && docker save | ssh sh 'docker load'`，或 sh 上直接 `docker pull` usa 上起的内网 registry
+- 方案 B：经 usa（<USA_IP>，可访问 GitHub）中转——在 usa 上 `docker pull ghcr.io/angryshark128/hancic:latest && docker save | ssh sh 'docker load'`，或 sh 上直接 `docker pull` usa 上起的内网 registry
 - `scripts/deploy-sh.sh`：`docker compose pull && docker compose up -d hancic && curl health`，留 `--rollback`（切回上一版镜像）分支
 
 - [ ] **Step 2: 预置数据目录与首启**
@@ -2929,7 +2929,7 @@ sh 主机 `/data/hancic/`：`config.toml`（data_dir=/data）、`themes/default/
 北京 nginx 反代 `hancic.site` 根路径由 `8090`（halo）改指 sh 主机 `8090`（hancic 新端口，与 halo 同端口会冲突——**选定**：hancic 起在 `8091`，nginx 指 8091；halo 容器先不关，回滚只需 nginx 指回 8090）：
 ```nginx
 location / {
-    proxy_pass http://172.81.241.149:8091;
+    proxy_pass http://<SH_IP>:8091;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

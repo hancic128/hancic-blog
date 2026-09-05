@@ -7,7 +7,7 @@
 #   5) 健康检查
 set -euo pipefail
 
-SH_HOST="${HANCIC_SH_HOST:-172.81.241.149}"
+SH_HOST="${HANCIC_SH_HOST:?请设置 HANCIC_SH_HOST（上海部署主机 IP/别名）}"
 SH_DIR="/opt/hancic"
 RUN_E2E="${RUN_E2E:-1}"
 

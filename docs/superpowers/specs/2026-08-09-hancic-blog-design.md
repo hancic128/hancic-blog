@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 状态：已批准（经 brainstorming 逐节确认）
 - 项目代号：`hancic`（目录 `~/Project/hancic-blog`，暂定名，可改）
-- 部署目标：上海云主机（172.81.241.149，4C8G），经北京 nginx 反代对外 `https://hancic.site/`
+- 部署目标：上海云主机（<SH_IP>，4C8G），经北京 nginx 反代对外 `https://hancic.site/`
 
 ## 1. 背景与目标
 

@@ -6,6 +6,48 @@
 
 ### 新增
 
+- 首页「更新日历」→「发布日历」：只统计文章发布与说说，文章更新不再计入（三主题文案/样式同步）
+- 专栏页默认按发布时间倒序（最新在前），显式 `?sort=` 仍走通用排序
+- 阅读模式移动端内边距收窄；medium 主题代码块复制按钮样式补全
+
+### 构建
+
+- Dockerfile：`CARGO_SOURCE_INDEX` 镜像源覆盖前移至依赖层之前（镜像源可覆盖全部构建阶段，上海直连 crates.io sparse index 卡死时使用）
+- `.dockerignore` 排除 `._*` / `.DS_Store`；`deploy-local.sh` 打包 `COPYFILE_DISABLE=1`——杜绝 macOS AppleDouble 元数据进镜像（8-28 线上 54 个 `._` 模板文件教训）
+
+## [0.2.1] - 2026-08-28
+
+### 新增
+
+- 网站 favicon（default / medium / modern 三主题）
+- 5 项体验优化
+- medium 主题标签折叠按钮样式
+
+### 修复
+
+- 阅读按钮与联系按钮间距（按各主题 contact-fab 实际尺寸计算）
+- 阅读模式保留联系方式卡片（仅隐藏返回顶部）；阅读图标移至联系图标上方 + hover 提示气泡
+- 列表列宽 / 热力图占满容器宽度 / meta 对齐；medium 热力图占满容器宽度（对齐 default）
+
+## [0.2.0] - 2026-08-28
+
+### 新增
+
+- **徒步轨迹功能**：后台轨迹管理（上传 GPX 自动解析/统计/DP 抽稀/编辑/删除）+ 前台 `/trails` 总览与 `/trails/{id}` 详情（Leaflet 本地化、高德卫星瓦片、排序/搜索）；导航新增「轨迹」类型
+- **文章 URL 切换为 UUID**：前台文章链接 `/post/{uuid}`，旧 slug 链接 308 重定向（页面类型保留自定义 slug）
+- 专栏管理优化：卡片折叠/展开 + 卡片间拖拽排序、专栏内文章拖拽排序、选择文章下拉自动向上弹出
+- 站内搜索框、正文复制全文、env 语法高亮、热力图 tooltip 样式完善（08-26 线上批次还原）
+- CI：GitHub Actions 仅打 tag（`v*`）时触发（分支 push/PR 不再消耗额度）；上海部署改后端直连 ghcr 拉镜像 + SSH 快速失败
+
+### 修复
+
+- modern 主题补齐排序条/专栏卡片/侧栏样式、两栏布局改正文居中 + 侧栏 fixed
+- 移动端导航抽屉修复 + 轨迹徽标底色修正
+
+## [0.1.5] - 2026-08-17
+
+### 新增
+
 - 专栏管理 REST API：GET/POST `/api/columns`、PATCH/DELETE `/api/columns/{id}`、GET/POST `/api/columns/{id}/posts`、DELETE `/api/columns/{id}/posts/{post_id}`（校验与后台一致：名称 ≤8 字、描述 ≤50 字）
 - MCP Server 新增 7 个专栏工具：`list_columns` / `create_column` / `update_column` / `delete_column` / `list_column_posts` / `add_post_to_column` / `remove_post_from_column`
 - 文章详情页 meta 两行布局：时间+统计行（发布/更新时间、阅读数、字数、阅读时长）与分类/专栏/标签行，分类与专栏带前缀
@@ -38,5 +80,8 @@
 - 主题同步仅 default 的问题（改为同步全部内置主题）
 - Clippy `-D warnings` 全绿
 
-[Unreleased]: https://github.com/Angryshark128/hancic-blog/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Angryshark128/hancic-blog/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Angryshark128/hancic-blog/releases/tag/v0.2.1
+[0.2.0]: https://github.com/Angryshark128/hancic-blog/releases/tag/v0.2.0
+[0.1.5]: https://github.com/Angryshark128/hancic-blog/releases/tag/v0.1.5
 [0.1.0]: https://github.com/Angryshark128/hancic-blog/releases/tag/v0.1.0

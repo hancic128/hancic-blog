@@ -1,5 +1,7 @@
 # hancic 上海主机上线手册
 
+> ⚠️ **内部运维文档（已脱敏存档）**：本仓库为开源项目，主机 IP / 私有域名已用 `<SH_IP>` `<BJ_IP>` `<USA_IP>` `<SH_DOMAIN>` `<USA_DOMAIN>` 占位符替代，真实值见私有运维笔记（Trilium「任务索引」→ hancic-blog）。按占位符替换后即可按本手册执行。
+>
 > 目标：把 hancic（ghcr.io/angryshark128/hancic:latest）部署到上海主机，经北京 nginx 对外提供 `https://hancic.site/`，并从 Halo 迁移真实数据。全程保留 halo 可回滚，观察稳定后再停 halo。
 > 配套脚本：`scripts/deploy-sh.sh`（在上海主机执行，含部署 / 回滚 / 状态子命令）。
 
@@ -9,9 +11,9 @@
 
 | 角色 | 主机 | 说明 |
 |---|---|---|
-| 上海（sh） | 172.81.241.149（4C8G，wjbd.cloud） | **无法访问 GitHub**；运行 hancic 容器；halo 保留 |
-| 北京（bj） | 49.232.168.161（hancic.site） | **无法访问 GitHub**；docker my-nginx 反代根路径 |
-| 硅谷（usa） | 170.106.103.36（wjbd.site） | 可访问 GitHub；作镜像中转（先例：server-monitor / my-nginx） |
+| 上海（sh） | <SH_IP>（4C8G，<SH_DOMAIN>） | **无法访问 GitHub**；运行 hancic 容器；halo 保留 |
+| 北京（bj） | <BJ_IP>（hancic.site） | **无法访问 GitHub**；docker my-nginx 反代根路径 |
+| 硅谷（usa） | <USA_IP>（<USA_DOMAIN>） | 可访问 GitHub；作镜像中转（先例：server-monitor / my-nginx） |
 | 本机 Mac | — | 可访问 GitHub（代理 127.0.0.1:7897）；gh CLI 已认证 |
 
 **端口约定（关键）**：
@@ -21,8 +23,8 @@
 - 流量：`hancic.site` → 北京 my-nginx（`proxy_pass` 上海 `8091`）→ hancic
 
 ```
-浏览器 → https://hancic.site/ → 北京 49.232.168.161:443 (my-nginx)
-                              → proxy_pass http://172.81.241.149:8091 → hancic 容器(8090)
+浏览器 → https://hancic.site/ → 北京 <BJ_IP>:443 (my-nginx)
+                              → proxy_pass http://<SH_IP>:8091 → hancic 容器(8090)
 ```
 
 **部署顺序**：镜像拉取 → 预置数据目录 → 首启（/admin/setup + /admin/tokens）→ 迁移（/admin/migrate）→ 备份（/admin/backup）→ 北京 nginx 切 8091 → 验收 → 观察期 → 停 halo。
@@ -45,12 +47,12 @@ command -v curl wget
 - 目录准备（脚本会自动创建，也可先建好）：
   - `/opt/hancic/` — compose 文件与脚本存放
   - `/data/hancic/` — 数据目录（绑定容器 `/data`），**属主必须是容器内 hancic 用户的 uid `1000`**
-- **防火墙放行 `8091`**：上海安全组 / iptables 需放行来自北京（及验收用本机）到 `172.81.241.149:8091` 的 TCP。建议只放行北京出口 IP；`8090` 已有放行记录可参照。
+- **防火墙放行 `8091`**：上海安全组 / iptables 需放行来自北京（及验收用本机）到 `<SH_IP>:8091` 的 TCP。建议只放行北京出口 IP；`8090` 已有放行记录可参照。
 - 获取脚本：本机 Mac 上传（或经 usa 中转）：
   ```bash
   # 本机执行（本机可访问公网）
-  scp scripts/deploy-sh.sh root@172.81.241.149:/opt/hancic/
-  ssh root@172.81.241.149 'chmod +x /opt/hancic/deploy-sh.sh && /opt/hancic/deploy-sh.sh -h'
+  scp scripts/deploy-sh.sh root@<SH_IP>:/opt/hancic/
+  ssh root@<SH_IP> 'chmod +x /opt/hancic/deploy-sh.sh && /opt/hancic/deploy-sh.sh -h'
   ```
 
 ### 1.2 SSH 免密
@@ -59,8 +61,8 @@ command -v curl wget
   ```bash
   # 在上海主机执行
   ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # 如无密钥
-  ssh-copy-id root@170.106.103.36                    # usa 可访问 GitHub
-  ssh -o BatchMode=yes root@170.106.103.36 'echo ok' # 预期输出：ok
+  ssh-copy-id root@<USA_IP>                    # usa 可访问 GitHub
+  ssh -o BatchMode=yes root@<USA_IP> 'echo ok' # 预期输出：ok
   ```
 - （可选）usa → 上海：手动中转版（§2.2）由 usa 发起时才需要。
 - 本机 Mac → 上海：上传脚本 / 下载迁移包用，方法同上。
@@ -121,14 +123,14 @@ HANCIC_PULL_A_IMAGE=ghcr.nju.edu.cn/angryshark128/hancic:latest \
 脚本内部执行：
 
 ```bash
-ssh root@170.106.103.36 'docker pull ghcr.io/angryshark128/hancic:latest'   # usa 拉取（可访问 GitHub）
-ssh root@170.106.103.36 'docker save ghcr.io/angryshark128/hancic:latest' | docker load  # 管道直传上海
+ssh root@<USA_IP> 'docker pull ghcr.io/angryshark128/hancic:latest'   # usa 拉取（可访问 GitHub）
+ssh root@<USA_IP> 'docker save ghcr.io/angryshark128/hancic:latest' | docker load  # 管道直传上海
 ```
 
 预期输出：
 
 ```
-[hancic] 方案 B：经 root@170.106.103.36 中转拉取 ghcr.io/angryshark128/hancic:latest
+[hancic] 方案 B：经 root@<USA_IP> 中转拉取 ghcr.io/angryshark128/hancic:latest
 [hancic] usa 拉取完成，docker save 经 ssh 管道传回并 docker load（按镜像大小需数分钟）
 Loaded image: ghcr.io/angryshark128/hancic:latest
 [hancic] 镜像就绪：ghcr.io/angryshark128/hancic:latest
@@ -139,7 +141,7 @@ Loaded image: ghcr.io/angryshark128/hancic:latest
 ```bash
 # usa 上执行
 docker pull ghcr.io/angryshark128/hancic:latest \
-  && docker save ghcr.io/angryshark128/hancic:latest | ssh root@172.81.241.149 'docker load'
+  && docker save ghcr.io/angryshark128/hancic:latest | ssh root@<SH_IP> 'docker load'
 ```
 
 **校验（两种方案通用）**：
@@ -206,7 +208,7 @@ docker exec hancic ls /data/themes/default/theme.toml   # 预期：文件存在�
 
 ### 4.1 设置密码（首启）
 
-浏览器打开 `http://172.81.241.149:8091/admin/setup`（或经 nginx 切完后用 `https://hancic.site/admin/setup`）：
+浏览器打开 `http://<SH_IP>:8091/admin/setup`（或经 nginx 切完后用 `https://hancic.site/admin/setup`）：
 
 - 设置管理员密码（**≥8 位**，见 `auth::PASSWORD_MIN_LEN = 8`）
 - 提交后自动登录并跳转 `/admin`
@@ -227,7 +229,7 @@ docker exec hancic ls /data/themes/default/theme.toml   # 预期：文件存在�
 
 ### 5.1 安装导出插件
 
-1. Halo 后台（上海 `http://172.81.241.149:8090/admin`，halo 不动）→ 插件市场
+1. Halo 后台（上海 `http://<SH_IP>:8090/admin`，halo 不动）→ 插件市场
 2. 搜索安装 **Export MD**（`halo-sigs/plugin-export-md`，官方插件）→ 启用
 3. 按插件说明执行导出 → 得到 Markdown zip（文章 + 页面 + 图片资源）
 
@@ -248,7 +250,7 @@ docker exec hancic ls /data/themes/default/theme.toml   # 预期：文件存在�
   curl -fsSL -o /root/halo-export-$(date +%F).zip '<导出直链>'
   ls -lh /root/halo-export-*.zip
   ```
-- 或导出到本机后 scp 上传上海：`scp halo-export-*.zip root@172.81.241.149:/root/`
+- 或导出到本机后 scp 上传上海：`scp halo-export-*.zip root@<SH_IP>:/root/`
 
 ---
 
@@ -299,12 +301,12 @@ docker exec hancic ls /data/themes/default/theme.toml   # 预期：文件存在�
 
 ### 7.1 修改反代
 
-北京主机（49.232.168.161），编辑 my-nginx 挂载的 conf（先例为反代根路径，路径以 `docker inspect my-nginx` 挂载信息为准，形如 `/etc/nginx/conf.d/default.conf`）：
+北京主机（<BJ_IP>），编辑 my-nginx 挂载的 conf（先例为反代根路径，路径以 `docker inspect my-nginx` 挂载信息为准，形如 `/etc/nginx/conf.d/default.conf`）：
 
 ```nginx
 # hancic.site server 块内，根路径 location：
 location / {
-    proxy_pass http://172.81.241.149:8091;
+    proxy_pass http://<SH_IP>:8091;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -325,9 +327,9 @@ docker exec my-nginx nginx -s reload         # 或 docker restart my-nginx
 ```bash
 # 北京主机（或任意可访问公网处）
 curl -sI https://hancic.site/                # 预期：HTTP/1.1 200
-curl -s http://172.81.241.149:8091/api/health   # 北京 → 上海 8091 直连（确认防火墙放行）
+curl -s http://<SH_IP>:8091/api/health   # 北京 → 上海 8091 直连（确认防火墙放行）
 # 带 Host 头验证反代正确：
-curl -s -H 'Host: hancic.site' http://172.81.241.149:8091/ | head -5   # 预期：页面 HTML
+curl -s -H 'Host: hancic.site' http://<SH_IP>:8091/ | head -5   # 预期：页面 HTML
 ```
 
 ---
@@ -373,7 +375,7 @@ done
 
 ### 9.1 立即恢复对外（30 秒级）
 
-北京 nginx：`proxy_pass` 改回 `http://172.81.241.149:8090`（halo），`nginx -t && nginx -s reload`。
+北京 nginx：`proxy_pass` 改回 `http://<SH_IP>:8090`（halo），`nginx -t && nginx -s reload`。
 
 ### 9.2 容器回退到上一版镜像
 
