@@ -9,7 +9,7 @@
 
 | 层 | 变量 | 说明 |
 |---|---|---|
-| 品牌色 brand | `--brand-50/100/500/600/700/900` | 唯一主色来源，随 `html[data-accent]` 切换（默认 emerald） |
+| 品牌色 brand | `--brand-50/100/500/600/700/900` | 唯一主色来源，随 `html[data-accent]` 切换（默认 indigo） |
 | 中性面 surface | `--surface-0..4` | 背景/边框；随 `data-mode` 取明暗两套值 |
 | 文字 ink | `--ink-900/700/500/400` | 文字层级；随 `data-mode` 取值 |
 | 语义色 | `--rose-*` `--amber-*`（危险/警告）+ emerald 复用 brand | 状态/危险操作专用 |
@@ -42,7 +42,7 @@ html[data-accent=indigo|emerald|rose|amber|slate] 覆盖 --brand-*（6 级）
 
 ## 主题名（localStorage: `admin-accent`）
 
-规范 5 主题：`indigo`(默认于规范) / `emerald`(本项目默认) / `rose` / `amber` / `slate`。
+规范 5 主题：`indigo`(默认) / `emerald` / `rose` / `amber` / `slate`。
 旧值自动迁移：`pink→rose` `blue→indigo` `green→emerald` `purple→indigo` `orange→amber`。
 明暗键：`admin-mode`（`dark` 默认 / `light`），与规范 `colorScheme` 语义一致但沿用旧键。
 

@@ -40,13 +40,13 @@
     }
   });
 
-  // ---- 主题配色切换：内置 5 主题（规范 03：indigo/emerald/rose/amber/slate，默认 emerald）
+  // ---- 主题配色切换：内置 5 主题（规范 03：indigo/emerald/rose/amber/slate，默认 indigo）
   // localStorage 持久化；旧版 5 色名（pink/blue/green/purple/orange）自动迁移映射 ----
   var ACCENT_KEY = 'admin-accent';
   var ACCENTS = ['indigo', 'emerald', 'rose', 'amber', 'slate'];
   var ACCENT_LEGACY = { pink: 'rose', blue: 'indigo', green: 'emerald', purple: 'indigo', orange: 'amber' };
   function currentAccent() {
-    return document.documentElement.getAttribute('data-accent') || 'emerald';
+    return document.documentElement.getAttribute('data-accent') || 'indigo';
   }
   function markCurrentSwatch() {
     var cur = currentAccent();

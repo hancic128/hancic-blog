@@ -7,7 +7,7 @@
    暗色默认，侧栏可折叠，≤768px 抽屉导航。
    data-mode="dark"(默认) / data-mode="light" 切换。
    令牌体系遵循 Trilium「前端约束规范」02/03（品牌色 brand×明暗 + surface/ink 中性 +
-   4px 网格 + 4 档圆角 + 5 级字号 + 3 档阴影）；默认主题色 emerald（映射旧 green）。
+   4px 网格 + 4 档圆角 + 5 级字号 + 3 档阴影）；默认主题色 indigo（规范 03 默认）。
    兼容策略：--bg/--panel/--text/--accent 等旧变量保留为别名，渐进迁移后删除。 */
 
 /* ===== 设计令牌 ===== */
@@ -22,8 +22,8 @@
 
 /* -- 品牌色阶 brand：随 html[data-accent] 切换（默认 emerald；规范 5 主题见下） -- */
 :root {
-  --brand-50: #ecfdf5; --brand-100: #d1fae5; --brand-500: #10b981;
-  --brand-600: #059669; --brand-700: #047857; --brand-900: #064e3b;
+  --brand-50: #eef2ff; --brand-100: #e0e7ff; --brand-500: #6366f1;
+  --brand-600: #4f46e5; --brand-700: #4338ca; --brand-900: #312e81;
 }
 
 /* -- 中性面 surface（背景/边框，随明暗切换） -- */
