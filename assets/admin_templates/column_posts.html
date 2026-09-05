@@ -36,7 +36,11 @@
       </tbody>
     </table>
     {% else %}
-    <p class="empty">该专栏还没有文章</p>
+    <div class="empty-state">
+      <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      <p class="empty-title">该专栏还没有文章</p>
+      <p class="empty-desc">在下方的「添加文章」里选择一篇加入</p>
+    </div>
     {% endif %}
   </section>
 
@@ -47,7 +51,7 @@
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="field">
         <div class="cs column-add-cs" data-select="#cp-add-select">
-          <button class="cs-btn" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+          <button class="cs-btn" type="button" aria-label="选择文章" aria-haspopup="listbox" aria-expanded="false"></button>
           <select id="cp-add-select" name="post_id" class="cs-hidden" aria-label="选择文章" required>
             <option value="">请选择要加入专栏的文章…</option>
             {% for p in addable_posts %}
@@ -61,7 +65,11 @@
       </div>
     </form>
     {% else %}
-    <p class="empty">没有可添加的文章（全部已发布文章都已在某个专栏或本专栏）</p>
+    <div class="empty-state">
+      <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span>
+      <p class="empty-title">没有可添加的文章</p>
+      <p class="empty-desc">全部已发布文章都已加入某个专栏或本专栏</p>
+    </div>
     {% endif %}
   </section>
 </div>

@@ -42,7 +42,11 @@
           </div>
         </div>
         {% else %}
-        <p class="empty">暂无分类</p>
+        <div class="empty-state">
+          <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+          <p class="empty-title">暂无分类</p>
+          <p class="empty-desc">点上方「新建分类」添加第一个分类</p>
+        </div>
         {% endfor %}
     </div>
   </section>

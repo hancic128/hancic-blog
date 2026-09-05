@@ -1394,6 +1394,8 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .badge-page::before { background: var(--brand-600); }
 .badge-post { background: var(--badge-neutral-bg); color: var(--badge-neutral-text); }
 .badge-post::before { display: none; }
+.badge-danger { background: var(--badge-rose-bg); color: var(--badge-rose-text); }
+.badge-danger::before { background: var(--rose-600); }
 
 .th-sort { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .th-sort:hover { color: var(--accent); text-decoration: none; }
