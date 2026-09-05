@@ -237,8 +237,7 @@ a:hover { text-decoration: underline; }
   background: var(--accent);
 }
 .admin-brand small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 1px; letter-spacing: 0.02em; }
-/* 品牌区操作：明暗切换 + 查看站点（原顶栏按钮下移） */
-/* 侧边栏底部操作：明暗 / 配色 / 查看站点（无边框无文字，纯图标按钮，折叠后仍显示） */
+/* 侧边栏底部操作：折叠按钮（规范 7.17；查看站点等已并入右下悬浮组） */
 .admin-side-actions {
   display: flex;
   align-items: center;
@@ -248,30 +247,6 @@ a:hover { text-decoration: underline; }
   margin-top: auto;
   border-top: 1px solid var(--border);
 }
-.side-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--side-text);
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.side-icon-btn:hover { color: var(--side-active); background: var(--side-active-bg); }
-.side-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* 退出登录：危险色（红），hover 加深 */
-.side-icon-btn-danger { color: var(--logout-color); }
-.side-icon-btn-danger:hover { color: var(--logout-hover-color); background: var(--danger-soft); }
-/* 明暗图标显隐（暗色默认显示月亮，亮色显示太阳） */
-.side-icon-btn .icon-sun,
-[data-mode="light"] .side-icon-btn .icon-moon { display: none; }
-[data-mode="light"] .side-icon-btn .icon-sun { display: block; }
-.side-icon-btn .icon-moon { display: block; }
 /* 配色色板：与前台博客一致的内置 5 色 */
 .accent-wrap { position: relative; }
 .accent-panel {
