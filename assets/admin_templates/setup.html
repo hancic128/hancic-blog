@@ -1,15 +1,58 @@
-{% extends "layout.html" %}
-{% block title %}初始化管理员密码{% endblock %}
-{% block content %}
-<div class="auth-box">
-  <h1>初始化管理员密码</h1>
-  <p class="muted">首次使用请设置管理员密码（至少 {{ password_min_len }} 个字符）。</p>
-  <form method="post" action="{{ base_path }}/admin/setup" class="stack">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf }}">
+<title>初始化 · {{ site_name }}</title>
+<link rel="stylesheet" href="{{ base_path }}/static/admin.css">
+<script>/* 明暗/主题初始化（防闪烁）：同登录页 */
+(function () {
+  var m = localStorage.getItem('admin-mode');
+  if (!m) m = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-mode', m);
+  var a = localStorage.getItem('admin-accent');
+  var legacy = { pink: 'rose', blue: 'indigo', green: 'emerald', purple: 'indigo', orange: 'amber' };
+  if (a && legacy.hasOwnProperty(a)) a = legacy[a];
+  if (a !== 'indigo' && a !== 'emerald' && a !== 'rose' && a !== 'amber' && a !== 'slate') a = 'indigo';
+  document.documentElement.setAttribute('data-accent', a);
+})();</script>
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <div class="auth-logo" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  </div>
+  <h1 class="auth-title">初始化管理员密码</h1>
+  <p class="auth-sub">首次使用请设置管理员密码（至少 {{ password_min_len }} 个字符）。</p>
+  {% if error_tip %}<p class="auth-error" role="alert">{{ error_tip }}</p>{% endif %}
+  <form method="post" action="{{ base_path }}/admin/setup">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="field">新密码
-      <input type="password" name="password" required minlength="{{ password_min_len }}">
-    </label>
-    <button type="submit" class="btn btn-primary">设置并进入后台</button>
+    <label class="auth-label" for="password">新密码</label>
+    <input class="auth-input" id="password" type="password" name="password"
+           placeholder="至少 {{ password_min_len }} 个字符" required autofocus
+           autocomplete="new-password" minlength="{{ password_min_len }}">
+    <button type="submit" class="auth-btn">设置并进入后台</button>
   </form>
+</main>
+<div class="auth-floating">
+  <button class="auth-fab" id="mode-toggle" type="button" aria-label="切换亮暗模式" title="切换亮暗模式">
+    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+  <div class="accent-wrap">
+    <button class="auth-fab" id="accent-toggle" type="button" aria-label="选择主题配色" title="选择主题配色" aria-expanded="false" aria-controls="accent-panel">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-2a3 3 0 0 0-3 3c0 1.5 1 3 3 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="11" cy="7.5" r="1"/><circle cx="15.5" cy="9.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>
+    </button>
+    <div class="accent-panel" id="accent-panel" hidden>
+      <button class="accent-swatch" type="button" data-accent="indigo" aria-label="靛蓝" title="靛蓝"></button>
+      <button class="accent-swatch" type="button" data-accent="emerald" aria-label="翠绿" title="翠绿"></button>
+      <button class="accent-swatch" type="button" data-accent="rose" aria-label="玫红" title="玫红"></button>
+      <button class="accent-swatch" type="button" data-accent="amber" aria-label="琥珀" title="琥珀"></button>
+      <button class="accent-swatch" type="button" data-accent="slate" aria-label="石板灰" title="石板灰"></button>
+    </div>
+  </div>
 </div>
-{% endblock %}
+<script src="{{ base_path }}/static/admin.js"></script>
+</body>
+</html>

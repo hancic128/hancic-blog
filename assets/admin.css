@@ -2301,3 +2301,129 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .table-posts td:nth-child(5) { width: 60px; }
 .table-posts td:nth-child(6) { width: 68px; }
 .table-posts td:nth-child(7) { width: 160px; }
+
+/* ===== 登录 / 初始化页（规范 07 §3.2 居中卡片 + 7.16 悬浮控制组；admin.css 令牌体系） ===== */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--surface-2);
+  color: var(--ink-900);
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-8);
+}
+.auth-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--brand-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+.auth-title { font-size: var(--text-xl); font-weight: 700; margin: 0 0 var(--space-1); letter-spacing: -0.01em; }
+.auth-sub { font-size: var(--text-sm); color: var(--ink-500); margin: 0 0 var(--space-6); }
+.auth-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+.auth-label { display: block; font-size: var(--text-sm); font-weight: 500; color: var(--ink-700); margin-bottom: var(--space-1); }
+.auth-input {
+  font: inherit;
+  font-size: var(--text-sm);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-900);
+  background: var(--surface-0);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.auth-input::placeholder { color: var(--ink-400); }
+.auth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.auth-btn {
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  color: #fff;
+  background: var(--brand-600);
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.auth-btn:hover { background: var(--brand-700); }
+.auth-btn:active { transform: scale(0.99); }
+.auth-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-back {
+  display: block;
+  text-align: center;
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+  text-decoration: none;
+}
+.auth-back:hover { color: var(--brand-600); text-decoration: none; }
+.auth-tip { font-size: var(--text-sm); color: var(--ink-500); margin: 0 0 var(--space-4); }
+.auth-tip a { color: var(--brand-600); }
+.auth-tip a:hover { color: var(--brand-700); }
+/* 右下角悬浮控制组（明暗 / 主题色气泡） */
+.auth-floating {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  z-index: 80;
+}
+.auth-floating .accent-panel {
+  left: auto;
+  right: 0;
+}
+.auth-fab {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--surface-3);
+  border-radius: 50%;
+  background: var(--surface-0);
+  color: var(--ink-700);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.auth-fab:hover { color: var(--brand-600); border-color: var(--accent-soft); background: var(--accent-soft); }
+.auth-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-fab .icon-sun { display: none; }
+.auth-fab .icon-moon { display: block; }
+[data-mode="light"] .auth-fab .icon-sun { display: block; }
+[data-mode="light"] .auth-fab .icon-moon { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-input, .auth-btn, .auth-fab { transition: none; }
+}

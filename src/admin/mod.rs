@@ -123,7 +123,6 @@ pub fn build_tera() -> Tera {
     let mut tera = Tera::default();
     tera.add_raw_templates(vec![
         ("layout.html", include_str!("../../assets/admin_templates/layout.html")),
-        ("login.html", include_str!("../../assets/admin_templates/login.html")),
         ("login_standalone.html", include_str!("../../assets/admin_templates/login_standalone.html")),
         ("setup.html", include_str!("../../assets/admin_templates/setup.html")),
         ("dashboard.html", include_str!("../../assets/admin_templates/dashboard.html")),
@@ -320,11 +319,21 @@ async fn logout(State(state): State<AppState>, session: Session) -> Response {
     redirect(&state.config.base_path, "/admin/login")
 }
 
-async fn setup_page(State(state): State<AppState>, session: Session, uri: OriginalUri) -> Response {
+async fn setup_page(
+    State(state): State<AppState>,
+    session: Session,
+    Query(query): Query<HashMap<String, String>>,
+    uri: OriginalUri,
+) -> Response {
     if auth::has_password(&state.db).await.unwrap_or(true) {
         return redirect(&state.config.base_path, "/admin/login");
     }
     let (mut ctx, _csrf) = base_ctx(&state, &session, uri.path()).await;
+    let error_tip = match query.get("error").map(String::as_str) {
+        Some("csrf") => Some("安全校验失败，请刷新页面后重试。"),
+        _ => None,
+    };
+    ctx.insert("error_tip", &error_tip.unwrap_or_default());
     ctx.insert("password_min_len", &auth::PASSWORD_MIN_LEN);
     render_admin(&state, "setup.html", &ctx)
 }
