@@ -112,10 +112,28 @@
   var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
   // ---- 确认对话框 / 提示 Toast：替代原生 confirm/alert，样式与后台一致 ----
+  // ---- 确认对话框 / 输入对话框 / Toast（规范 7.10 ConfirmDialog / 7.11 Toast）----
   (function () {
     'use strict';
     var overlay = null;
-    var state = null; // 当前弹窗 { resolve, done, triggerEl }
+    var state = null; // { resolve, done, triggerEl, kind }
+
+    var DESTRUCTIVE = ['删除', '清空', '吊销', '恢复', '卸载', '移除', '覆盖', '重置', '退出', '清理', '解散'];
+    var ACTION_WORDS = ['删除', '清空', '吊销', '恢复', '卸载', '移除', '覆盖', '重置', '退出', '清理', '发布', '下架', '切换', '启用', '禁用', '保存', '更新', '重置', '解散'];
+    function actionOf(msg) {
+      for (var i = 0; i < ACTION_WORDS.length; i++) {
+        if (msg.indexOf(ACTION_WORDS[i]) > -1) return ACTION_WORDS[i];
+      }
+      return '';
+    }
+    function isDestructive(msg) {
+      for (var i = 0; i < DESTRUCTIVE.length; i++) {
+        if (msg.indexOf(DESTRUCTIVE[i]) > -1) return true;
+      }
+      return false;
+    }
+    var SVG_ALERT = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    var SVG_X = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
     function ensure() {
       if (overlay) return;
@@ -127,54 +145,87 @@
       box.setAttribute('role', 'dialog');
       box.setAttribute('aria-modal', 'true');
       box.setAttribute('aria-labelledby', 'modal-title');
+      var head = document.createElement('div');
+      head.className = 'modal-head';
+      var iconEl = document.createElement('span');
+      iconEl.className = 'modal-icon';
+      iconEl.hidden = true;
       var titleEl = document.createElement('h3');
       titleEl.className = 'modal-title';
       titleEl.id = 'modal-title';
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'modal-close';
+      closeBtn.setAttribute('aria-label', '关闭');
+      closeBtn.title = '关闭';
+      closeBtn.innerHTML = SVG_X;
+      head.appendChild(iconEl);
+      head.appendChild(titleEl);
+      head.appendChild(closeBtn);
+      var body = document.createElement('div');
+      body.className = 'modal-body';
       var msgEl = document.createElement('p');
       msgEl.className = 'modal-msg';
+      body.appendChild(msgEl);
       var actionsEl = document.createElement('div');
       actionsEl.className = 'modal-actions';
-      box.appendChild(titleEl);
-      box.appendChild(msgEl);
+      box.appendChild(head);
+      box.appendChild(body);
       box.appendChild(actionsEl);
       overlay.appendChild(box);
       document.body.appendChild(overlay);
-      // 遮罩点击 / Esc 关闭：overlay 为单例，只绑一次
       overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) settle(false);
+        if (e.target === overlay) settle(null);
       });
+      closeBtn.addEventListener('click', function () { settle(null); });
       document.addEventListener('keydown', function (e) {
-        if (!overlay.hidden && e.key === 'Escape') settle(false);
+        if (!overlay.hidden && e.key === 'Escape') settle(null);
       });
     }
 
+    // 统一收尾：resolve(val)；取消类统一传 null
     function settle(val) {
       if (!state || state.done) return;
       state.done = true;
       overlay.hidden = true;
-      // 仅取消时把焦点还给触发元素；确认后页面即将提交/跳转，不做无谓滚动
-      if (!val && state.triggerEl instanceof Element && state.triggerEl.isConnected) {
+      if (state.triggerEl instanceof Element && state.triggerEl.isConnected) {
         state.triggerEl.focus();
       }
       var resolve = state.resolve;
+      var kind = state.kind;
       state = null;
-      resolve(val);
+      resolve(kind === 'confirm' ? val !== null : val);
     }
 
-    // 返回 Promise<boolean>；确认时 resolve(true)，取消/点遮罩/Esc resolve(false)
+    function resetBox() {
+      var box = overlay.querySelector('.modal-box');
+      var iconEl = box.querySelector('.modal-icon');
+      var titleEl = box.querySelector('.modal-title');
+      var msgEl = box.querySelector('.modal-msg');
+      var actionsEl = box.querySelector('.modal-actions');
+      iconEl.hidden = true;
+      iconEl.innerHTML = '';
+      msgEl.innerHTML = '';
+      actionsEl.innerHTML = '';
+      return { iconEl: iconEl, titleEl: titleEl, msgEl: msgEl, actionsEl: actionsEl };
+    }
+
+    // 确认对话框：hancicConfirm(message, triggerEl) → Promise<boolean>
     window.hancicConfirm = function (message, triggerEl) {
       ensure();
-      if (state) state.resolve(false); // 防御：不应有并发弹窗
+      if (state) state.resolve(null);
       return new Promise(function (resolve) {
-        state = { resolve: resolve, done: false, triggerEl: triggerEl };
-        var box = overlay.firstChild;
-        var titleEl = box.querySelector('.modal-title');
-        var msgEl = box.querySelector('.modal-msg');
-        var actionsEl = box.querySelector('.modal-actions');
-        var danger = /删除|清空|吊销|恢复/.test(message);
-        titleEl.textContent = '确认操作';
-        msgEl.textContent = message;
-        actionsEl.innerHTML = '';
+        state = { resolve: resolve, done: false, triggerEl: triggerEl, kind: 'confirm' };
+        var box = overlay.querySelector('.modal-box');
+        var els = resetBox();
+        var verb = actionOf(message);
+        var danger = isDestructive(message);
+        els.titleEl.textContent = verb ? verb + '确认' : '操作确认';
+        if (danger) {
+          els.iconEl.hidden = false;
+          els.iconEl.innerHTML = SVG_ALERT;
+        }
+        els.msgEl.textContent = message;
         var cancel = document.createElement('button');
         cancel.type = 'button';
         cancel.className = 'btn';
@@ -182,39 +233,29 @@
         var ok = document.createElement('button');
         ok.type = 'button';
         ok.className = danger ? 'btn btn-danger' : 'btn btn-primary';
-        ok.textContent = '确认';
-        actionsEl.appendChild(cancel);
-        actionsEl.appendChild(ok);
+        ok.textContent = verb || '确认';
+        els.actionsEl.appendChild(cancel);
+        els.actionsEl.appendChild(ok);
         ok.addEventListener('click', function () { settle(true); });
-        cancel.addEventListener('click', function () { settle(false); });
+        cancel.addEventListener('click', function () { settle(null); });
         overlay.hidden = false;
         ok.focus();
       });
     };
 
-    // 返回 Promise<string|null>；确认 resolve(输入值)，取消/遮罩/Esc resolve(null)。
-    // 遮罩/Esc 走 confirm 的共享监听（settle(false)），这里把 false 归一为 null。
+    // 输入对话框：hancicPrompt(message, defaultValue) → Promise<string|null>
     window.hancicPrompt = function (message, defaultValue) {
       ensure();
       if (state) state.resolve(null);
       return new Promise(function (resolve) {
-        state = {
-          resolve: function (v) { resolve(v === false ? null : v); },
-          done: false,
-          triggerEl: null
-        };
-        var box = overlay.firstChild;
-        var titleEl = box.querySelector('.modal-title');
-        var msgEl = box.querySelector('.modal-msg');
-        var actionsEl = box.querySelector('.modal-actions');
-        titleEl.textContent = message;
-        msgEl.innerHTML = '';
+        state = { resolve: resolve, done: false, triggerEl: null, kind: 'prompt' };
+        var els = resetBox();
+        els.titleEl.textContent = message;
         var input = document.createElement('input');
         input.type = 'text';
         input.className = 'modal-input';
         input.value = defaultValue || '';
-        msgEl.appendChild(input);
-        actionsEl.innerHTML = '';
+        els.msgEl.appendChild(input);
         var cancel = document.createElement('button');
         cancel.type = 'button';
         cancel.className = 'btn';
@@ -223,20 +264,13 @@
         ok.type = 'button';
         ok.className = 'btn btn-primary';
         ok.textContent = '确定';
-        actionsEl.appendChild(cancel);
-        actionsEl.appendChild(ok);
-        var done = false;
-        function finish(val) {
-          if (done) return;
-          done = true;
-          overlay.hidden = true;
-          state = null;
-          resolve(val === false ? null : val);
-        }
-        ok.addEventListener('click', function () { finish(input.value.trim()); });
-        cancel.addEventListener('click', function () { finish(null); });
+        els.actionsEl.appendChild(cancel);
+        els.actionsEl.appendChild(ok);
+        function finish() { settle(input.value.trim()); }
+        ok.addEventListener('click', finish);
+        cancel.addEventListener('click', function () { settle(null); });
         input.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') { e.preventDefault(); finish(input.value.trim()); }
+          if (e.key === 'Enter') { e.preventDefault(); finish(); }
         });
         overlay.hidden = false;
         input.focus();
@@ -244,27 +278,55 @@
       });
     };
 
-    // 底部轻提示（错误/成功等短暂反馈）
-    window.hancicToast = function (message, type) {      var t = document.createElement('div');
-      t.className = 'toast' + (type === 'error' ? ' toast-error' : '');
-      t.setAttribute('role', 'status');
-      if (type === 'error') {
-        t.insertAdjacentHTML('afterbegin',
-          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>');
-      }
+    // ---- Toast（规范 7.11：4 级，顶部居中堆叠）----
+    var toastBox = null;
+    var TOAST_ICONS = {
+      success: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warn: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    function ensureToast() {
+      if (toastBox) return;
+      toastBox = document.createElement('div');
+      toastBox.className = 'toast-container';
+      document.body.appendChild(toastBox);
+    }
+    function removeToast(t) {
+      if (!t.parentNode) return;
+      t.classList.add('toast-out');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 220);
+    }
+    window.hancicToast = function (message, type) {
+      ensureToast();
+      var level = type === 'error' || type === 'warn' || type === 'info' || type === 'success' ? type : 'success';
+      var t = document.createElement('div');
+      t.className = 'toast toast-' + level;
+      t.setAttribute('role', level === 'error' || level === 'warn' ? 'alert' : 'status');
+      t.insertAdjacentHTML('afterbegin', TOAST_ICONS[level]);
       var span = document.createElement('span');
       span.textContent = message;
       t.appendChild(span);
-      document.body.appendChild(t);
-      setTimeout(function () {
-        t.style.transition = 'opacity 0.2s ease';
-        t.style.opacity = '0';
-        setTimeout(function () {
-          if (t.parentNode) t.parentNode.removeChild(t);
-        }, 220);
-      }, 2600);
+      // error/warn 手动关闭（规范：不自动消失）；success/info 3 秒自动消失
+      if (level === 'error' || level === 'warn') {
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'toast-close';
+        close.setAttribute('aria-label', '关闭');
+        close.innerHTML = SVG_X;
+        close.addEventListener('click', function () { removeToast(t); });
+        t.appendChild(close);
+      } else {
+        setTimeout(function () { removeToast(t); }, 3000);
+      }
+      toastBox.appendChild(t);
+      // 最多同时 3 条，超出移除最早
+      while (toastBox.children.length > 3) {
+        toastBox.removeChild(toastBox.firstChild);
+      }
     };
   })();
+
 
   document.addEventListener('submit', function (e) {
     var form = e.target;
@@ -1800,3 +1862,33 @@
   });
   setOpen(false);
 })();
+
+  // ---- 表单提交防重复 + 按钮 loading（规范 8：提交中按钮 disabled）----
+  (function () {
+    'use strict';
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || !form.method) return;
+      if (form.method.toLowerCase() !== 'post') return;
+      // data-confirm 首轮：等待确认弹窗，不在此拦截（第二轮带 confirmed 才提交）
+      if (form.hasAttribute('data-confirm') && !form.dataset.confirmed) return;
+      if (form.dataset.submitting) { e.preventDefault(); return; }
+      form.dataset.submitting = '1';
+      var btn = e.submitter || form.querySelector('button[type="submit"]');
+      if (btn && btn.classList.contains('btn')) btn.disabled = true;
+    });
+  })();
+
+  // ---- 服务端 redirect ?msg=/?error=/?warn= → Toast（规范 7.11：操作结果统一反馈）----
+  (function () {
+    'use strict';
+    var q = location.search;
+    if (!q) return;
+    var m = /[?&](msg|error|warn)=([^&#]*)/.exec(q);
+    if (!m || !m[2]) return;
+    var type = m[1] === 'error' ? 'error' : m[1] === 'warn' ? 'warn' : 'success';
+    var text;
+    try { text = decodeURIComponent(m[2].replace(/\+/g, ' ')); } catch (err) { text = m[2]; }
+    if (!text) return;
+    setTimeout(function () { window.hancicToast(text, type); }, 0);
+  })();
