@@ -432,7 +432,7 @@ a:hover { text-decoration: underline; }
 .page-head-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 h1 { font-size: var(--text-xl); margin: 0 0 20px; font-weight: 700; letter-spacing: -0.01em; }
 .page-head h1 { margin-bottom: 0; }
-.page-sub { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+.page-sub { color: var(--muted); font-size: var(--text-sm); margin-top: 3px; }
 h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
 .muted { color: var(--muted); }
 .tip {

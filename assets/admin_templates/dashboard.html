@@ -104,7 +104,7 @@
 
   <section class="panel-section">
   <h2>阅读 / 点赞趋势 <small class="muted">{{ from }} ~ {{ to }}（UTC 日期分组）</small></h2>
-  <div class="chart-wrap"><canvas id="trend" aria-label="阅读量与点赞数趋势折线图"></canvas></div>
+  <div class="chart-wrap"><canvas id="trend" role="img" aria-label="阅读量与点赞数趋势折线图"></canvas></div>
   </section>
 
   <section class="panel-section">
@@ -127,7 +127,11 @@
   </table>
   <p class="muted">共 {{ post_total }} 篇文章期间有阅读</p>
   {% else %}
-  <p class="empty">期间暂无阅读记录</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+    <p class="empty-title">期间暂无阅读记录</p>
+    <p class="empty-desc">所选日期范围内没有文章被阅读</p>
+  </div>
   {% endif %}
   {% if post_total_pages > 1 %}
   <div class="pagination">
@@ -158,7 +162,11 @@
     </tbody>
   </table>
   {% else %}
-  <p class="empty">期间无地区数据</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+    <p class="empty-title">期间无地区数据</p>
+    <p class="empty-desc">所选日期范围内没有可归集的访问地区</p>
+  </div>
   {% endif %}
   </section>
 
@@ -178,7 +186,11 @@
   </table>
   <p class="muted">按 HTTP Referer 平台分类（微信公众号 / 知乎 / CSDN / 掘金 / 微博 / 搜索引擎等）</p>
   {% else %}
-  <p class="empty">期间无跳转来源数据</p>
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+    <p class="empty-title">期间无跳转来源数据</p>
+    <p class="empty-desc">所选日期范围内没有带来源标记的访问</p>
+  </div>
   {% endif %}
   </section>
 </div>

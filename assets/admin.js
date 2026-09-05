@@ -27,18 +27,8 @@
   function setMode(mode) {
     document.documentElement.setAttribute('data-mode', mode);
     try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* 忽略 */ }
-    // 联动 Chart.js：如果趋势图已创建，更新轴色
-    var chart = window._adminChart;
-    if (chart) {
-      var isLight = mode === 'light';
-      var gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-      var tickColor = isLight ? '#64748B' : '#7C8DB0';
-      chart.options.scales.x.grid.color = gridColor;
-      chart.options.scales.x.ticks.color = tickColor;
-      chart.options.scales.y.grid.color = gridColor;
-      chart.options.scales.y.ticks.color = tickColor;
-      chart.update('none');
-    }
+    // 联动 Chart.js：趋势图配色随明暗令牌（accent/ink 两套取值）重绘
+    paintChartTheme(window._adminChart);
     // milkdown 编辑器明暗随 CSS 变量（[data-mode]）自动切换，无需 JS 联动
   }
   var modeBtn = document.getElementById('mode-toggle');
@@ -72,6 +62,8 @@
     document.documentElement.setAttribute('data-accent', accent);
     try { localStorage.setItem(ACCENT_KEY, accent); } catch (e) { /* 忽略 */ }
     markCurrentSwatch();
+    // 联动 Chart.js：主序列/填充随主题色重绘（仅仪表盘有图）
+    paintChartTheme(window._adminChart);
   }
   var savedAccent;
   try { savedAccent = localStorage.getItem(ACCENT_KEY); } catch (e) { savedAccent = null; }
@@ -980,14 +972,40 @@
   }
 
   // ---- 仪表盘趋势图（Chart.js）：阅读量 + 点赞数双线 ----
+  // 配色读 CSS 令牌（规范 7.9 + 03）：主序列 --accent（随明暗在 500/600 间取）、
+  // 填充 --accent-glow、次序列 --ink-500（中性，虚线区分）；切明暗/切 accent 由
+  // paintChartTheme 重绘（本文件顶部 setMode/applyAccent 调用）。
+  function readCssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+  function chartPalette() {
+    var isLight = currentMode() === 'light';
+    return {
+      accent: readCssVar('--accent', isLight ? '#4f46e5' : '#6366f1'),
+      accentFill: readCssVar('--accent-glow', 'rgba(99, 102, 241, 0.12)'),
+      second: readCssVar('--ink-500', isLight ? '#64748B' : '#7E8BA6'),
+      grid: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)',
+      tick: readCssVar('--ink-400', isLight ? '#94A3B8' : '#5B6B8C')
+    };
+  }
+  function paintChartTheme(chart) {
+    if (!chart) return;
+    var p = chartPalette();
+    chart.data.datasets[0].borderColor = p.accent;
+    chart.data.datasets[0].backgroundColor = p.accentFill;
+    chart.data.datasets[0].pointBackgroundColor = p.accent;
+    chart.data.datasets[1].borderColor = p.second;
+    chart.data.datasets[1].pointBackgroundColor = p.second;
+    chart.options.scales.x.grid.color = p.grid;
+    chart.options.scales.x.ticks.color = p.tick;
+    chart.options.scales.y.grid.color = p.grid;
+    chart.options.scales.y.ticks.color = p.tick;
+    chart.update('none');
+  }
   document.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('trend');
     if (!canvas || !window.Chart || !window.chartData) return;
-    var isLight = currentMode() === 'light';
-    var accentColor = isLight ? '#16A34A' : '#22C55E';
-    var likeColor = isLight ? '#BE185D' : '#F472B6';
-    var gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-    var tickColor = isLight ? '#64748B' : '#7C8DB0';
     window._adminChart = new window.Chart(canvas, {
       type: 'line',
       data: {
@@ -995,22 +1013,16 @@
         datasets: [{
           label: '阅读量',
           data: window.chartData.views,
-          borderColor: accentColor,
-          backgroundColor: isLight ? 'rgba(22, 163, 74, 0.08)' : 'rgba(34, 197, 94, 0.10)',
           fill: true,
           tension: 0.3,
           pointRadius: 2,
-          pointBackgroundColor: accentColor,
           borderWidth: 2
         }, {
           label: '点赞数',
           data: window.chartData.likes,
-          borderColor: likeColor,
-          backgroundColor: isLight ? 'rgba(190, 24, 93, 0.08)' : 'rgba(244, 114, 182, 0.10)',
           fill: false,
           tension: 0.3,
           pointRadius: 2,
-          pointBackgroundColor: likeColor,
           borderWidth: 2,
           borderDash: [5, 4]
         }]
@@ -1022,7 +1034,6 @@
           legend: {
             display: true,
             labels: {
-              color: tickColor,
               boxWidth: 14,
               usePointStyle: true,
               padding: 12
@@ -1030,11 +1041,12 @@
           }
         },
         scales: {
-          x: { grid: { color: gridColor }, ticks: { color: tickColor } },
-          y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } }
+          x: { grid: {}, ticks: {} },
+          y: { beginAtZero: true, ticks: { precision: 0 }, grid: {} }
         }
       }
     });
+    paintChartTheme(window._adminChart);
   });
 })();
 
