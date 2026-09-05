@@ -1882,6 +1882,11 @@
       var form = e.target;
       if (!form || !form.method) return;
       if (form.method.toLowerCase() !== 'post') return;
+      // 已被更早监听器拦截的提交不进入防重复态：文章保存/发布会先经确认对话框
+      // （form 监听器 preventDefault，第二轮 requestSubmit 才真正提交）——若在此
+      // 置 submitting + 禁用按钮，第二轮会被下方防重复误拦且 requestSubmit(禁用钮)
+      // 被浏览器静默丢弃，保存/发布永远发不出去。
+      if (e.defaultPrevented) return;
       // data-confirm 首轮：等待确认弹窗，不在此拦截（第二轮带 confirmed 才提交）
       if (form.hasAttribute('data-confirm') && !form.dataset.confirmed) return;
       if (form.dataset.submitting) { e.preventDefault(); return; }
