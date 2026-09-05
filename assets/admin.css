@@ -237,21 +237,11 @@ a:hover { text-decoration: underline; }
   background: var(--accent);
 }
 .admin-brand small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 1px; letter-spacing: 0.02em; }
-/* 侧边栏底部操作：折叠按钮（规范 7.17；查看站点等已并入右下悬浮组） */
-.admin-side-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 12px 10px;
-  margin-top: auto;
-  border-top: 1px solid var(--border);
-}
 /* 配色色板：与前台博客一致的内置 5 色 */
 .accent-wrap { position: relative; }
 .accent-panel {
   position: absolute;
-  /* 侧栏按钮位于底部：向上弹出，避免超出视口出现竖直滚动条 */
+  /* 基准向上弹出；悬浮组内由 .fab-root 覆盖为左侧水平展开（见 7.16 节） */
   bottom: calc(100% + 6px);
   left: 0;
   z-index: 70;
@@ -265,19 +255,6 @@ a:hover { text-decoration: underline; }
 }
 /* hidden 属性优先：默认折叠，点击按钮才展开（display:flex 会覆盖 UA 的 display:none） */
 .accent-panel[hidden] { display: none; }
-/* 折叠态：三按钮竖排居中（62px 侧栏放不下横排三个 34px 图标） */
-.admin-shell.side-collapsed .admin-side-actions {
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 0;
-}
-/* 折叠态：色板改为视口固定定位（侧栏 62px 装不下），从侧栏右侧弹出 */
-.admin-shell.side-collapsed .accent-panel {
-  position: fixed;
-  top: auto;
-  bottom: 84px;
-  left: 72px;
-}
 .accent-swatch {
   width: 20px;
   height: 20px;
@@ -298,23 +275,8 @@ a:hover { text-decoration: underline; }
   outline-offset: 2px;
 }
 
-.side-collapse {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--side-text);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.side-collapse:hover { background: var(--side-active-bg); color: var(--side-active); }
-.side-collapse:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* 折叠图标双态（规范 7.17：ChevronsLeft/Right，折叠时切换） */
+/* 折叠按钮（位于右下悬浮组内，外观由 .fab-btn 提供；此处仅图标双态切换，
+   规范 7.17：ChevronsLeft/Right，折叠时切换方向） */
 .side-collapse svg { display: block; }
 .side-collapse .icon-collapse-right { display: none; }
 .admin-shell.side-collapsed .side-collapse .icon-collapse-left { display: none; }
