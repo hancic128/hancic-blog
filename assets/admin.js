@@ -1742,3 +1742,61 @@
     });
   });
 })();
+
+// ---- 右下角悬浮按钮组（#fab-group，登录/初始化页）：
+// 默认折叠为 brand 主按钮；hover/focus 展开子按钮组，移出悬浮区约 180ms 自动收起；
+// 点外部 / Esc 立即收起；触摸设备点击主按钮切换展开。
+(function () {
+  'use strict';
+  var group = document.getElementById('fab-group');
+  if (!group) return;
+  var mainBtn = document.getElementById('fab-main');
+  var panel = document.getElementById('accent-panel');
+  var open = false;
+  var closeTimer = null;
+
+  function setOpen(v) {
+    if (open === v) return;
+    open = v;
+    group.classList.toggle('fab-open', v);
+    if (mainBtn) mainBtn.setAttribute('aria-expanded', v ? 'true' : 'false');
+  }
+  function scheduleClose() {
+    cancelClose();
+    closeTimer = setTimeout(function () { setOpen(false); }, 180);
+  }
+  function cancelClose() {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  }
+  // 悬浮区 = 按钮组 + 主题色气泡（气泡相对按钮向左展开，属于悬浮区一部分）
+  function inZone(el) {
+    return !!el && (group.contains(el) || (panel && panel.contains(el)));
+  }
+  group.addEventListener('mouseenter', function () { cancelClose(); setOpen(true); });
+  group.addEventListener('mouseleave', function (e) {
+    if (!inZone(e.relatedTarget)) scheduleClose();
+  });
+  if (panel) {
+    panel.addEventListener('mouseenter', function () { cancelClose(); });
+    panel.addEventListener('mouseleave', function (e) {
+      if (!inZone(e.relatedTarget)) scheduleClose();
+    });
+  }
+  group.addEventListener('focusin', function () { cancelClose(); setOpen(true); });
+  group.addEventListener('focusout', function (e) {
+    if (!inZone(e.relatedTarget)) scheduleClose();
+  });
+  if (mainBtn) {
+    mainBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setOpen(!open);
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (open && !inZone(e.target)) setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && open) setOpen(false);
+  });
+  setOpen(false);
+})();

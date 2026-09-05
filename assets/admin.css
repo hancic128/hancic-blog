@@ -2440,44 +2440,84 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   text-decoration: none;
 }
 .auth-back:hover { color: var(--brand-600); text-decoration: none; }
-/* 右下角悬浮按钮组（规范 7.16：独立圆钮 + 主题色气泡；位置/尺寸沿用 7.8 fixed bottom-6 right-6 48px） */
-.auth-floating {
-  position: fixed;
-  right: var(--space-6);
-  bottom: var(--space-6);
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  z-index: 80;
-}
-.auth-floating .accent-panel {
-  left: auto;
+/* 右下角悬浮按钮组（规范 7.16 + 10-禁止清单 09-05 更新 + demo 动画）：
+   默认折叠为一个 brand 主按钮（Settings），hover/focus 展开子按钮组（主钮上方
+   垂直排列，缩放+位移 stagger 动画），移出悬浮区约 180ms 自动收起；
+   主钮展开时图标旋转 45°；触摸设备点击主钮切换 */
+.auth-floating { position: fixed; right: 24px; bottom: 24px; z-index: 80; }
+.auth-fab-main {
+  position: absolute;
   right: 0;
-  bottom: calc(100% + var(--space-2));
-}
-.auth-fab {
+  bottom: 0;
   width: 48px;
   height: 48px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: var(--brand-600);
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.2s ease;
+}
+.auth-fab-main:hover { background: var(--brand-700); }
+.auth-fab-main svg { transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.auth-floating.fab-open .auth-fab-main svg { transform: rotate(45deg); }
+.auth-fab-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-bottom: 56px; /* 给主按钮让位 */
+}
+.fab-item {
+  transform: translateY(20px) scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+}
+.auth-floating.fab-open .fab-item { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
+.auth-floating.fab-open .fab-item:nth-child(1) { transition-delay: 0.03s; }
+.auth-floating.fab-open .fab-item:nth-child(2) { transition-delay: 0.06s; }
+.auth-floating.fab-open .fab-item:nth-child(3) { transition-delay: 0.09s; }
+.fab-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--surface-3);
+  background: var(--surface-0);
+  color: var(--ink-700);
+  box-shadow: var(--shadow-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #18181b; /* 规范 7.8.1：bg-ink-900（物理深色） */
-  color: #ffffff;
-  box-shadow: var(--shadow-lg);
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
-[data-mode="dark"] .auth-fab { background: #ffffff; color: #18181b; } /* 规范 7.8.1：dark:bg-surface-0 */
-.auth-fab:hover { transform: scale(1.05); }
-.auth-fab:active { transform: scale(0.95); }
-.auth-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.auth-fab .icon-sun { display: none; }
-.auth-fab .icon-moon { display: block; }
-[data-mode="light"] .auth-fab .icon-sun { display: block; }
-[data-mode="light"] .auth-fab .icon-moon { display: none; }
+.fab-btn:hover { background: var(--surface-2); transform: scale(1.05); }
+.fab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fab-btn .icon-sun { display: none; }
+.fab-btn .icon-moon { display: block; }
+[data-mode="light"] .fab-btn .icon-sun { display: block; }
+[data-mode="light"] .fab-btn .icon-moon { display: none; }
+/* 主题色气泡：相对其按钮在左侧水平展开（10 更新：避免遮挡同级悬浮按钮） */
+.auth-floating .accent-wrap { position: relative; }
+.auth-floating .accent-panel {
+  position: absolute;
+  left: auto;
+  right: calc(100% + var(--space-2));
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+.auth-floating .accent-swatch { width: 28px; height: 28px; }
 @media (prefers-reduced-motion: reduce) {
-  .auth-input, .auth-btn, .auth-fab, .auth-eye { transition: none; }
+  .auth-fab-main, .auth-fab-main svg, .fab-btn, .fab-item, .auth-input, .auth-btn, .auth-eye { transition: none; }
 }
