@@ -236,7 +236,7 @@ async fn index(
 ) -> Response {
     let preview = resolve_preview(&state, &query);
     let out = async {
-        // 更新日历（近 26 周，含发布/更新/说说详情）与最近说说（5 条）
+        // 发布日历（近 26 周，含发布/说说详情）与最近说说（5 条）
         let calendar = posts::activity_calendar(&state.db, 182).await?;
         let (moments, _total) = moments::list_moments(&state.db, None, false, None, 1, 5).await?;
         // 最热专栏：文章数最多的专栏，最多取 3 个（按文章数降序）
@@ -633,11 +633,11 @@ async fn column_page(
         let column = crate::services::columns::get_column_by_slug(&state.db, &slug)
             .await?
             .ok_or_else(|| AppError::NotFound("专栏不存在".into()))?;
-        // 专栏页默认按专栏内自定义顺序（column_sort）；显式 ?sort= 才走通用排序
+        // 专栏页默认按发布时间倒序（最新在前）；显式 ?sort= 才走通用排序
         let sort = if query.contains_key("sort") {
             list_sort(&query)
         } else {
-            posts::PostSort { field: "column_sort", asc: true }
+            posts::PostSort { field: "published_at", asc: false }
         };
         let mut ctx = listing_ctx(
             &state.db,
@@ -1380,15 +1380,15 @@ fn post_url(base: &str, p: &Post) -> String {
     format!("{base}{path}")
 }
 
-/// 更新日历单日条目：(日期, 动态数, [(类型, 标题)])。
+/// 发布日历单日条目：(日期, 动态数, [(类型, 标题)])。
 type CalendarDay = (String, i64, Vec<(String, String)>);
 /// 日历查询表键/值别名。
 type DayKey<'a> = &'a str;
 type DayVal<'a> = (i64, &'a [(String, String)]);
 
-/// GitHub 风格更新日历矩阵：26 周 × 7 天。
+/// GitHub 风格发布日历矩阵：26 周 × 7 天。
 /// 外层数组 = 周（列），内层 = 该周 7 天（行，周日→周六）。
-/// 每格：`{ date, count, level, tip }`，tip 为多行 tooltip（日期 + 动态标题）。
+/// 每格：`{ date, count, level, tip }`，tip 为多行 tooltip（日期 + 发布动态标题）。
 fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
     use std::collections::HashMap;
     let map: HashMap<DayKey<'_>, DayVal<'_>> = calendar
@@ -1414,7 +1414,6 @@ fn calendar_matrix(calendar: &[CalendarDay]) -> Value {
         for (kind, title) in items {
             let label = match kind.as_str() {
                 "post" => "发布",
-                "update" => "更新",
                 _ => "说说",
             };
             tip.push_str(&format!("\n{label}：{title}"));

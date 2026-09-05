@@ -927,7 +927,7 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .moment-time { font-size: .78rem; color: var(--muted); }
 .moment-item p { margin: .25rem 0 0; font-size: .95rem; line-height: 1.7; }
 
-/* 更新日历距导航的紧凑间距 */
+/* 发布日历距导航的紧凑间距 */
 .heatmap-section { margin-top: .5rem; }
 .heatmap-section .section-title { margin-top: 1.2rem; }
 
@@ -974,7 +974,7 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
   .layout-side { display: none; }
 }
 
-/* ===== 更新日历 tooltip（hover 显示日期+记录详情） ===== */
+/* ===== 发布日历 tooltip（hover 显示日期+记录详情） ===== */
 .heat-cell { position: relative; cursor: default; }
 .heat-tooltip { position: fixed; z-index: 100; pointer-events: none;
   background: var(--fg); color: var(--bg); font-size: .72rem; line-height: 1.5;
@@ -1274,6 +1274,9 @@ html { scroll-behavior: smooth; }
 .reading-mode .post,
 .reading-mode .page { font-size: 1.0625rem; line-height: 1.85; }
 .reading-mode .post-adjacent { display: none; }
+@media (max-width: 768px) {
+  .reading-mode .layout-main { padding-left: .75rem; padding-right: .75rem; }
+}
 
 /* 阅读模式悬浮图标按钮：右下角圆形（与 back-top 同风格），仅文章/独立页存在 */
 .reading-float {

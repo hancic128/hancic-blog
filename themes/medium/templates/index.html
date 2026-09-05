@@ -1,13 +1,13 @@
-{# 首页：更新日历 + 最近说说 + 最新文章（右侧目录） #}
+{# 首页：发布日历 + 最近说说 + 最新文章（右侧目录） #}
 {% include "partials/header.html" %}
 {% include "partials/searchbar.html" %}
 <div class="layout-two-col">
 
   <main class="layout-main">
-    {# 1. 更新日历（近一年，GitHub Contribution 风格，hover 显示动态详情） #}
+    {# 1. 发布日历（近一年，GitHub Contribution 风格，hover 显示发布动态详情） #}
     {% if calendar %}
     <section class="heatmap-section" id="calendar">
-      <h1 class="section-title">更新日历 <small>近一年发布/更新动态</small></h1>
+      <h1 class="section-title">发布日历 <small>近一年发布动态</small></h1>
       <div class="heatmap">
         {% for week in calendar %}
         <div class="heatmap-col">
@@ -72,7 +72,7 @@
     <div class="side-card">
       <h4 class="side-title">本页导航</h4>
       <ul class="side-toc">
-        <li><a href="#calendar">更新日历</a></li>
+        <li><a href="#calendar">发布日历</a></li>
         <li><a href="#moments">最近说说</a></li>
         <li><a href="#posts">最新文章</a></li>
       </ul>

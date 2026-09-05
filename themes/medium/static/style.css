@@ -255,7 +255,7 @@ button, a, [role="button"], label { cursor: pointer; }
 .more-link a { color: var(--accent); text-decoration: none; }
 .more-link a:hover { text-decoration: underline; }
 
-/* ---------- 热力图（更新日历，占满容器宽度，与 default 主题一致） ---------- */
+/* ---------- 热力图（发布日历，占满容器宽度，与 default 主题一致） ---------- */
 .heatmap-section { margin-bottom: 1rem; }
 .heatmap { display: flex; gap: 3px; padding-bottom: 4px; }
 .heatmap-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -506,6 +506,16 @@ button, a, [role="button"], label { cursor: pointer; }
   position: relative;
 }
 .md-body pre code { background: none; padding: 0; color: var(--fg); font-size: .88rem; line-height: 1.7; }
+.md-body pre .code-copy { position: absolute; top: .5rem; right: .5rem;
+  font: inherit; font-size: .75rem; padding: .2rem .6rem; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  opacity: 0; transition: opacity .15s ease; }
+.md-body pre:hover .code-copy { opacity: 1; }
+.md-body pre .code-copy:hover { color: var(--accent); border-color: var(--accent); }
+.md-body pre .code-copy:focus-visible { opacity: 1; outline: 2px solid var(--accent); }
+.md-body pre .code-copy.copied { color: var(--accent); border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .md-body pre .code-copy { transition: none; } }
 .md-body pre::before {
   content: attr(data-lang);
   position: absolute;
@@ -867,6 +877,9 @@ button, a, [role="button"], label { cursor: pointer; }
 .reading-mode .post,
 .reading-mode .page { font-size: 1.0625rem; line-height: 1.85; }
 .reading-mode .post-adjacent { display: none; }
+@media (max-width: 768px) {
+  .reading-mode .layout-main { padding-left: .75rem; padding-right: .75rem; }
+}
 
 /* 阅读模式悬浮图标按钮：右下角圆形（与 back-top 同风格），仅文章/独立页存在 */
 .reading-float {

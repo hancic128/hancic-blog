@@ -321,7 +321,7 @@
   }
 })();
 
-// 更新日历 tooltip：body 级悬浮层（避免被热力图滚动容器裁剪），跟随鼠标
+// 发布日历 tooltip：body 级悬浮层（避免被热力图滚动容器裁剪），跟随鼠标
 (function initHeatTooltip() {
   const tip = document.createElement("div");
   tip.className = "heat-tooltip";
