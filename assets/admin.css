@@ -195,14 +195,14 @@ a:hover { text-decoration: underline; }
 .admin-side {
   width: 236px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, var(--side-bg-top) 0%, var(--side-bg-bottom) 100%);
+  background: var(--surface-0); /* 规范 7.6.1：侧栏纯色表面（禁渐变背景） */
   color: var(--side-text);
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--surface-3);
   overflow-y: auto;
 }
 
@@ -240,8 +240,7 @@ a:hover { text-decoration: underline; }
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 8px var(--accent-glow);
+  background: var(--accent);
 }
 .admin-brand small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 1px; letter-spacing: 0.02em; }
 /* 品牌区操作：明暗切换 + 查看站点（原顶栏按钮下移） */
@@ -344,8 +343,13 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.side-collapse:hover { background: var(--row-hover-bg); color: var(--logo-color); }
+.side-collapse:hover { background: var(--side-active-bg); color: var(--side-active); }
 .side-collapse:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 折叠图标双态（规范 7.17：ChevronsLeft/Right，折叠时切换） */
+.side-collapse svg { display: block; }
+.side-collapse .icon-collapse-right { display: none; }
+.admin-shell.side-collapsed .side-collapse .icon-collapse-left { display: none; }
+.admin-shell.side-collapsed .side-collapse .icon-collapse-right { display: block; }
 
 .admin-nav { flex: 1; padding: 12px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .admin-nav-item {
@@ -656,7 +660,7 @@ h2 { font-size: 16px; margin: 0 0 14px; font-weight: 600; }
   font-size: 27px;
   font-weight: 700;
   line-height: 1.15;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2037,7 +2041,7 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   width: 4px;
   height: 15px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  background: var(--accent);
 }
 /* 阅读趋势：固定低高度（原 240px 太高） */
 .trend-wrap { position: relative; height: 160px; }
@@ -2062,7 +2066,7 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   width: 4px;
   height: 15px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  background: var(--accent);
 }
 
 /* panel-section 内 stat-grid：去掉多余下边距（分隔线已有间距） */
@@ -2475,8 +2479,8 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
    默认折叠为一个 brand 主按钮（Settings），hover/focus 展开子按钮组（主钮上方
    垂直排列，缩放+位移 stagger 动画），移出悬浮区约 180ms 自动收起；
    主钮展开时图标旋转 45°；触摸设备点击主钮切换 */
-.auth-floating { position: fixed; right: 24px; bottom: 24px; z-index: 80; }
-.auth-fab-main {
+.fab-root { position: fixed; right: 24px; bottom: 24px; z-index: 80; }
+.fab-main {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -2494,10 +2498,10 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   cursor: pointer;
   transition: background 0.15s ease, transform 0.2s ease;
 }
-.auth-fab-main:hover { background: var(--brand-700); }
-.auth-fab-main svg { transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-.auth-floating.fab-open .auth-fab-main svg { transform: rotate(45deg); }
-.auth-fab-list {
+.fab-main:hover { background: var(--brand-700); }
+.fab-main svg { transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.fab-root.fab-open .fab-main svg { transform: rotate(45deg); }
+.fab-list {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -2510,10 +2514,10 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   pointer-events: none;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
 }
-.auth-floating.fab-open .fab-item { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
-.auth-floating.fab-open .fab-item:nth-child(1) { transition-delay: 0.03s; }
-.auth-floating.fab-open .fab-item:nth-child(2) { transition-delay: 0.06s; }
-.auth-floating.fab-open .fab-item:nth-child(3) { transition-delay: 0.09s; }
+.fab-root.fab-open .fab-item { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
+.fab-root.fab-open .fab-item:nth-child(1) { transition-delay: 0.03s; }
+.fab-root.fab-open .fab-item:nth-child(2) { transition-delay: 0.06s; }
+.fab-root.fab-open .fab-item:nth-child(3) { transition-delay: 0.09s; }
 .fab-btn {
   width: 44px;
   height: 44px;
@@ -2530,14 +2534,17 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 .fab-btn:hover { background: var(--surface-2); transform: scale(1.05); }
+/* 退出登录：rose 语义（规范 10：悬浮组退出钮红底区分） */
+.fab-btn-danger { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.fab-btn-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger-2); }
 .fab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fab-btn .icon-sun { display: none; }
 .fab-btn .icon-moon { display: block; }
 [data-mode="light"] .fab-btn .icon-sun { display: block; }
 [data-mode="light"] .fab-btn .icon-moon { display: none; }
 /* 主题色气泡：相对其按钮在左侧水平展开（10 更新：避免遮挡同级悬浮按钮） */
-.auth-floating .accent-wrap { position: relative; }
-.auth-floating .accent-panel {
+.fab-root .accent-wrap { position: relative; }
+.fab-root .accent-panel {
   position: absolute;
   left: auto;
   right: calc(100% + var(--space-2));
@@ -2548,9 +2555,9 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   padding: var(--space-3);
   gap: var(--space-2);
 }
-.auth-floating .accent-swatch { width: 28px; height: 28px; }
+.fab-root .accent-swatch { width: 28px; height: 28px; }
 @media (prefers-reduced-motion: reduce) {
-  .auth-fab-main, .auth-fab-main svg, .fab-btn, .fab-item, .auth-input, .auth-btn, .auth-eye { transition: none; }
+  .fab-main, .fab-main svg, .fab-btn, .fab-item, .auth-input, .auth-btn, .auth-eye { transition: none; }
 }
 
 /* 输入控件统一（规范 7.4 基础样式）：默认 surface-2 底 + 透明边框，聚焦转 brand 边框 + 品牌 ring
