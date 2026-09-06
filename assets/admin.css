@@ -2700,3 +2700,30 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 @media (max-width: 768px) {
   .fab-list .fab-item:has(.side-collapse) { display: none; }
 }
+
+/* 导航行「隐藏/显示」开关（眼睛）：与行删除钮同款 ghost 小按钮 */
+.kv-vis {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.kv-vis svg { display: block; }
+.kv-vis:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.kv-vis[aria-pressed="false"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.kv-vis[aria-pressed="false"]:hover { color: var(--brand-700); background: var(--accent-soft); }
+/* 已隐藏的导航行：内容淡化，行尾显示眼睛关闭态 */
+.kv-row.kv-hidden .kv-key,
+.kv-row.kv-hidden .kv-type,
+.kv-row.kv-hidden .kv-url,
+.kv-row.kv-hidden .kv-page-btn { opacity: 0.5; }
+
+.kv-hint { font-size: 12px; font-weight: 400; color: var(--ink-400); margin-left: 6px; }

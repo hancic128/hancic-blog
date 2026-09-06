@@ -103,7 +103,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
         .as_array()
         .map(|arr| {
             arr.iter()
-                .map(|item| {
+                .filter_map(|item| {
                     let label = item.get("label").and_then(Value::as_str).unwrap_or("");
                     let url = item.get("url").and_then(Value::as_str).unwrap_or("");
                     let ty = item
@@ -117,13 +117,19 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
                     } else {
                         ty
                     };
+                    // 后台「隐藏」开关：值为 true / "1" / 1 时前台导航不渲染；
+                    // 首页与文章为站点基础入口，不允许隐藏（配置即使误设为隐藏也强制显示）
+                    let hidden = json_hidden(item);
+                    if hidden && ty != "home" && ty != "articles" {
+                        return None;
+                    }
                     // 轨迹类型路径预设（url 可空）
                     let url = if ty == "trail" && url.is_empty() {
                         "/trails"
                     } else {
                         url
                     };
-                    json!({ "type": ty, "label": label, "url": url })
+                    Some(json!({ "type": ty, "label": label, "url": url }))
                 })
                 .collect()
         })
@@ -185,12 +191,18 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
             }
         }
     }
+    // 首页联动：导航把「说说/专栏」隐藏后，首页对应区块（最近说说 / 最热专栏）一并隐藏
+    let moments_hidden = nav_has_hidden(&nav_raw, "moments");
+    let columns_hidden = nav_has_hidden(&nav_raw, "column");
+
     ctx.insert(
         "site",
         &json!({
             "name": s.get("site_name").map(String::as_str).unwrap_or("寒蝉 Hancic"),
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
             "nav": nav,
+            "show_moments": !moments_hidden,
+            "show_columns": !columns_hidden,
             "pages": pages_value,
             "social_links": social_links,
             "social_qrs": social_qrs,
@@ -212,6 +224,30 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
 }
 
 /// 解析 settings 中的 JSON 数组/对象字符串；非法时回退空值。
+
+/// 导航项 hidden 判定：布尔 / "1" / 1 任一为真即隐藏。
+fn json_hidden(item: &Value) -> bool {
+    item.get("hidden")
+        .map(|h| {
+            h.as_bool().unwrap_or(false)
+                || h.as_str().map(|s| s == "1").unwrap_or(false)
+                || h.as_i64() == Some(1)
+        })
+        .unwrap_or(false)
+}
+
+/// 导航数组中是否存在指定类型且被隐藏的项（用于首页联动开关）。
+fn nav_has_hidden(nav_raw: &Value, ty: &str) -> bool {
+    nav_raw
+        .as_array()
+        .map(|arr| {
+            arr.iter().any(|item| {
+                item.get("type").and_then(Value::as_str) == Some(ty) && json_hidden(item)
+            })
+        })
+        .unwrap_or(false)
+}
+
 fn parse_json_array(s: &str) -> Value {
     serde_json::from_str(s).unwrap_or_else(|_| json!([]))
 }

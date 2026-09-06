@@ -584,9 +584,10 @@
     wrap.appendChild(panel);
     return wrap;
   }
-  function kvBuildRow(ed, format, keyVal, urlVal, typeVal) {
+  function kvBuildRow(ed, format, keyVal, urlVal, typeVal, hiddenVal) {
     var row = document.createElement('div');
     row.className = 'kv-row';
+    if (hiddenVal === '1') row.classList.add('kv-hidden');
     // 内置导航项（首页/文章/说说）：固定存在、类型锁定、不可删除，仅可改名与排序
     var builtin = format === 'nav' && ['home', 'articles', 'moments', 'column', 'trail'].indexOf(typeVal) !== -1;
     // 所有列表型编辑器均支持拖拽排序（导航/友情链接/社交链接/社交图标）
@@ -677,9 +678,33 @@
     if (format === 'nav' && !builtin) {
       typeSel.addEventListener('change', function () {
         // 类型切换后重建该行（link→文本输入；pages→搜索选择；内置→预设路径）
-        var newRow = kvBuildRow(ed, format, key.value.trim(), url.value.trim(), typeSel.value);
+        var newRow = kvBuildRow(ed, format, key.value.trim(), url.value.trim(), typeSel.value, row.dataset.hidden === '1' ? '1' : '0');
         row.replaceWith(newRow);
       });
+    }
+    if (format === 'nav' && typeVal !== 'home' && typeVal !== 'articles') {
+      // 行级「隐藏/显示」：前台导航不渲染隐藏项（配置保留，可随时恢复）。
+      // 首页与文章为站点基础入口，不允许隐藏，不展示此开关。
+      var vis = document.createElement('button');
+      vis.type = 'button';
+      vis.className = 'kv-vis';
+      var SVG_EYE = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      var SVG_EYE_OFF = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+      function paintVis() {
+        var hidden = row.dataset.hidden === '1';
+        row.classList.toggle('kv-hidden', hidden);
+        vis.setAttribute('aria-pressed', String(!hidden));
+        vis.setAttribute('aria-label', hidden ? '显示此项' : '隐藏此项（前台不显示）');
+        vis.title = hidden ? '显示此项' : '隐藏此项';
+        vis.innerHTML = hidden ? SVG_EYE_OFF : SVG_EYE;
+      }
+      row.dataset.hidden = hiddenVal === '1' ? '1' : '0';
+      vis.addEventListener('click', function () {
+        row.dataset.hidden = row.dataset.hidden === '1' ? '0' : '1';
+        paintVis();
+      });
+      paintVis();
+      row.appendChild(vis);
     }
     if (!builtin) {
       var del = document.createElement('button');
@@ -768,11 +793,12 @@
       pairs = parse().map(function (o) {
         var ty = o.type || 'link';
         if (ty === 'categories') ty = 'pages';
-        return [o.label || '', o.url || '', ty];
+        var h = o.hidden === true || o.hidden === '1' || o.hidden === 1 ? '1' : '0';
+        return [o.label || '', o.url || '', ty, h];
       });
     }
     pairs.forEach(function (p) {
-      ed.appendChild(kvBuildRow(ed, format, p[0], p[1], p[2]));
+      ed.appendChild(kvBuildRow(ed, format, p[0], p[1], p[2], p[3]));
     });
     if (format === 'nav') {
       // 固定内置三项：首页/文章/说说始终存在（可改名、可排序、不可删）
@@ -822,7 +848,8 @@
           var t = row.querySelector('.kv-type').value;
           // 链接/页面保留用户填写/选择的路径；内置类型走预设路径
           u = t === 'link' || t === 'pages' ? u : kvTypeDefaultUrl(t);
-          items.push([k, u, t]);
+          var hidden = row.dataset.hidden === '1';
+          items.push([k, u, t, hidden]);
         } else {
           items.push([k, u]);
         }
@@ -837,7 +864,7 @@
         }));
       } else {
         target.value = JSON.stringify(items.map(function (p) {
-          return { type: p[2] || 'link', label: p[0], url: p[1] };
+          return { type: p[2] || 'link', label: p[0], url: p[1], hidden: !!p[3] };
         }));
       }
     };

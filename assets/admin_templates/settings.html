@@ -56,7 +56,7 @@
   <form method="post" action="{{ base_path }}/admin/settings/save">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="field">
-      <label for="site-nav">导航菜单</label>
+      <label for="site-nav">导航菜单</label><span class="kv-hint">可拖拽排序；点行尾眼睛可隐藏某项（前台不显示，配置保留）</span>
       <div class="kv-editor" id="nav-editor" data-target="site_nav" data-format="nav"></div>
       <button type="button" class="kv-add" data-add="nav">+ 添加导航项</button>
       <input type="hidden" id="site_nav" name="site_nav" value="{{ form.site_nav }}">

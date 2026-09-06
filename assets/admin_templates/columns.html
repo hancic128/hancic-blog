@@ -142,8 +142,8 @@
   // 名称/描述表单（新建与编辑共用）：描述为多行输入框
   function fieldModal(title, id, nameVal, descVal, onSave) {
     var m = openModal(
-      '<h3 class="modal-title">' + title + '</h3>' +
-      '<div class="modal-msg modal-msg-left">' +
+      '<div class="modal-head"><h3 class="modal-title">' + title + '</h3></div>' +
+      '<div class="modal-body">' +
       '  <label class="modal-label">名称<input class="modal-input" id="cf-name" maxlength="8" placeholder="最多 8 个字"></label>' +
       '  <label class="modal-label">描述<textarea class="modal-textarea" id="cf-desc" maxlength="50" rows="3" placeholder="最多 50 个字，可留空"></textarea></label>' +
       '</div>' +
