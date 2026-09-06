@@ -566,3 +566,121 @@
   try { saved = localStorage.getItem("reading-mode"); } catch (e) {}
   if (saved === "1") apply(true);
 })();
+
+/* 前台工具悬浮组（与后台一致）：hover 设备鼠标移到主按钮上才展开、移出延迟收起。
+   折叠时列表不占位（hidden），触发区域即主按钮，避免空白区域误展开 */
+(function () {
+  "use strict";
+  var root = document.getElementById("front-fab");
+  var main = document.getElementById("front-fab-main");
+  var accentPanel = document.getElementById("accent-panel");
+  var list = root ? root.querySelector(".front-fab-list") : null;
+  if (!root || !main || !list) return;
+  var open = false;
+  var closeTimer = null;
+  var hideTimer = null;
+  var placeTimer = null;
+  var GAP = 14;
+  var BTN_GAP = 12;
+
+  list.classList.add("hidden"); // 初始折叠：列表不占位，hover 区域 = 主按钮
+
+  function firstVisibleItemTop() {
+    var items = root.querySelectorAll(".front-fab-item");
+    for (var i = 0; i < items.length; i++) {
+      var btn = items[i].querySelector(".front-fab-btn");
+      if (btn && !btn.hidden) return items[i].getBoundingClientRect().top;
+    }
+    return null;
+  }
+  function layoutFloats(expanded) {
+    var back = document.getElementById("back-top");
+    var read = document.querySelector(".reading-float");
+    if (!back && !read) return;
+    var base = 90;
+    if (expanded) {
+      var top = firstVisibleItemTop();
+      if (top !== null) base = window.innerHeight - top + GAP;
+    }
+    var backOn = !!(back && !back.hidden);
+    var readOn = !!read;
+    if (backOn && readOn) {
+      back.style.bottom = base + "px";
+      read.style.bottom = (base + 42 + BTN_GAP) + "px";
+    } else if (backOn) {
+      back.style.bottom = base + "px";
+      if (read) read.style.bottom = "";
+    } else if (readOn) {
+      read.style.bottom = base + "px";
+      if (back) back.style.bottom = "";
+    } else {
+      if (back) back.style.bottom = "";
+      if (read) read.style.bottom = "";
+    }
+  }
+  function setOpen(v) {
+    open = v;
+    if (placeTimer) { clearTimeout(placeTimer); placeTimer = null; }
+    if (v) {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      list.classList.remove("hidden");
+      // 下一帧再加展开类：让 display 生效后再播放入场动画
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          root.classList.add("fab-open");
+          main.setAttribute("aria-expanded", "true");
+        });
+      });
+      placeTimer = setTimeout(function () { layoutFloats(true); }, 260);
+    } else {
+      root.classList.remove("fab-open");
+      main.setAttribute("aria-expanded", "false");
+      layoutFloats(false);
+      // 收起动画结束后再隐藏列表，让折叠后的 hover 区域回到主按钮
+      hideTimer = setTimeout(function () { list.classList.add("hidden"); }, 240);
+    }
+  }
+  function cancelClose() {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  }
+  function scheduleClose() {
+    cancelClose();
+    closeTimer = setTimeout(function () { setOpen(false); }, 250);
+  }
+  // hover 设备：只把鼠标放到可见组件上才触发 —— 折叠时可视区即主按钮；
+  // 展开后保持在列表内则不收起；色板 hover 同样保持
+  if (window.matchMedia("(hover: hover)").matches) {
+    main.addEventListener("mouseenter", function () { cancelClose(); if (!open) setOpen(true); });
+    root.addEventListener("mouseenter", function () { if (open) cancelClose(); });
+    root.addEventListener("mouseleave", function () { if (open) scheduleClose(); });
+    main.addEventListener("mouseleave", function () { if (open && !root.matches(":hover")) scheduleClose(); });
+    if (accentPanel) {
+      accentPanel.addEventListener("mouseenter", cancelClose);
+      accentPanel.addEventListener("mouseleave", scheduleClose);
+    }
+  }
+  main.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setOpen(!open);
+  });
+  root.addEventListener("click", function (e) {
+    if (e.target.closest("#contact-fab")) setOpen(false);
+  });
+  document.addEventListener("click", function (e) {
+    if (open && !e.target.closest(".front-fab") && !e.target.closest("#accent-panel")) setOpen(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && open) setOpen(false);
+  });
+  var scrollT = null;
+  function onViewportChange() {
+    if (scrollT) return;
+    scrollT = setTimeout(function () {
+      scrollT = null;
+      if (open) setOpen(true); else layoutFloats(false);
+    }, 120);
+  }
+  window.addEventListener("scroll", onViewportChange, { passive: true });
+  window.addEventListener("resize", onViewportChange);
+  layoutFloats(false);
+})();

@@ -7,6 +7,7 @@
 
 mod common;
 use common::{extract_csrf, login_admin, start_server};
+use chrono_tz::Tz;
 use hancic::models::{PostStatus, PostType};
 use hancic::services::posts;
 
@@ -102,8 +103,9 @@ async fn stats_overview_region_detail_and_clear() {
         html.contains(r#"<div class="stat-num">3</div>"#),
         "总阅读卡片应为 3: {html}"
     );
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    assert!(html.contains(&today), "趋势横轴应含当日 {today}");
+    let tz = Tz::Asia__Shanghai;
+    let today = chrono::Utc::now().with_timezone(&tz).format("%Y-%m-%d").to_string();
+    assert!(html.contains(&today), "趋势横轴应含站点时区当日 {today}");
     // 点赞趋势：当日点赞数 = 2（两条 content_likes 记录），chart_data 双数据集
     let chart_start = html.find("window.chartData = ").map(|i| i + "window.chartData = ".len())
         .expect("仪表盘应输出 chartData");
@@ -125,6 +127,32 @@ async fn stats_overview_region_detail_and_clear() {
     assert!(html.contains("江苏"), "地区应含江苏（城市并入省份）");
     assert!(html.contains("<th>国家</th>") && html.contains("<th>省份</th>"), "地区应国家/省份两列表头");
     assert!(!html.contains("<th>城市</th>"), "地区不应再有城市列");
+    // 地区地图：中国省份以 choropleth 展示（容器 + 注入 JSON）
+    assert!(html.contains(r#"id="region-map""#), "有中国省份数据时应渲染地图容器");
+    assert!(html.contains("window.regionData = "), "应注入地区地图数据 JSON");
+    // 文章排行：固定 Top 10，无分页控件
+    assert!(!html.contains("上一页") && !html.contains("下一页"), "Top10 排行不应分页");
+
+    // 「全部」范围（?range=all）：表单留空 + 快捷钮高亮「全部」
+    let res = client
+        .get(format!("{base}/admin?range=all"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+    let html = res.text().await.unwrap();
+    assert!(
+        html.contains(r#"class="quick-range active" href="?range=all""#),
+        "全部快捷钮应高亮: {html}"
+    );
+    assert!(
+        html.contains(r#"name="from" class="date-input" value=""#) && html.contains(r#"name="to" class="date-input" value=""#),
+        "全部模式下 from/to 输入框应留空"
+    );
+    assert!(
+        html.contains("window.regionData = [") && html.contains("window.chartSources = ["),
+        "全部模式仍应注入地区与来源数据"
+    );
 
     // 非法 from/to：回落默认区间，页面仍 200
     let res = client

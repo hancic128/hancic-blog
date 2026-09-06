@@ -991,7 +991,7 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .footer-text { opacity: .85; }
 
 /* ===== 悬浮联系方式卡片 ===== */
-.contact-fab { position: fixed; right: 1.25rem; bottom: 5rem; z-index: 60;
+.contact-fab { position: fixed; right: 1.25rem; bottom: 11rem; z-index: 60;
   width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border);
   background: var(--bg); color: var(--fg); cursor: pointer; padding: 0;
   display: flex; align-items: center; justify-content: center;
@@ -1000,7 +1000,7 @@ html[data-mode="dark"] .tag-link:hover { color: #fff; }
 .contact-fab[hidden] { display: none; }
 .contact-fab:hover { color: var(--accent); border-color: var(--accent); }
 .contact-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.contact-panel { position: fixed; right: 1.25rem; bottom: 5.9rem; z-index: 61;
+.contact-panel { position: fixed; right: 1.25rem; bottom: 11.9rem; z-index: 61;
   width: 264px; max-width: calc(100vw - 2.5rem);
   background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .16); padding: 1rem 1.1rem;
@@ -1282,7 +1282,7 @@ html { scroll-behavior: smooth; }
 .reading-float {
   position: fixed;
   right: 1.25rem;
-  bottom: calc(5rem + 42px + .75rem); /* 联系卡片（bottom 5rem + 高 42px）上方，间距 12px */
+  bottom: 5rem; /* 悬浮组收起时紧贴主按钮上方 */
   z-index: 60;
   width: 42px;
   height: 42px;
@@ -1296,7 +1296,7 @@ html { scroll-behavior: smooth; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
-  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  transition: bottom .2s ease, color .15s ease, border-color .15s ease, background .15s ease;
 }
 .reading-float:hover { color: var(--accent); border-color: var(--accent); }
 .reading-float::after {
@@ -1334,3 +1334,87 @@ html { scroll-behavior: smooth; }
 
 /* 阅读模式：隐藏右下角悬浮按钮（仅返回顶部；联系方式卡片保留不隐藏） */
 .reading-mode .back-top { display: none !important; }
+
+/* ===== 前台工具悬浮组（与后台一致：主按钮点击展开，含明暗/配色/回顶/联系） ===== */
+.front-fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 62; }
+.front-fab-main {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--accent) 82%, #000);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.front-fab-main:hover { background: var(--accent); }
+.front-fab-main svg { transition: transform .2s cubic-bezier(.4, 0, .2, 1); }
+.front-fab.fab-open .front-fab-main svg { transform: rotate(45deg); }
+.front-fab-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .55rem;
+  margin-bottom: 52px; /* 给主按钮让位 */
+}
+.front-fab-item {
+  transform: translateY(18px) scale(.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .2s cubic-bezier(.4, 0, .2, 1), opacity .15s ease;
+}
+.front-fab.fab-open .front-fab-item { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
+.front-fab.fab-open .front-fab-item:nth-child(1) { transition-delay: .03s; }
+.front-fab.fab-open .front-fab-item:nth-child(2) { transition-delay: .06s; }
+.front-fab.fab-open .front-fab-item:nth-child(3) { transition-delay: .09s; }
+.front-fab.fab-open .front-fab-item:nth-child(4) { transition-delay: .12s; }
+.front-fab-btn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.front-fab-btn:hover { color: var(--accent); border-color: var(--accent); }
+.front-fab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 隐藏项（未配置联系 / 回顶未到阈值）不占位 */
+.front-fab-item:has(.front-fab-btn[hidden]) { display: none; }
+/* 配色面板：从组内按钮向左水平弹出（不遮挡组内其它项，与后台悬浮组一致） */
+.front-fab .accent-wrap { position: relative; display: flex; }
+.front-fab .accent-panel { top: 50%; transform: translateY(-50%); right: calc(100% + .6rem); bottom: auto; left: auto; }
+/* 联系面板 / 阅读按钮位置适配折叠后的悬浮组（主钮仅占右下角，可回落） */
+.contact-panel { bottom: 6.5rem; }
+@media (prefers-reduced-motion: reduce) {
+  .front-fab-item, .front-fab-main svg, .front-fab-btn { transition: none; }
+}
+
+
+/* 回到顶部独立按钮（不入组）：默认位于悬浮组主按钮上方，组展开时由脚本向上让位 */
+#back-top {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 90px;
+  z-index: 61;
+  transition: bottom .2s ease, color .15s ease, border-color .15s ease, background .15s ease;
+}
+#back-top[hidden] { display: none; }
+#contact-panel { z-index: 64; }
+
+/* 折叠时列表隐藏不占位：hover 触发区域即主按钮（展开时再显示） */
+.front-fab-list.hidden { display: none; }

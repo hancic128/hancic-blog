@@ -7,15 +7,18 @@
 <title>{% block title %}管理后台{% endblock %} · {{ site_name }}</title>
 <link rel="stylesheet" href="{{ base_path }}/static/admin.css">
 <script>/* 明暗模式初始化（防闪烁）*/(function(){var m=localStorage.getItem('admin-mode');if(!m){m=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'}document.documentElement.setAttribute('data-mode',m)})()</script>
+<script>/* 主题色默认 emerald（用户未手动选择时显式标注，避免依赖 CSS 回退）*/(function(){if(!localStorage.getItem('admin-accent')){document.documentElement.setAttribute('data-accent','emerald')}})()</script>
 </head>
 <body>
 <div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
     <div class="admin-brand">
-      <div class="brand-main">
-        <span class="brand-name"><span class="brand-dot"></span>{{ site_name }}</span>
-        <small>管理后台</small>
-      </div>
+      {% if site_logo %}
+      <img class="brand-logo" src="{{ site_logo }}" alt="{{ site_name }} 标志">
+      {% else %}
+      <span class="brand-dot" aria-hidden="true"></span>
+      {% endif %}
+      <span class="brand-name">{{ site_name }}</span>
     </div>
     <nav class="admin-nav">
       {% for item in admin_nav %}
@@ -54,8 +57,8 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
         </button>
         <div class="accent-panel" id="accent-panel" hidden>
-          <button class="accent-swatch" type="button" data-accent="indigo" aria-label="靛蓝" title="靛蓝"></button>
           <button class="accent-swatch" type="button" data-accent="emerald" aria-label="翠绿" title="翠绿"></button>
+          <button class="accent-swatch" type="button" data-accent="indigo" aria-label="靛蓝" title="靛蓝"></button>
           <button class="accent-swatch" type="button" data-accent="rose" aria-label="玫红" title="玫红"></button>
           <button class="accent-swatch" type="button" data-accent="amber" aria-label="琥珀" title="琥珀"></button>
           <button class="accent-swatch" type="button" data-accent="slate" aria-label="石板灰" title="石板灰"></button>

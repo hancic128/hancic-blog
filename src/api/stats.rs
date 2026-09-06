@@ -1,7 +1,7 @@
 //! REST API 统计端点：GET /api/stats/summary。
 //!
-//! `from`/`to` 为可选 `YYYY-MM-DD`（UTC 日期，当日边界）阅读明细范围；
-//! 缺省不设限。响应 `{data: StatsSummary}`。
+//! `from`/`to` 为可选 `YYYY-MM-DD`（站点时区日期，当日边界）阅读明细范围；
+//! 缺省不设限；趋势按站点时区自然日分组。响应 `{data: StatsSummary}`。
 
 use crate::api;
 use crate::error::AppError;
@@ -22,10 +22,12 @@ pub async fn summary(
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<Json<Value>, AppError> {
     api::require_admin_or_token(&state, &session, &headers).await?;
+    let tz = crate::services::timezone::site_timezone(&state.db).await;
     let summary = stats::summary(
         &state.db,
         query.get("from").map(String::as_str),
         query.get("to").map(String::as_str),
+        &tz,
     )
     .await?;
     Ok(Json(json!({ "data": summary })))

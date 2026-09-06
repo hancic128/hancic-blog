@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
-{% block title %}API 接口使用说明{% endblock %}
+{% block title %}帮助{% endblock %}
 {% block content %}
-<h1>API 接口使用说明</h1>
+<h1>帮助</h1>
+<p class="page-sub">REST API 使用说明与 MCP（AI 工具）集成 —— 接口 Token 在「API Token」页生成</p>
 
 <div class="panel">
   <section class="panel-section">
@@ -17,8 +18,14 @@
       <li><a href="#posts">文章：/api/posts</a></li>
       <li><a href="#moments">说说：/api/moments</a></li>
       <li><a href="#categories">分类：/api/categories</a></li>
-      <li><a href="#uploads">附件上传：/api/uploads</a></li>
+      <li><a href="#tags">标签：/api/tags</a></li>
+      <li><a href="#columns">专栏：/api/columns</a></li>
+      <li><a href="#likes">点赞：/api/likes</a></li>
+      <li><a href="#uploads">附件：/api/uploads + /api/attachments</a></li>
       <li><a href="#stats">统计：/api/stats/summary</a></li>
+      <li><a href="#settings">站点设置：/api/settings</a></li>
+      <li><a href="#themes">主题：/api/themes</a></li>
+      <li><a href="#trails">轨迹：/api/trails</a></li>
       <li><a href="#backup">备份：/api/backup</a></li>
       <li><a href="#health">健康检查：/api/health</a></li>
       <li><a href="#mcp">MCP 集成（AI 工具）</a></li>
@@ -74,12 +81,21 @@
   <table class="data-table">
     <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
     <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/moments</code></td><td>说说列表（分页 + 筛选）</td></tr>
       <tr><td><code>POST</code></td><td><code>/api/moments</code></td><td>发布说说（201）</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/moments/{id}</code></td><td>说说详情（含附件）</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/moments/{id}</code></td><td>部分更新（正文 / 附件）</td></tr>
       <tr><td><code>DELETE</code></td><td><code>/api/moments/{id}</code></td><td>删除说说（204）</td></tr>
     </tbody>
   </table>
+  <p class="muted"><strong>列表查询参数</strong>：<code>page</code>（默认 1）、
+    <code>page_size</code>（默认 10，最大 100）、<code>q</code>（正文关键词）、
+    <code>month</code>（YYYY-MM）、<code>order</code>（asc/desc，按时间）。响应
+    <code>{data: {items: [...], total: N}}</code>。</p>
   <p class="muted"><strong>发布请求体</strong>：<code>content</code> 必填（非空字符串），
-    <code>attachment_ids</code> 可选（附件 id 数组，需来自 /api/uploads）。</p>
+    <code>attachment_ids</code> 可选（附件 id 数组）。<strong>更新</strong>（PATCH）为部分更新：
+    <code>content</code> / <code>attachment_ids</code> 只更提供的字段（attachment_ids 传数组即
+    整体替换，<code>[]</code> 清空附件）。</p>
   <pre><code>curl -X POST {{ api_base }}/api/moments \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"content":"今天也是好天气","attachment_ids":[1,2]}'</code></pre>
@@ -102,6 +118,47 @@
   </section>
 
   <section class="panel-section">
+  <h2 id="tags">标签：/api/tags</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/tags</code></td><td>全量标签（含各标签文章数）</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/tags</code></td><td>创建标签（同名幂等返回既有）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/tags/{id}</code></td><td>删除标签（204，关联文章不受影响）</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">创建请求体：<code>name</code> 必填（≤5 字）。标签按 slug 去重，
+    同名创建返回既有记录（幂等），不会重复建标签。</p>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="columns">专栏：/api/columns</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/columns</code></td><td>全量专栏（含文章数）</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/columns</code></td><td>创建专栏（name ≤8 字）</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/columns/{id}</code></td><td>更新名称/描述（slug 创建后不改）</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/columns/{id}</code></td><td>删除专栏（204，文章变为无专栏）</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/columns/{id}/posts</code></td><td>专栏下已发布文章列表</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/columns/{id}/posts</code></td><td>把文章加入专栏</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/columns/{id}/posts/{post_id}</code></td><td>把文章移出专栏（204，文章不删）</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="likes">点赞：/api/likes</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/likes/status</code></td><td>查询点赞状态（无需鉴权）</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/likes/toggle</code></td><td>切换点赞（公开端点）</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="panel-section">
   <h2 id="uploads">附件上传：/api/uploads</h2>
   <p class="muted">multipart 表单上传，字段名 <code>files</code>，支持多文件；
     成功返回 <code>{data: [{id, path, orig_name, mime, size, kind}]}</code>。
@@ -110,6 +167,13 @@
   <pre><code>curl -X POST {{ api_base }}/api/uploads \
   -H "Authorization: Bearer $TOKEN" \
   -F "files=@/path/to/image.png"</code></pre>
+  <p class="muted"><strong>附件库列表</strong>（<code>GET /api/attachments</code>）：查询参数
+    <code>kind</code>（image/video/file，缺省全部）、<code>q</code>（文件名关键词）、
+    <code>order</code>（asc/desc）、<code>page</code> / <code>page_size</code>。
+    返回 <code>{data: {items: [{id, kind, orig_name, mime, size, url, created_at}], total}}</code>；
+    <code>url</code> 为前台公开静态地址，可直接用于正文/说说引用。</p>
+  <pre><code>curl "{{ api_base }}/api/attachments?kind=image&amp;page_size=20" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
   </section>
 
   <section class="panel-section">
@@ -119,6 +183,40 @@
   <pre><code>curl "{{ api_base }}/api/stats/summary?from=2026-08-01&to=2026-08-13" \
   -H "Authorization: Bearer $TOKEN"</code></pre>
   </section>
+
+  <section class="panel-section">
+  <h2 id="settings">站点设置：/api/settings</h2>
+  <p class="muted"><code>GET /api/settings</code> 只读返回全部站点设置键值
+    （名称/描述/Logo/导航/社交/页脚文本/主题模式等，无敏感凭据）。写操作请走后台上传 / 设置页。</p>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="themes">主题：/api/themes</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/themes</code></td><td>已安装主题列表 + 当前主题</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/themes/{name}/activate</code></td><td>把主题设为当前（重启后完全生效）</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="panel-section">
+  <h2 id="trails">徒步轨迹：/api/trails</h2>
+  <table class="data-table">
+    <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/trails</code></td><td>轨迹列表（里程/爬升/时长等统计）</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/trails/{id}</code></td><td>轨迹详情（?with_coords=1 附完整坐标）</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">轨迹由后台「徒步轨迹」页上传 GPX 维护；列表返回
+    <code>{data: {items: [...], total}}</code>，详情字段含 <code>started_at</code>、
+    <code>distance_km_str</code>、<code>elevation_gain_str</code>、<code>moving_time</code>、
+    <code>point_count</code> 等展示统计；<code>?with_coords=1</code> 时附加
+    <code>coords</code>（<code>[[lat, lon, speed], ...]</code>，可用于画轨迹线）。</p>
+  </section>
+
 
   <section class="panel-section">
   <h2 id="backup">备份：/api/backup</h2>
@@ -136,9 +234,9 @@
   <section class="panel-section">
   <h2 id="mcp">MCP 集成（AI 工具）</h2>
   <p class="muted">本博客附带一个 <strong>MCP server</strong>（项目 <code>mcp/</code> 目录，
-    Python + FastMCP 实现），把上述 REST 接口包装为 15 个 MCP 工具，供
+    Python + FastMCP 实现），把上述 REST 接口包装为 <strong>34 个 MCP 工具</strong>，供
     <strong>Claude Code / Codex / Kimi Code</strong> 等 AI 客户端直接调用——
-    让 AI 能查文章、发文章、写说说、管理分类、上传附件、下载备份，无需手写 HTTP 请求。</p>
+    让 AI 能查文章、发文章、写说说、管理分类/标签/专栏、上传附件、下载备份，无需手写 HTTP 请求。</p>
 
   <p class="muted"><strong>准备</strong>：安装依赖并确认环境变量：</p>
   <pre><code>cd mcp &amp;&amp; python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
@@ -166,12 +264,24 @@ HANCIC_BASE_URL=https://hancic.site   # 反向代理场景填代理后的公开�
   }
 }</code></pre>
 
-  <p class="muted"><strong>工具清单</strong>：读（<code>list_posts</code> /
-    <code>get_post</code> / <code>list_categories</code> / <code>get_stats</code> /
-    <code>get_backup</code> / <code>get_health</code>）；写（<code>create_post</code> /
-    <code>update_post</code> / <code>delete_post</code> / <code>create_moment</code> /
-    <code>delete_moment</code> / <code>create_category</code> / <code>update_category</code> /
-    <code>delete_category</code> / <code>upload_attachment</code>）。</p>
+  <p class="muted"><strong>工具清单</strong>：</p>
+  <ul class="help-list">
+    <li>文章：<code>list_posts</code> / <code>get_post</code> / <code>create_post</code> /
+      <code>update_post</code> / <code>delete_post</code></li>
+    <li>说说：<code>list_moments</code> / <code>get_moment</code> / <code>create_moment</code> /
+      <code>update_moment</code> / <code>delete_moment</code></li>
+    <li>分类 / 标签：<code>list_categories</code> / <code>create_category</code> /
+      <code>update_category</code> / <code>delete_category</code> / <code>list_tags</code> /
+      <code>create_tag</code> / <code>delete_tag</code></li>
+    <li>专栏：<code>list_columns</code> / <code>create_column</code> /
+      <code>update_column</code> / <code>delete_column</code> /
+      <code>list_column_posts</code> / <code>add_post_to_column</code> /
+      <code>remove_post_from_column</code></li>
+    <li>附件：<code>list_attachments</code> / <code>upload_attachment</code></li>
+    <li>统计 / 设置 / 主题 / 轨迹 / 系统：<code>get_stats</code> / <code>get_settings</code> /
+      <code>list_themes</code> / <code>activate_theme</code> / <code>list_trails</code> /
+      <code>get_trail</code> / <code>get_backup</code> / <code>get_health</code></li>
+  </ul>
 
   <p class="muted"><strong>注意</strong>：token 具备写权限（可删除内容、下载全量备份）。
     给 AI 工具使用时请妥善保管；MCP server 详细说明见仓库 <code>mcp/README.md</code>。</p>

@@ -64,9 +64,17 @@ codex mcp add hancic -- \
 
 ## 工具清单
 
-读：`list_posts` / `get_post` / `list_categories` / `get_stats` / `get_backup` / `get_health`
-写：`create_post` / `update_post` / `delete_post` / `create_moment` / `delete_moment` /
-`create_category` / `update_category` / `delete_category` / `upload_attachment`
+文章：`list_posts` / `get_post` / `create_post` / `update_post` / `delete_post`
+说说：`list_moments` / `get_moment` / `create_moment` / `update_moment` / `delete_moment`
+分类 / 标签：`list_categories` / `create_category` / `update_category` / `delete_category` /
+`list_tags` / `create_tag` / `delete_tag`
+专栏：`list_columns` / `create_column` / `update_column` / `delete_column` /
+`list_column_posts` / `add_post_to_column` / `remove_post_from_column`
+附件：`list_attachments` / `upload_attachment`
+统计 / 设置 / 主题 / 轨迹 / 系统：`get_stats` / `get_settings` / `list_themes` /
+`activate_theme` / `list_trails` / `get_trail` / `get_backup` / `get_health`
+
+共 34 个工具。
 
 > 注意：token 具备写权限（可删除内容/下载全量备份）。给 AI 用时注意保管；
 > 如需只读，可在 hancic 后台吊销后按需生成，或等待后续版本支持 token 权限范围。

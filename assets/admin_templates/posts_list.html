@@ -31,11 +31,10 @@
     </select>
     </div>
     <div class="search-box">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+
       <input name="q" value="{{ filters.q }}" placeholder="搜索标题关键词" aria-label="搜索标题关键词">
-      <button class="search-btn" type="submit" aria-label="搜索">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-    </div>
+      </div>
     <a class="btn btn-primary" href="{{ base_path }}/admin/posts/new">新建</a>
   </form>
 

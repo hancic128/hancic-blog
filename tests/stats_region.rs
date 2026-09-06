@@ -3,6 +3,7 @@ use common::test_app;
 use hancic::ipregion::Searcher;
 use hancic::models::{PostStatus, PostType};
 use hancic::services::{posts, stats};
+use chrono_tz::Tz;
 use std::net::IpAddr;
 
 /// 私有/保留地址一律归为「本地」。
@@ -57,17 +58,18 @@ async fn record_view_and_query_summary() {
             .unwrap();
     }
 
-    let s = stats::summary(&pool, None, None).await.unwrap();
+    let tz = Tz::Asia__Shanghai;
+    let s = stats::summary(&pool, None, None, &tz).await.unwrap();
     assert_eq!(s.total_views, 3);
     assert_eq!(s.total_posts, 1);
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let today = chrono::Utc::now().with_timezone(&tz).format("%Y-%m-%d").to_string();
     assert_eq!(s.trend.iter().map(|d| d.count).sum::<i64>(), 3);
     assert!(
         s.trend.iter().any(|d| d.date == today && d.count == 3),
         "trend 应含当日 3 次阅读，实际 {s:?}"
     );
 
-    let top = stats::top_posts(&pool, None, None, 5).await.unwrap();
+    let top = stats::top_posts(&pool, None, None, 5, &tz).await.unwrap();
     assert_eq!(top.len(), 1);
     assert_eq!(top[0].0.id, post.id);
     assert_eq!(top[0].1, 3);
@@ -75,24 +77,25 @@ async fn record_view_and_query_summary() {
     let fresh = posts::get_post(&pool, post.id).await.unwrap().unwrap();
     assert_eq!(fresh.views, 3);
 
-    let regions = stats::by_region(&pool, None, None).await.unwrap();
+    let regions = stats::by_region(&pool, None, None, &tz).await.unwrap();
     let local = regions.iter().find(|r| r.country == "本地").expect("应有本地分组");
     assert_eq!(local.count, 1);
     let cn = regions.iter().find(|r| r.country == "中国").expect("应有中国分组");
     assert_eq!(cn.count, 2);
 
-    // 时间范围过滤：昨天无记录
+    // 时间范围过滤：昨天（本地）无记录
     let yesterday = chrono::Utc::now()
+        .with_timezone(&tz)
         .checked_sub_days(chrono::Days::new(1))
         .unwrap()
         .format("%Y-%m-%d")
         .to_string();
-    let s2 = stats::summary(&pool, Some(&yesterday), Some(&yesterday)).await.unwrap();
+    let s2 = stats::summary(&pool, Some(&yesterday), Some(&yesterday), &tz).await.unwrap();
     assert_eq!(s2.total_views, 0);
 
     // 清空日志后 total_views 归零
     stats::clear_logs(&pool).await.unwrap();
-    let s3 = stats::summary(&pool, None, None).await.unwrap();
+    let s3 = stats::summary(&pool, None, None, &tz).await.unwrap();
     assert_eq!(s3.total_views, 0);
 }
 

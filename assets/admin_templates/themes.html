@@ -38,8 +38,8 @@
       <h2>{{ t.name }}{% if t.is_current %} <span class="badge-current">当前</span>{% endif %}</h2>
       <span class="muted">v{{ t.version }}</span>
     </div>
-    <p class="muted">{{ t.description }}</p>
-    <p class="muted">作者：{{ t.author }}</p>
+    <p class="muted theme-desc">{{ t.description }}</p>
+    <p class="muted theme-author">作者：{{ t.author }}</p>
     <div class="theme-actions">
       {% if t.is_current %}
       <span class="muted">使用中</span>

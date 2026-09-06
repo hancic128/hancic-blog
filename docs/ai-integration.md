@@ -155,6 +155,23 @@ curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/mome
 
 成功 `204`；不存在 `404`。
 
+### 4.3 列表 / 详情 / 更新
+
+```bash
+# 列表（page/page_size 分页；q 关键词；month=YYYY-MM；order=asc|desc）
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://example.com/api/moments?page=1&page_size=10&q=碎碎念"
+# 详情（含 attachments 数组）
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/moments/7
+# 更新（部分更新：content 与 attachment_ids 只更提供的字段；[] 清空附件）
+curl -s -X PATCH https://example.com/api/moments/7 \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"content": "改后的正文", "attachment_ids": [8]}'
+```
+
+列表响应 `{data: {items: [{id, content, created_at, like_count, attachments}], total}}`。
+`attachments` 数组元素含 `id/kind/orig_name/mime/url`（url 为前台静态地址）。
+
 ## 5. 附件上传
 
 ```bash
@@ -166,6 +183,17 @@ curl -s -X POST https://example.com/api/uploads \
 - multipart 字段名固定为 `files`，可一次传多个文件
 - 类型白名单：图片（jpeg/png/webp/gif）、视频（mp4/webm/mov）、文件（pdf/txt/zip/gz/bin/md）；超限或类型不符 400
 - 响应 `{data: [Attachment...]}`，`Attachment` 含 `id`（后续写文章/说说时引用）、`url 相关 path` 等字段
+
+### 附件库列表
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://example.com/api/attachments?kind=image&q=截图&order=desc&page=1&page_size=20"
+```
+
+- `kind`：image/video/file（缺省全部）；`q` 文件名关键词；`order` asc/desc
+- 响应 `{data: {items: [{id, kind, orig_name, mime, size, url, created_at}], total, page, page_size}}`；
+  `url` 为前台公开地址，可直接用于文章正文 / 说说 `attachment_ids` 前的选取
 
 ## 6. 分类（Categories）
 
@@ -196,8 +224,16 @@ curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/tags
 curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/tags/1
 ```
 
-- 标签的创建/改名复用文章编辑的 `tags` 数组（同名自动建标签/复用）；本组端点只读与删
+- 创建为幂等语义：同名（按 slug）返回既有记录，不重复建标签（名称 ≤5 字，超长 400）
 - 删除不可恢复；常用于清理无文章的残留标签
+
+```bash
+# 创建（幂等）
+curl -s -X POST https://example.com/api/tags \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "AI"}'
+# 响应 {data: {id, slug, name}}
+```
 
 ## 8. 专栏（Columns）
 
@@ -239,7 +275,41 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 响应 `{data: {total_views, total_posts, total_moments, total_attachments, trend: [{date, count}...]}}`。`from`/`to` 可选（UTC 日期）。
 
-## 10. 健康检查
+## 10. 站点设置 / 主题 / 轨迹
+
+### 10.1 站点设置（只读）
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/settings
+```
+
+返回全部设置键值（站点名/描述/Logo/导航/社交/页脚文本/主题模式等），无敏感凭据。
+写操作请走后台上传 / 设置页（表单校验）。
+
+### 10.2 主题
+
+```bash
+# 列表（含 is_current）与当前主题
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/themes
+# 切换（同名目录 + theme.toml 校验；404=不存在）
+curl -s -X POST -H "Authorization: Bearer $TOKEN" https://example.com/api/themes/default/activate
+```
+
+切换写入 `settings.active_theme`，前台模板需重启服务后完全生效。
+
+### 10.3 徒步轨迹
+
+```bash
+# 列表（统计概览）
+curl -s -H "Authorization: Bearer $TOKEN" https://example.com/api/trails
+# 详情；加 with_coords=1 附完整坐标 [[lat, lon, speed], ...]
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://example.com/api/trails/3?with_coords=1"
+```
+
+轨迹数据由后台「徒步轨迹」页上传 GPX 维护（本组端点只读）。
+
+## 11. 健康检查
 
 ```bash
 curl -s https://example.com/api/health
@@ -248,7 +318,7 @@ curl -s https://example.com/api/health
 
 不鉴权，供监控/部署探测。
 
-## 11. 发布文章最佳实践（给 Agent 的推荐流程）
+## 12. 发布文章最佳实践（给 Agent 的推荐流程）
 
 1. **先查再写**：`GET /api/categories` 确认分类存在（或先 `POST /api/categories` 建分类）；标签同名自动复用，无需预建。
 2. **图片先传**：文章里的图片先 `POST /api/uploads` 拿到 `id`/URL，再写进 `content_md`。
@@ -260,11 +330,11 @@ curl -s https://example.com/api/health
    - `5xx`：服务端异常，稍后重试并保留请求体。
 5. **幂等注意**：POST 无幂等键，重复提交会重复建文章；如需保证只建一次，先 `GET /api/posts?page=1&page_size=1&status=draft` 核对或事后清理。
 
-## 12. 将来 MCP 封装说明
+## 13. 将来 MCP 封装说明
 
 后续 MCP server 将基于本文档实现，映射约定：
 
-- 每个端点 → 一个 tool（`create_post`、`list_posts`、`get_post`、`update_post`、`delete_post`、`create_moment`、`delete_moment`、`upload_attachment`、`list_categories`、`create_category`、`update_category`、`delete_category`、`list_tags`、`delete_tag`、`list_columns`、`create_column`、`update_column`、`delete_column`、`list_column_posts`、`add_post_to_column`、`remove_post_from_column`、`stats_summary`、`health`）
+- 每个端点 → 一个 tool（`create_post`、`list_posts`、`get_post`、`update_post`、`delete_post`、`create_moment`、`delete_moment`、`upload_attachment`、`list_categories`、`create_category`、`update_category`、`delete_category`、`list_tags`、`delete_tag`、`list_columns`、`create_column`、`update_column`、`delete_column`、`list_column_posts`、`add_post_to_column`、`remove_post_from_column`、`stats_summary`、`health`、`list_moments`、`get_moment`、`update_moment`、`list_attachments`、`create_tag`、`get_settings`、`list_themes`、`activate_theme`、`list_trails`、`get_trail`（2026-09-06 已全部落地为 MCP 工具，共 34 个））
 - 鉴权：Token 存于 MCP server 环境变量（如 `HANCIC_TOKEN`），所有请求统一注入 `Authorization` 头，不暴露给调用方
 - 入参校验在 tool 层做（title 非空、status 枚举、category_id 存在性），把 400 提前转成 tool 参数错误，减少对服务端的无效请求
 - 发布文章最佳实践（第 9 节）固化为一个组合 tool：`publish_article`（可传图 → 建草稿 → 补充字段 → 发布），对 AI 调用者提供"一步发布"体验

@@ -1,14 +1,13 @@
 //! 后台统计：工具函数 + 清空日志。
 //!
-//! 统计内容（卡片 + 趋势 + 文章排行 + 地区分布）已合并进仪表盘（/admin），
-//! 本模块仅保留清空日志 handler 与仪表盘复用的区间/地区聚合工具。
+//! 统计内容（卡片 + 趋势 + 文章排行 Top10 + 地区分布 + 跳转来源）已合并进
+//! 仪表盘（/admin），本模块仅保留清空日志 handler 与仪表盘复用的区间/聚合工具。
 //!
 //! 路由：
 //!   POST /admin/stats/clear   清空阅读明细日志（前端二次确认）
 //!
-//! M51（T12 遗留）：趋势按 UTC 日期分组，与仪表盘趋势保持一致；模板已注明
-//! 「UTC 日期分组」。统一到 Asia/Shanghai 需要改服务层聚合 SQL 与仪表盘横轴，
-//! 超出本任务文件范围，留待后续任务处理。
+//! 时间语义：`from`/`to` 与趋势分组均按站点时区（settings.timezone，默认
+//! Asia/Shanghai）的自然日；快捷天数窗口以本地今天为末日在服务层换算边界。
 //!
 //! 鉴权约定同其他后台模块：GET 未登录 302 跳登录；POST 先 `require_admin`
 //! 再过 CSRF。
@@ -22,11 +21,6 @@ use chrono::{Days, NaiveDate, Utc};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use tower_sessions::Session;
-
-/// 排行每页条数。
-pub const POSTS_PAGE_SIZE: usize = 20;
-/// 排行一次性拉取上限（服务层 `top_posts` 无 offset，个人博客规模内足够）。
-pub const TOP_POSTS_CAP: i64 = 1000;
 
 // ---------- 清理日志 ----------
 
@@ -59,9 +53,11 @@ pub fn query_days(query: &HashMap<String, String>) -> u32 {
 
 /// 解析 from/to（`YYYY-MM-DD`）：两者缺省 → 近 30 天（含今天）；
 /// 支持 `days=30/60/90` 快捷参数（仅当 from/to 都缺省时生效，默认 30）；
+/// 显式 `range=all` → 返回 (None, None) 表示「全部」不设限（服务层无过滤）；
 /// 提供但非法 → Err；只给一侧时另一侧保持 None（服务层视为不设限）。
 pub fn parse_range(
     query: &HashMap<String, String>,
+    tz: &chrono_tz::Tz,
 ) -> Result<(Option<String>, Option<String>), String> {
     let from = query
         .get("from")
@@ -86,9 +82,13 @@ pub fn parse_range(
         }
     }
     if from.is_none() && to.is_none() {
-        // 快捷天数：days=30/60/90（默认 30），与「近 30 天」缺省行为一致
+        // 显式「全部」（?range=all）：返回 (None, None)，服务层视为不设限；
+        // 否则按快捷天数 days=30/60/90（默认 30），与「近 30 天」缺省行为一致
+        if query.get("range").is_some_and(|v| v == "all") {
+            return Ok((None, None));
+        }
         let days = query_days(query);
-        let today = Utc::now().date_naive();
+        let today = Utc::now().with_timezone(tz).date_naive();
         let from_d = today
             .checked_sub_days(Days::new(u64::from(days - 1)))
             .expect("days 上限内不会下溢");
@@ -100,9 +100,13 @@ pub fn parse_range(
     Ok((from, to))
 }
 
-/// 有效区间（缺省一侧补近 30 天），用于表单回填与趋势横轴。
-pub fn effective_range(from: &Option<String>, to: &Option<String>) -> (String, String) {
-    let today = Utc::now().date_naive();
+/// 有效区间（缺省一侧补近 30 天，末日本地今天），用于表单回填与趋势横轴。
+pub fn effective_range(
+    from: &Option<String>,
+    to: &Option<String>,
+    tz: &chrono_tz::Tz,
+) -> (String, String) {
+    let today = Utc::now().with_timezone(tz).date_naive();
     let from_str = from.clone().unwrap_or_else(|| {
         today
             .checked_sub_days(Days::new(29))

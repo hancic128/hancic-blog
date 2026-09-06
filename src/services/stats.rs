@@ -4,7 +4,8 @@ use crate::db::Db;
 use crate::error::AppResult;
 use crate::ipregion::{Region, Searcher};
 use crate::models::{Post, PostStatus, PostType};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono_tz::Tz;
 use serde::Serialize;
 use sqlx::{FromRow, Row};
 use std::net::IpAddr;
@@ -119,9 +120,15 @@ pub async fn record_view(
     Ok(())
 }
 
-/// 阅读汇总：`from`/`to` 为 `YYYY-MM-DD`（UTC，当日边界，上界开区间），`None` 不设限。
-pub async fn summary(db: &Db, from: Option<&str>, to: Option<&str>) -> AppResult<StatsSummary> {
-    let (where_sql, binds) = range_filter("created_at", from, to);
+/// 阅读汇总：`from`/`to` 为 `YYYY-MM-DD`（站点时区日期，当日边界，上界开区间），
+/// `None` 不设限；趋势按站点时区自然日分组（TZ 由 `tz` 指定）。
+pub async fn summary(
+    db: &Db,
+    from: Option<&str>,
+    to: Option<&str>,
+    tz: &Tz,
+) -> AppResult<StatsSummary> {
+    let (where_sql, binds) = range_filter("created_at", from, to, tz);
     let count_sql = format!("SELECT COUNT(*) FROM page_views {where_sql}");
     let mut q = sqlx::query(&count_sql);
     for b in &binds {
@@ -138,21 +145,31 @@ pub async fn summary(db: &Db, from: Option<&str>, to: Option<&str>) -> AppResult
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM attachments")
             .fetch_one(db)
             .await?;
+    // 趋势：取范围内 created_at 逐条按站点时区归属自然日（SQLite 无 IANA，应用层分组；
+    // 个人博客量级逐行读取可接受）
     let trend_sql = format!(
-        "SELECT substr(created_at, 1, 10) AS date, COUNT(*) AS count \
-         FROM page_views {where_sql} GROUP BY date ORDER BY date"
+        "SELECT created_at FROM page_views {where_sql} ORDER BY created_at"
     );
     let mut trend_q = sqlx::query(&trend_sql);
     for b in &binds {
         trend_q = trend_q.bind(b);
     }
     let trend_rows = trend_q.fetch_all(db).await?;
-    let trend = trend_rows
-        .iter()
-        .map(|r| DailyCount {
-            date: r.get("date"),
-            count: r.get("count"),
-        })
+    let mut by_day: Vec<(String, i64)> = Vec::new();
+    for row in trend_rows {
+        let raw: String = row.get("created_at");
+        let parsed = NaiveDateTime::parse_from_str(raw.trim_end_matches('Z'), "%Y-%m-%dT%H:%M:%S");
+        let Ok(ndt) = parsed else { continue };
+        let utc_dt = DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc);
+        let day = utc_dt.with_timezone(tz).format("%Y-%m-%d").to_string();
+        match by_day.last_mut() {
+            Some((d, c)) if *d == day => *c += 1,
+            _ => by_day.push((day, 1)),
+        }
+    }
+    let trend: Vec<DailyCount> = by_day
+        .into_iter()
+        .map(|(date, count)| DailyCount { date, count })
         .collect();
     Ok(StatsSummary {
         total_views,
@@ -169,8 +186,9 @@ pub async fn top_posts(
     from: Option<&str>,
     to: Option<&str>,
     limit: i64,
+    tz: &Tz,
 ) -> AppResult<Vec<(Post, i64)>> {
-    let (where_sql, binds) = range_filter("pv.created_at", from, to);
+    let (where_sql, binds) = range_filter("pv.created_at", from, to, tz);
     let sql = format!(
         "SELECT {POST_COLUMNS}, COUNT(pv.id) AS view_count \
          FROM posts p JOIN page_views pv ON pv.post_id = p.id \
@@ -194,8 +212,9 @@ pub async fn by_region(
     db: &Db,
     from: Option<&str>,
     to: Option<&str>,
+    tz: &Tz,
 ) -> AppResult<Vec<RegionStat>> {
-    let (where_sql, binds) = range_filter("created_at", from, to);
+    let (where_sql, binds) = range_filter("created_at", from, to, tz);
     let sql = format!(
         "SELECT country, province, city, COUNT(*) AS count \
          FROM page_views {where_sql} \
@@ -222,8 +241,9 @@ pub async fn by_source(
     db: &Db,
     from: Option<&str>,
     to: Option<&str>,
+    tz: &Tz,
 ) -> AppResult<Vec<SourceStat>> {
-    let (where_sql, binds) = range_filter("created_at", from, to);
+    let (where_sql, binds) = range_filter("created_at", from, to, tz);
     let sql = format!(
         "SELECT source, COUNT(*) AS count \
          FROM page_views {where_sql} \
@@ -249,19 +269,26 @@ pub async fn clear_logs(db: &Db) -> AppResult<()> {
     Ok(())
 }
 
-/// 把可选的 `YYYY-MM-DD` 范围转成 SQL WHERE 片段与绑定值：
-/// 下界取当日 0 点（`col >= ?`，字符串前缀比较），上界为次日 0 点开区间
-/// （`col < date(?, '+1 day')`），created_at 存的是 UTC ISO 时间，字典序即时间序。
-fn range_filter(col: &str, from: Option<&str>, to: Option<&str>) -> (String, Vec<String>) {
+/// 把可选的 `YYYY-MM-DD` 范围转成 SQL WHERE 片段与绑定值。
+/// `from`/`to` 为站点时区下的自然日：下界 = 该日 00:00（本地）对应的 UTC 时刻，
+/// 上界 = 次日 00:00（本地）对应的 UTC 时刻（开区间）。created_at 存 UTC ISO
+/// 字符串（`YYYY-MM-DDTHH:MM:SSZ`），字典序即时间序，直接按转换后的 UTC 串比较。
+fn range_filter(
+    col: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    tz: &Tz,
+) -> (String, Vec<String>) {
+    let (lower, upper) = crate::services::timezone::local_day_utc_bounds(from, to, tz);
     let mut conds: Vec<String> = Vec::new();
     let mut binds: Vec<String> = Vec::new();
-    if let Some(f) = from.filter(|f| !f.is_empty()) {
+    if let Some(f) = lower {
         conds.push(format!("{col} >= ?"));
-        binds.push(f.to_string());
+        binds.push(f);
     }
-    if let Some(t) = to.filter(|t| !t.is_empty()) {
-        conds.push(format!("{col} < date(?, '+1 day')"));
-        binds.push(t.to_string());
+    if let Some(t) = upper {
+        conds.push(format!("{col} < ?"));
+        binds.push(t);
     }
     let where_sql = if conds.is_empty() {
         String::new()

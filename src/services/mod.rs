@@ -7,6 +7,7 @@ pub mod posts;
 pub mod settings;
 pub mod stats;
 pub mod taxonomy;
+pub mod timezone;
 pub mod tokens;
 pub mod trails;
 pub mod uploads;

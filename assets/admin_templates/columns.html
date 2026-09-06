@@ -10,7 +10,7 @@
 <div class="panel">
   <section class="panel-section">
     <h2>专栏列表</h2>
-    <button class="taxonomy-add-row" id="col-create" type="button" title="新建专栏" aria-label="新建专栏">
+    <button class="btn btn-primary section-create" id="col-create" type="button" title="新建专栏" aria-label="新建专栏">
       <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       新建专栏
     </button>
@@ -83,7 +83,7 @@
 
         <div class="col-add-row">
           <div class="cs col-add-cs" data-select="#col-add-{{ c.id }}" data-search>
-            <button class="cs-btn" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+            <button class="cs-btn" type="button" aria-label="选择文章" aria-haspopup="listbox" aria-expanded="false"></button>
             <select id="col-add-{{ c.id }}" class="cs-hidden" aria-label="选择文章">
               <option value="">选择文章…</option>
               {% for p in c.addable %}

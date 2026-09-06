@@ -6,13 +6,9 @@
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::{Attachment, AttachmentKind, Moment};
-use crate::services::settings;
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 use std::str::FromStr;
-
-/// 默认时区：settings.timezone 缺失或非法时的回退值。
-const DEFAULT_TZ: &str = "Asia/Shanghai";
 
 #[derive(FromRow)]
 struct MomentRow {
@@ -200,7 +196,7 @@ pub async fn group_by_day(
     db: &Db,
     moments: Vec<Moment>,
 ) -> Result<Vec<(String, Vec<Moment>)>, AppError> {
-    let tz = site_timezone(db).await;
+    let tz = crate::services::timezone::site_timezone(db).await;
     let mut groups: Vec<(String, Vec<Moment>)> = Vec::new();
     for m in moments {
         let day = m.created_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
@@ -210,16 +206,6 @@ pub async fn group_by_day(
         }
     }
     Ok(groups)
-}
-
-/// 读取 settings.timezone 并解析为 `chrono_tz::Tz`；缺失/解析失败回退默认时区。
-async fn site_timezone(db: &Db) -> chrono_tz::Tz {
-    let raw = settings::get(db, "timezone").await.ok().flatten();
-    raw.as_deref()
-        .and_then(|s| chrono_tz::Tz::from_str(s).ok())
-        .unwrap_or_else(|| {
-            chrono_tz::Tz::from_str(DEFAULT_TZ).expect("默认时区 Asia/Shanghai 应合法")
-        })
 }
 
 #[derive(FromRow)]

@@ -6,6 +6,7 @@
 //! 二选一，都失败则 401。`GET /api/backup` 返回全量备份 zip（T22）。
 //! 统一 JSON 错误体由 `AppError` 的 `IntoResponse` 产出。
 
+pub mod attachments;
 pub mod auth;
 pub mod backup;
 pub mod categories;
@@ -13,8 +14,11 @@ pub mod columns;
 pub mod likes;
 pub mod moments;
 pub mod posts;
+pub mod settings;
 pub mod stats;
 pub mod tags;
+pub mod themes;
+pub mod trails;
 pub mod uploads;
 
 use crate::error::AppError;
@@ -34,14 +38,20 @@ pub fn router() -> Router<AppState> {
         .route("/uploads", post(uploads::upload))
         .route("/posts", get(posts::list).post(posts::create))
         .route("/posts/{id}", get(posts::get).patch(posts::update).delete(posts::delete))
-        .route("/moments", post(moments::create))
-        .route("/moments/{id}", delete(moments::delete))
+        .route("/moments", get(moments::list).post(moments::create))
+        .route("/moments/{id}", get(moments::get).patch(moments::update).delete(moments::delete))
+        .route("/attachments", get(attachments::list))
+        .route("/settings", get(settings::get))
+        .route("/themes", get(themes::list))
+        .route("/themes/{name}/activate", post(themes::activate))
+        .route("/trails", get(trails::list))
+        .route("/trails/{id}", get(trails::get))
         .route("/categories", get(categories::list).post(categories::create))
         .route(
             "/categories/{id}",
             patch(categories::update).delete(categories::delete),
         )
-        .route("/tags", get(tags::list))
+        .route("/tags", get(tags::list).post(tags::create))
         .route("/tags/{id}", delete(tags::delete))
         .route("/columns", get(columns::list).post(columns::create))
         .route(

@@ -7,7 +7,7 @@
     <p class="page-sub">站点内容概览与阅读统计</p>
   </div>
   <div class="page-head-actions">
-    <a class="btn" href="{{ base_path }}/admin/posts/new">
+    <a class="btn btn-primary" href="{{ base_path }}/admin/posts/new">
       <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       写文章
     </a>
@@ -36,9 +36,10 @@
     </div>
     <button class="btn" type="submit">查询</button>
     <span class="filter-sep" aria-hidden="true"></span>
-    <a class="btn btn-sm quick-days{% if active_days == 30 %} btn-primary{% endif %}" data-days="30" href="{{ base_path }}/admin?days=30">最近30天</a>
-    <a class="btn btn-sm quick-days{% if active_days == 60 %} btn-primary{% endif %}" data-days="60" href="{{ base_path }}/admin?days=60">最近60天</a>
-    <a class="btn btn-sm quick-days{% if active_days == 90 %} btn-primary{% endif %}" data-days="90" href="{{ base_path }}/admin?days=90">最近90天</a>
+    <a class="quick-range{% if all %} active{% endif %}" href="?range=all">全部</a>
+    <a class="quick-range{% if active_days == 30 %} active{% endif %}" href="?days=30">最近30天</a>
+    <a class="quick-range{% if active_days == 60 %} active{% endif %}" href="?days=60">最近60天</a>
+    <a class="quick-range{% if active_days == 90 %} active{% endif %}" href="?days=90">最近90天</a>
   </form>
   </section>
 
@@ -103,21 +104,21 @@
   </section>
 
   <section class="panel-section">
-  <h2>阅读 / 点赞趋势 <small class="muted">{{ from }} ~ {{ to }}（UTC 日期分组）</small></h2>
+  <h2>阅读 / 点赞趋势 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}（UTC 日期分组）</small></h2>
   <div class="chart-wrap"><canvas id="trend" role="img" aria-label="阅读量与点赞数趋势折线图"></canvas></div>
   </section>
 
   <section class="panel-section">
-  <h2>文章排行 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
+  <h2>文章排行 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %} · Top 10</small></h2>
   {% if posts %}
   <table class="data-table">
     <thead>
-      <tr><th>#</th><th>标题</th><th>期间阅读</th><th>总阅读</th></tr>
+      <tr><th>#</th><th>标题</th><th>{% if all %}阅读{% else %}期间阅读{% endif %}</th><th>累计阅读</th></tr>
     </thead>
     <tbody>
       {% for p in posts %}
       <tr>
-        <td class="muted">{{ loop.index + (post_page - 1) * post_page_size }}</td>
+        <td class="muted">{{ loop.index }}</td>
         <td><a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
         <td>{{ p.period_views }}</td>
         <td class="muted">{{ p.views }}</td>
@@ -125,35 +126,26 @@
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted">共 {{ post_total }} 篇文章期间有阅读</p>
   {% else %}
   <div class="empty-state">
     <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-    <p class="empty-title">期间暂无阅读记录</p>
-    <p class="empty-desc">所选日期范围内没有文章被阅读</p>
-  </div>
-  {% endif %}
-  {% if post_total_pages > 1 %}
-  <div class="pagination">
-    {% if post_page > 1 %}
-    <a class="btn btn-sm" href="?page={{ post_page - 1 }}&amp;from={{ from }}&amp;to={{ to }}">上一页</a>
-    {% endif %}
-    <span class="muted">{{ post_page }} / {{ post_total_pages }}</span>
-    {% if post_page < post_total_pages %}
-    <a class="btn btn-sm" href="?page={{ post_page + 1 }}&amp;from={{ from }}&amp;to={{ to }}">下一页</a>
-    {% endif %}
+    <p class="empty-title">暂无阅读记录</p>
+    <p class="empty-desc">所选范围内没有文章被阅读</p>
   </div>
   {% endif %}
   </section>
 
   <section class="panel-section">
-  <h2>地区分布 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
-  {% if regions %}
-  <table class="data-table">
-    <thead><tr><th>国家</th><th>省份</th><th>阅读</th></tr></thead>
+  <h2>地区分布 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %} · 全球</small></h2>
+  {% if region_total %}
+  <div class="map-wrap" id="region-map" role="img" aria-label="全球阅读分布地图（悬停国家查看数值）"></div>
+  <p class="muted">地图按国家/地区着色（阅读量）；无法归入地图的行列于下方明细</p>
+  <table class="data-table region-detail">
+    <thead><tr><th>#</th><th>国家</th><th>省份</th><th>阅读</th></tr></thead>
     <tbody>
       {% for r in regions %}
       <tr>
+        <td class="muted">{{ (region_page - 1) * region_page_size + loop.index }}</td>
         <td>{{ r.country if r.country else "—" }}</td>
         <td>{{ r.province if r.province else "—" }}</td>
         <td class="muted">{{ r.count }}</td>
@@ -161,6 +153,18 @@
       {% endfor %}
     </tbody>
   </table>
+  <p class="muted">共 {{ region_total }} 条地区记录{% if region_total > 1 %}（按期间阅读降序）{% endif %}</p>
+  {% if region_total_pages > 1 %}
+  <div class="pagination">
+    {% if region_page > 1 %}
+    <a class="btn btn-sm" href="?region_page={{ region_page - 1 }}{% if all %}&amp;range=all{% else %}&amp;from={{ from }}&amp;to={{ to }}{% endif %}">上一页</a>
+    {% endif %}
+    <span class="muted">{{ region_page }} / {{ region_total_pages }}</span>
+    {% if region_page < region_total_pages %}
+    <a class="btn btn-sm" href="?region_page={{ region_page + 1 }}{% if all %}&amp;range=all{% else %}&amp;from={{ from }}&amp;to={{ to }}{% endif %}">下一页</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% else %}
   <div class="empty-state">
     <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
@@ -171,19 +175,11 @@
   </section>
 
   <section class="panel-section">
-  <h2>跳转来源 <small class="muted">{{ from }} ~ {{ to }}</small></h2>
+  <h2>跳转来源 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}</small></h2>
   {% if sources %}
-  <table class="data-table">
-    <thead><tr><th>来源</th><th>阅读</th></tr></thead>
-    <tbody>
-      {% for s in sources %}
-      <tr>
-        <td>{{ s.label }}</td>
-        <td class="muted">{{ s.count }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="source-grid">
+    <div class="chart-wrap chart-doughnut"><canvas id="source-chart" role="img" aria-label="跳转来源分布饼状图"></canvas></div>
+  </div>
   <p class="muted">按 HTTP Referer 平台分类（微信公众号 / 知乎 / CSDN / 掘金 / 微博 / 搜索引擎等）</p>
   {% else %}
   <div class="empty-state">
@@ -198,30 +194,9 @@
 
 {% block scripts %}
 <script src="{{ base_path }}/static/vendor/chart.umd.min.js"></script>
+<script src="{{ base_path }}/static/vendor/echarts/echarts.min.js"></script>
+<script src="{{ base_path }}/static/vendor/echarts/world.geo.js"></script>
 <script>window.chartData = {{ chart_data | safe }};</script>
-<script>
-// 快捷日期按钮：点击即把对应日期范围填入 from/to 输入框并提交（与输入框联动一致）
-(function () {
-  'use strict';
-  document.querySelectorAll('.quick-days').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      var days = parseInt(btn.getAttribute('data-days'), 10) || 30;
-      var today = new Date();
-      var from = new Date(today);
-      from.setDate(from.getDate() - (days - 1));
-      function fmt(d) {
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
-          '-' + String(d.getDate()).padStart(2, '0');
-      }
-      var f = document.querySelector('input[name="from"]');
-      var t = document.querySelector('input[name="to"]');
-      if (f) f.value = fmt(from);
-      if (t) t.value = fmt(today);
-      var form = btn.closest('form');
-      if (form) form.submit();
-    });
-  });
-})();
-</script>
+<script>window.chartSources = {{ chart_sources | safe }};</script>
+<script>window.regionData = {{ region_data | safe }};</script>
 {% endblock %}

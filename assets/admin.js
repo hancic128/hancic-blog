@@ -27,8 +27,9 @@
   function setMode(mode) {
     document.documentElement.setAttribute('data-mode', mode);
     try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* 忽略 */ }
-    // 联动 Chart.js：趋势图配色随明暗令牌（accent/ink 两套取值）重绘
+    // 联动 Chart.js + 地图：配色随明暗令牌（accent/ink 两套取值）重绘
     paintChartTheme(window._adminChart);
+    paintMapTheme(window._adminMap);
     // milkdown 编辑器明暗随 CSS 变量（[data-mode]）自动切换，无需 JS 联动
   }
   var modeBtn = document.getElementById('mode-toggle');
@@ -44,13 +45,13 @@
     }
   });
 
-  // ---- 主题配色切换：内置 5 主题（规范 03：indigo/emerald/rose/amber/slate，默认 indigo）
+  // ---- 主题配色切换：内置 5 主题（规范 03：indigo/emerald/rose/amber/slate，默认 emerald）
   // localStorage 持久化；旧版 5 色名（pink/blue/green/purple/orange）自动迁移映射 ----
   var ACCENT_KEY = 'admin-accent';
-  var ACCENTS = ['indigo', 'emerald', 'rose', 'amber', 'slate'];
+  var ACCENTS = ['emerald', 'indigo', 'rose', 'amber', 'slate'];
   var ACCENT_LEGACY = { pink: 'rose', blue: 'indigo', green: 'emerald', purple: 'indigo', orange: 'amber' };
   function currentAccent() {
-    return document.documentElement.getAttribute('data-accent') || 'indigo';
+    return document.documentElement.getAttribute('data-accent') || 'emerald';
   }
   function markCurrentSwatch() {
     var cur = currentAccent();
@@ -62,8 +63,9 @@
     document.documentElement.setAttribute('data-accent', accent);
     try { localStorage.setItem(ACCENT_KEY, accent); } catch (e) { /* 忽略 */ }
     markCurrentSwatch();
-    // 联动 Chart.js：主序列/填充随主题色重绘（仅仪表盘有图）
+    // 联动 Chart.js + 地图：主序列/填充随主题色重绘（仅仪表盘有图）
     paintChartTheme(window._adminChart);
+    paintMapTheme(window._adminMap);
   }
   var savedAccent;
   try { savedAccent = localStorage.getItem(ACCENT_KEY); } catch (e) { savedAccent = null; }
@@ -73,6 +75,8 @@
   }
   if (savedAccent) {
     document.documentElement.setAttribute('data-accent', savedAccent);
+  } else {
+    document.documentElement.setAttribute('data-accent', 'emerald');
   }
   markCurrentSwatch();
   var accentToggle = document.getElementById('accent-toggle');
@@ -396,6 +400,7 @@
     '/admin/stats': '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
     '/admin/tokens': '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
     '/admin/backup': '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+    '/admin/help': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
     '/admin/system': '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     '/admin/migrate': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     '/': '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
@@ -982,8 +987,8 @@
   function chartPalette() {
     var isLight = currentMode() === 'light';
     return {
-      accent: readCssVar('--accent', isLight ? '#4f46e5' : '#6366f1'),
-      accentFill: readCssVar('--accent-glow', 'rgba(99, 102, 241, 0.12)'),
+      accent: readCssVar('--accent', isLight ? '#059669' : '#10b981'),
+      accentFill: readCssVar('--accent-glow', 'rgba(16, 185, 129, 0.12)'),
       second: readCssVar('--ink-500', isLight ? '#64748B' : '#7E8BA6'),
       grid: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)',
       tick: readCssVar('--ink-400', isLight ? '#94A3B8' : '#5B6B8C')
@@ -1003,50 +1008,224 @@
     chart.options.scales.y.ticks.color = p.tick;
     chart.update('none');
   }
+  // ---- 跳转来源饼图（Chart.js Doughnut）与地区分布地图（ECharts 全球 choropleth）----
+  // 与趋势图同属仪表盘：数据由 dashboard.html 注入 window.chartSources / window.regionData。
+  // 饼图扇区用固定柔和调色板（多分类不适合随单 accent）；地图按国家聚合着色，
+  // 色阶随 --accent 令牌，切明暗/切 accent 由 paintMapTheme 重绘（顶部 setMode/applyAccent 调用）。
+  var SOURCE_COLORS = ['#10B981', '#6366F1', '#F59E0B', '#EC4899', '#06B6D4',
+    '#8B5CF6', '#F43F5E', '#84CC16', '#F97316', '#64748B'];
+  // ip2region 国家名（中文为主，个别英文）→ ECharts 世界地图（Natural Earth 英文名）。
+  // 流量主要覆盖国内 + 常见海外访问源；未收录国家落下方明细表，不进图。
+  var COUNTRY_ALIAS = {
+    '中国': 'China', '美国': 'United States', '日本': 'Japan', '韩国': 'Korea',
+    '朝鲜': 'Dem. Rep. Korea', '英国': 'United Kingdom', '德国': 'Germany', '法国': 'France',
+    '俄罗斯': 'Russia', '加拿大': 'Canada', '澳大利亚': 'Australia', '印度': 'India',
+    '新加坡': 'Singapore', '意大利': 'Italy', '西班牙': 'Spain', '荷兰': 'Netherlands',
+    '瑞典': 'Sweden', '瑞士': 'Switzerland', '巴西': 'Brazil', '墨西哥': 'Mexico',
+    '泰国': 'Thailand', '越南': 'Vietnam', '马来西亚': 'Malaysia', '菲律宾': 'Philippines',
+    '印度尼西亚': 'Indonesia', '缅甸': 'Myanmar', '柬埔寨': 'Cambodia', '老挝': 'Laos',
+    '蒙古': 'Mongolia', '哈萨克斯坦': 'Kazakhstan', '新西兰': 'New Zealand',
+    '爱尔兰': 'Ireland', '葡萄牙': 'Portugal', '比利时': 'Belgium', '奥地利': 'Austria',
+    '挪威': 'Norway', '丹麦': 'Denmark', '芬兰': 'Finland', '波兰': 'Poland',
+    '乌克兰': 'Ukraine', '捷克': 'Czech Rep.', '希腊': 'Greece', '土耳其': 'Turkey',
+    '以色列': 'Israel', '沙特阿拉伯': 'Saudi Arabia', '阿联酋': 'United Arab Emirates',
+    '阿根廷': 'Argentina', '智利': 'Chile', '秘鲁': 'Peru', '哥伦比亚': 'Colombia',
+    '埃及': 'Egypt', '南非': 'South Africa', '肯尼亚': 'Kenya', '尼日利亚': 'Nigeria',
+    '巴基斯坦': 'Pakistan', '孟加拉国': 'Bangladesh', '斯里兰卡': 'Sri Lanka',
+    '伊朗': 'Iran', '伊拉克': 'Iraq', '阿富汗': 'Afghanistan', '中国台湾': 'China',
+    '中国香港': 'China', '中国澳门': 'China', '香港': 'China', '澳门': 'China', '台湾': 'China'
+  };
+  function worldFeatureNames() {
+    var set = {};
+    (window.HANCIC_WORLD_GEO && window.HANCIC_WORLD_GEO.features || []).forEach(function (f) {
+      set[f.properties.name] = true;
+    });
+    return set;
+  }
+  // 从 regionData（country/province/count）按国家聚合；中英名归一化后仅保留地图可匹配的行
+  function countryMapData(featureNames) {
+    var map = {};
+    var zh = {};
+    (window.regionData || []).forEach(function (r) {
+      var raw = String(r.country || '').trim();
+      if (!raw || raw === '本地' || raw === '未知') return;
+      var name = COUNTRY_ALIAS[raw] || raw;
+      if (!featureNames[name]) return;
+      map[name] = (map[name] || 0) + (r.count || 0);
+      if (!zh[name]) zh[name] = raw;
+    });
+    var data = Object.keys(map)
+      .sort(function (a, b) { return map[b] - map[a]; })
+      .map(function (name) { return { name: name, value: map[name], zh: zh[name] }; });
+    return { data: data, max: data.reduce(function (m, d) { return d.value > m ? d.value : m; }, 1) };
+  }
+  function mapTheme() {
+    var isLight = currentMode() === 'light';
+    return {
+      accent: readCssVar('--accent', isLight ? '#059669' : '#10b981'),
+      low: readCssVar('--accent-soft', isLight ? 'rgba(5, 150, 105, 0.18)' : 'rgba(16, 185, 129, 0.2)'),
+      land: readCssVar('--surface-2', isLight ? '#F3F5F9' : '#0B1220'),
+      border: readCssVar('--surface-4', isLight ? '#CBD5E1' : '#2C3E5F'),
+      tooltipBg: readCssVar('--surface-0', isLight ? '#FFFFFF' : '#111A2C'),
+      tooltipBorder: readCssVar('--surface-3', isLight ? '#E4E9F1' : '#1E2A40'),
+      ink: readCssVar('--ink-900', isLight ? '#1E293B' : '#E5E9F2'),
+      subInk: readCssVar('--ink-500', isLight ? '#64748B' : '#7E8BA6')
+    };
+  }
+  function buildMapOption(ctx, t) {
+    var hasData = ctx.data.length > 0;
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        // 挂到 body 层：容器 .map-wrap 为圆角带 overflow:hidden，不挂载时提示框会被裁切
+        appendToBody: true,
+        transitionDuration: 0.1,
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.ink, fontSize: 13 },
+        extraCssText: 'z-index: 9999; max-width: 320px; white-space: normal;',
+        formatter: function (p) {
+          var zh = p.data && p.data.zh;
+          var v = p.value;
+          // 无数据的国家 ECharts 给 NaN，只显示国名
+          if (v === undefined || v === null || (typeof v === 'number' && isNaN(v))) return zh || p.name;
+          return (zh || p.name) + '：' + v + ' 次阅读';
+        }
+      },
+      visualMap: {
+        show: hasData,
+        min: 0,
+        max: ctx.max,
+        left: 14,
+        bottom: 10,
+        text: ['高', '低'],
+        itemHeight: 90,
+        calculable: false,
+        textStyle: { color: t.subInk },
+        inRange: { color: [t.low, t.accent] }
+      },
+      series: [{
+        type: 'map',
+        map: 'world',
+        roam: false,
+        label: { show: false },
+        itemStyle: {
+          areaColor: t.land,
+          borderColor: t.border,
+          borderWidth: 0.6
+        },
+        emphasis: {
+          label: { show: false },
+          itemStyle: { areaColor: t.accent }
+        },
+        select: { disabled: true },
+        data: ctx.data
+      }]
+    };
+  }
+  function paintMapTheme(map) {
+    if (!map || !window._worldMapCtx) return;
+    map.setOption(buildMapOption(window._worldMapCtx, mapTheme()), true);
+  }
   document.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('trend');
-    if (!canvas || !window.Chart || !window.chartData) return;
-    window._adminChart = new window.Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: window.chartData.labels,
-        datasets: [{
-          label: '阅读量',
-          data: window.chartData.views,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 2,
-          borderWidth: 2
-        }, {
-          label: '点赞数',
-          data: window.chartData.likes,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 2,
-          borderWidth: 2,
-          borderDash: [5, 4]
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: true,
-            labels: {
-              boxWidth: 14,
-              usePointStyle: true,
-              padding: 12
+    if (canvas && window.Chart && window.chartData) {
+      window._adminChart = new window.Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: window.chartData.labels,
+          datasets: [{
+            label: '阅读量',
+            data: window.chartData.views,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2
+          }, {
+            label: '点赞数',
+            data: window.chartData.likes,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2,
+            borderDash: [5, 4]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: {
+                boxWidth: 14,
+                usePointStyle: true,
+                padding: 12
+              }
+            }
+          },
+          scales: {
+            x: { grid: {}, ticks: {} },
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: {} }
+          }
+        }
+      });
+      paintChartTheme(window._adminChart);
+    }
+    // 跳转来源饼图
+    var sourceCanvas = document.getElementById('source-chart');
+    if (sourceCanvas && window.Chart && window.chartSources && window.chartSources.length) {
+      var labels = [];
+      var counts = [];
+      window.chartSources.forEach(function (s) {
+        labels.push(s.label);
+        counts.push(s.count);
+      });
+      window._adminSourceChart = new window.Chart(sourceCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: counts, backgroundColor: SOURCE_COLORS }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { boxWidth: 12, usePointStyle: true, padding: 10 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                  var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                  return ' ' + ctx.label + '：' + ctx.parsed + ' 次（' + pct + '%）';
+                }
+              }
             }
           }
-        },
-        scales: {
-          x: { grid: {}, ticks: {} },
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: {} }
         }
+      });
+    }
+    // 地区分布地图（全球 choropleth；无匹配国家数据时隐藏容器，明细表仍在）
+    var mapEl = document.getElementById('region-map');
+    if (mapEl && window.echarts && window.HANCIC_WORLD_GEO) {
+      var names = worldFeatureNames();
+      var ctx = countryMapData(names);
+      if (!ctx.data.length) {
+        mapEl.hidden = true;
+        return;
       }
-    });
-    paintChartTheme(window._adminChart);
+      window.echarts.registerMap('world', window.HANCIC_WORLD_GEO);
+      var map = window.echarts.init(mapEl);
+      window._worldMapCtx = ctx;
+      window._adminMap = map;
+      map.setOption(buildMapOption(ctx, mapTheme()));
+      window.addEventListener('resize', function () { map.resize(); });
+    }
   });
 })();
 

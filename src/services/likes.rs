@@ -2,6 +2,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::LikeContentType;
 use crate::services::{moments, posts};
+use chrono::Utc;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::{Row, SqliteExecutor};
@@ -155,41 +156,57 @@ pub async fn recent_like_count(db: &Db, days: i64) -> Result<i64, AppError> {
     Ok(total)
 }
 
-/// 按日点赞数（UTC 日期分组，与仪表盘阅读趋势横轴一致）。
-/// `from`/`to` 为 `YYYY-MM-DD`，缺省不设限；返回 [(日期, 点赞数)] 升序。
+/// 按日点赞数（站点时区自然日分组，与仪表盘阅读趋势横轴一致）。
+/// `from`/`to` 为 `YYYY-MM-DD`（站点时区日期），缺省不设限；返回 [(日期, 点赞数)] 升序。
 pub async fn daily_like_count(
     db: &Db,
     from: Option<&str>,
     to: Option<&str>,
+    tz: &chrono_tz::Tz,
 ) -> Result<Vec<(String, i64)>, AppError> {
+    let (lower, upper) =
+        crate::services::timezone::local_day_utc_bounds(from, to, tz);
     let mut conds: Vec<String> = Vec::new();
     let mut binds: Vec<String> = Vec::new();
-    if let Some(f) = from.filter(|f| !f.is_empty()) {
+    if let Some(f) = lower {
         conds.push("created_at >= ?".to_string());
-        binds.push(f.to_string());
+        binds.push(f);
     }
-    if let Some(t) = to.filter(|t| !t.is_empty()) {
-        conds.push("created_at < date(?, '+1 day')".to_string());
-        binds.push(t.to_string());
+    if let Some(t) = upper {
+        conds.push("created_at < ?".to_string());
+        binds.push(t);
     }
     let where_sql = if conds.is_empty() {
         String::new()
     } else {
         format!("WHERE {}", conds.join(" AND "))
     };
+    // 逐条按站点时区归属自然日（SQLite 无 IANA 时区转换）
     let sql = format!(
-        "SELECT substr(created_at, 1, 10) AS date, COUNT(*) AS count \
-         FROM content_likes {where_sql} GROUP BY date ORDER BY date"
+        "SELECT created_at FROM content_likes {where_sql} ORDER BY created_at"
     );
     let mut q = sqlx::query(&sql);
     for b in &binds {
         q = q.bind(b);
     }
     let rows = q.fetch_all(db).await?;
-    Ok(rows
-        .iter()
-        .map(|r| (r.get::<String, _>("date"), r.get::<i64, _>("count")))
-        .collect())
+    let mut by_day: Vec<(String, i64)> = Vec::new();
+    for row in rows {
+        let raw: String = row.get(0);
+        let parsed = chrono::NaiveDateTime::parse_from_str(
+            raw.trim_end_matches('Z'),
+            "%Y-%m-%dT%H:%M:%S",
+        );
+        let Ok(ndt) = parsed else { continue };
+        let utc_dt =
+            chrono::DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc);
+        let day = utc_dt.with_timezone(tz).format("%Y-%m-%d").to_string();
+        match by_day.last_mut() {
+            Some((d, c)) if *d == day => *c += 1,
+            _ => by_day.push((day, 1)),
+        }
+    }
+    Ok(by_day)
 }
 
 async fn ensure_target_exists(

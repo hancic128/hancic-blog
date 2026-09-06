@@ -275,6 +275,96 @@ def upload_attachment(file_path: str) -> dict:
     return resp.json().get("data", resp.json())
 
 
+# ---------------- 补充端点（2026-09-06 新增 REST API） ----------------
+
+@mcp.tool(description="说说列表（分页；q 关键词 / month=YYYY-MM / order asc|desc）")
+def list_moments(
+    page: int = 1,
+    page_size: int = 10,
+    q: str = "",
+    month: str = "",
+    order: str = "",
+) -> dict:
+    params = {"page": page, "page_size": page_size}
+    if q:
+        params["q"] = q
+    if month:
+        params["month"] = month
+    if order:
+        params["order"] = order
+    return _request("GET", "/moments", params=params)
+
+
+@mcp.tool(description="说说详情（含附件数组）")
+def get_moment(moment_id: int) -> dict:
+    return _request("GET", f"/moments/{moment_id}")
+
+
+@mcp.tool(description="更新说说（部分更新：content 非空才更新；attachment_ids 提供数组即整体替换，传 [] 清空附件）")
+def update_moment(
+    moment_id: int,
+    content: str = "",
+    attachment_ids: list = None,
+) -> dict:
+    payload = {}
+    if content.strip():
+        payload["content"] = content
+    if attachment_ids is not None:
+        payload["attachment_ids"] = attachment_ids
+    if not payload:
+        raise ApiError("至少提供一个字段：content 或 attachment_ids")
+    return _request("PATCH", f"/moments/{moment_id}", json=payload)
+
+
+@mcp.tool(description="附件库列表（kind=image/video/file；q 文件名关键词；order asc|desc；分页）")
+def list_attachments(
+    kind: str = "",
+    q: str = "",
+    order: str = "",
+    page: int = 1,
+    page_size: int = 20,
+) -> dict:
+    params = {"page": page, "page_size": page_size}
+    if kind:
+        params["kind"] = kind
+    if q:
+        params["q"] = q
+    if order:
+        params["order"] = order
+    return _request("GET", "/attachments", params=params)
+
+
+@mcp.tool(description="创建标签（name ≤5 字；同名幂等返回既有记录）")
+def create_tag(name: str) -> dict:
+    return _request("POST", "/tags", json={"name": name})
+
+
+@mcp.tool(description="读取站点设置（全量键值，只读；写操作走后台）")
+def get_settings() -> dict:
+    return _request("GET", "/settings")
+
+
+@mcp.tool(description="已安装主题列表（含 is_current 与当前主题）")
+def list_themes() -> dict:
+    return _request("GET", "/themes")
+
+
+@mcp.tool(description="切换主题为当前（需重启服务后前台完全生效；404=主题不存在）")
+def activate_theme(name: str) -> dict:
+    return _request("POST", f"/themes/{name}/activate", json={})
+
+
+@mcp.tool(description="徒步轨迹列表（里程/爬升/时长等统计概览）")
+def list_trails() -> dict:
+    return _request("GET", "/trails")
+
+
+@mcp.tool(description="轨迹详情；with_coords=True 时附加完整坐标 [[lat, lon, speed], ...]")
+def get_trail(trail_id: int, with_coords: bool = False) -> dict:
+    params = {"with_coords": "1"} if with_coords else None
+    return _request("GET", f"/trails/{trail_id}", params=params)
+
+
 if __name__ == "__main__":
     if not TOKEN:
         print("警告：未设置 HANCIC_API_TOKEN，写操作将失败（只读工具可用）", file=sys.stderr)
