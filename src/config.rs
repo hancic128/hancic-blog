@@ -30,7 +30,7 @@ impl Config {
             data_dir: PathBuf::from("data"),
             base_path: String::new(),
             site_url: String::new(),
-            site_name: "寒蝉 Hancic".into(),
+            site_name: "我的博客".into(),
             site_desc: String::new(),
             active_theme: "default".into(),
             image_compress: true,

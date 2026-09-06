@@ -30,20 +30,20 @@ hancic（寒蝉）用 Rust 编写，以 SQLite 为存储，提供完整的博客
 - **开放接口**：REST API + MCP Server 帮助页（可被 AI 工具直接调用）
 - **工程化**：SQLite WAL、启动自动迁移（幂等）、图片自动压缩、Docker 镜像（musl 静态编译）、GitHub Actions 自动测试与部署
 
-## 📸 截图
+## 🌱 部署默认值
 
-**博客前台**（桌面端）
+首次启动（新数据目录）会自动初始化一组开箱即用的默认值，之后在后台随时修改：
 
-<p align="center"><img src="docs/screenshots/博客前台.png" width="75%" alt="博客前台"></p>
+| 项 | 默认 | 修改入口 |
+|---|---|---|
+| 站点名称 | `我的博客`（`config.toml` 的 `site_name` 仅在数据库尚无设置时兜底） | 后台「站点设置」 |
+| 后台密码 | **无预设密码**，首次访问 `/admin/setup` 设置（≥8 位） | `/admin/setup` |
+| 前台主题 | `default`（内置 default / modern / medium 三套） | 后台「主题管理」 |
+| 导航 | 首页 / 文章 / 专栏 / 轨迹 / 说说 / 关于 | 后台「站点设置」可增删排序、行尾眼睛隐藏某项 |
+| 时区 | `Asia/Shanghai`（阅读统计按该时区自然日分组） | 后台「系统设置」 |
+| 运行配置 | 见 `config.example.toml`（端口 / 数据目录 / 上传限制等） | 复制为 `config.toml` 后按需修改 |
 
-**博客后台**（文章管理）
-
-<p align="center"><img src="docs/screenshots/博客后台.png" width="75%" alt="博客后台"></p>
-
-**手机端**
-
-<p align="center"><img src="docs/screenshots/手机端.png" width="40%" alt="手机端"></p>
-
+> 界面以在线预览 / 自行部署后实际体验为准，仓库不再附静态截图，保持文档轻量。
 ## 🚀 快速开始
 
 ### 本地构建运行
@@ -74,11 +74,11 @@ docker build -t hancic .
 docker run -d --name hancic -p 8090:8090 -v "$(pwd)/data:/data" hancic
 ```
 
-镜像已内置 `default`、`modern` 两套主题，首次启动自动同步到数据目录。
+镜像已内置 `default` / `modern` / `medium` 三套主题，首次启动自动同步到数据目录。
 
 ### Docker Compose 部署
 
-仓库附带了 `docker-compose.yaml`（基于镜像 `ghcr.io/angryshark128/hancic:latest`，也可改为本地构建）：
+仓库附带了 `docker-compose.yaml`（默认本地构建 `hancic:latest`；也可自行推送镜像后替换 `image`）：
 
 ```bash
 # 使用发布镜像（GitHub Container Registry 拉取）
@@ -107,7 +107,7 @@ docker compose build && docker compose up -d
 | `host` / `port` | `0.0.0.0` / `8090` | 监听地址 |
 | `data_dir` | `/data` | 数据目录（数据库、上传、主题） |
 | `base_path` | `""` | 部署子路径（如 `/blog`），配合反向代理 |
-| `site_name` / `site_desc` | `寒蝉 Hancic` | 站点名称与描述 |
+| `site_name` / `site_desc` | `我的博客`（仅 DB 未设置时兜底） | 站点名称与描述 |
 | `active_theme` | `default` | 前台主题 |
 | `image_compress` | `true` | 上传图片自动压缩 |
 | `upload_max_*` | 10M / 100M / 50M | 图片/视频/文件上传上限 |
@@ -118,7 +118,7 @@ docker compose build && docker compose up -d
 
 主题系统基于 [Tera](https://keats.github.io/tera/) 模板。每个主题是 `themes/<name>/` 目录，包含 `theme.toml` 元信息、`templates/` 与 `static/`。
 
-- 内置主题：`default`（经典简洁）、`modern`（现代卡片风）
+- 内置主题：`default`（经典简洁）、`modern`（现代卡片风）、`medium`（第三套自研）
 - 后台「主题管理」支持在线导入（zip）/卸载/切换
 - 开发新主题请参考 [docs/theme-guide.md](docs/theme-guide.md)
 

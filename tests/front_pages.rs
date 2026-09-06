@@ -63,7 +63,7 @@ async fn homepage_lists_published_posts() {
     let (status, html) = get_html(&app, "/").await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("第一篇文章"));
-    assert!(html.contains("寒蝉 Hancic"));
+    assert!(html.contains("我的博客"));
 }
 
 #[tokio::test]
@@ -179,7 +179,7 @@ fn share_context_builds_absolute_urls_from_config() {
         "",
         "正文",
         "/post/分享配置文章",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         Some("/uploads/logo.png"),
     );
@@ -205,7 +205,7 @@ fn post_page_prefers_excerpt_for_share_description() {
         "这是手写摘要",
         "# 标题\n\n正文不会被选中",
         "/post/摘要优先文章",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         None,
     );
@@ -220,7 +220,7 @@ fn page_share_description_falls_back_to_body_text() {
         "",
         "## 介绍\n\n这里是 **正文摘要来源**，应该去掉 markdown。",
         "/page/share-about",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         None,
     );
@@ -237,7 +237,7 @@ fn share_summary_decodes_entities_and_strips_tags() {
         "",
         "摘要 <strong>重点</strong>：Rust &amp; Go、&lt;code&gt;、&quot;引号&quot;、&apos;撇号&apos;、&nbsp;空格。",
         "/post/entities",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         None,
     );
@@ -259,7 +259,7 @@ fn share_summary_decodes_entities_and_strips_tags() {
         "",
         "Rust & Go、&unknown; 结尾",
         "/post/bare-amp",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         None,
     );
@@ -275,7 +275,7 @@ fn share_context_omits_image_when_site_url_or_logo_missing() {
         "",
         "正文",
         "/post/no-site",
-        "寒蝉 Hancic",
+        "我的博客",
         "",
         Some("/uploads/logo.png"),
     );
@@ -286,7 +286,7 @@ fn share_context_omits_image_when_site_url_or_logo_missing() {
         "",
         "正文",
         "/post/no-logo",
-        "寒蝉 Hancic",
+        "我的博客",
         "https://example.test",
         None,
     );

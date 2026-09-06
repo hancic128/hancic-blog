@@ -6,8 +6,11 @@ data_dir = "/data"
 base_path = ""
 # 站点绝对地址（用于 canonical、Open Graph、Twitter Card 等分享元数据）；
 # 若部署在子路径（base_path 非空），此处需包含子路径
-site_url = "https://hancic.site"
-site_name = "寒蝉 Hancic"
+# 站点公开地址：用于分享卡片（canonical/OG/Twitter）等元数据，部署后改为你的域名；
+# 若 base_path 非空需包含子路径
+site_url = "https://your-domain.example"
+# 站点名称/描述：数据库（后台「站点设置」）已设置时以其为准，此处仅兜底
+site_name = "我的博客"
 site_desc = "记录与思考"
 active_theme = "default"
 image_compress = true

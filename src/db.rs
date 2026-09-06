@@ -236,7 +236,7 @@ async fn ensure_page_view_source(pool: &Db) -> Result<(), sqlx::Error> {
 
 async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {
     let defaults: &[(&str, &str)] = &[
-        ("site_name", "寒蝉 Hancic"),
+        ("site_name", "我的博客"),
         ("site_desc", ""),
         ("site_nav", r#"[{"type":"home","label":"首页","url":"/"},{"type":"articles","label":"文章","url":"/archives"},{"type":"column","label":"专栏","url":"/columns"},{"type":"trail","label":"轨迹","url":"/trails"},{"type":"moments","label":"说说","url":"/moments"},{"type":"link","label":"关于","url":"/about"}]"#),
         ("site_social", r#"{}"#),

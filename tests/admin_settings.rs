@@ -52,7 +52,7 @@ async fn settings_save_updates_db_and_front_header() {
     assert_eq!(res.status(), 200, "设置页应可访问");
     let html = res.text().await.unwrap();
     let csrf = extract_csrf(&html);
-    assert!(html.contains("寒蝉 Hancic"), "设置页应显示当前站点名");
+    assert!(html.contains("我的博客"), "设置页应显示当前站点名");
     assert!(html.contains("name=\"site_name\""), "设置页应有站点名输入框");
     assert!(html.contains("name=\"site_nav\""), "设置页应有导航输入框");
     // 修改密码已拆为独立页（左侧菜单），设置页不含密码表单
@@ -157,7 +157,7 @@ async fn invalid_inputs_error_render_and_keep_db() {
     assert!(html.contains("应回显站名"), "应保留用户已填的站点名: {html}");
     assert_eq!(
         settings::get(&pool, "site_name").await.unwrap().as_deref(),
-        Some("寒蝉 Hancic"),
+        Some("我的博客"),
         "非法提交不应落库"
     );
 
@@ -216,7 +216,7 @@ async fn invalid_inputs_error_render_and_keep_db() {
     // 全程无任何落库
     assert_eq!(
         settings::get(&pool, "site_name").await.unwrap().as_deref(),
-        Some("寒蝉 Hancic"),
+        Some("我的博客"),
         "全部非法提交均不应修改站点名"
     );
 }

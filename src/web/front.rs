@@ -198,7 +198,7 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     ctx.insert(
         "site",
         &json!({
-            "name": s.get("site_name").map(String::as_str).unwrap_or("寒蝉 Hancic"),
+            "name": s.get("site_name").map(String::as_str).unwrap_or("我的博客"),
             "desc": s.get("site_desc").map(String::as_str).unwrap_or(""),
             "nav": nav,
             "show_moments": !moments_hidden,
@@ -413,7 +413,7 @@ async fn post_page(
             post.excerpt.as_str(),
             &post.content_md,
             &format!("/post/{}", post.uuid),
-            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("我的博客"),
             &state.config.site_url,
             site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
@@ -520,7 +520,7 @@ async fn page_page(
             page.excerpt.as_str(),
             &page.content_md,
             &format!("/page/{}", page.slug),
-            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("我的博客"),
             &state.config.site_url,
             site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
@@ -563,7 +563,7 @@ async fn about_page(
             page.excerpt.as_str(),
             &page.content_md,
             "/about",
-            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("寒蝉 Hancic"),
+            site.and_then(|v| v.get_from_path("name")).and_then(|v| v.as_str()).unwrap_or("我的博客"),
             &state.config.site_url,
             site.and_then(|v| v.get_from_path("logo")).and_then(|v| v.as_str()).filter(|l| !l.trim().is_empty()),
         );
