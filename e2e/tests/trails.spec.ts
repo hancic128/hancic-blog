@@ -29,7 +29,8 @@ test("轨迹全流程：后台上传 → 前台总览与详情显示", async ({ 
   await expect(page.locator(".trail-admin-link").first()).toContainText("E2E 测试轨迹");
 
   // ---- 前台总览：地图 + 轨迹卡片 ----
-  await page.goto("/trails");
+  // CI/外网瓦片挂起会使 load 事件延迟：页面功能由 Leaflet 容器类断言，等 DOM 即可
+  await page.goto("/trails", { waitUntil: "domcontentloaded" });
   const mapEl = page.locator("#trails-map");
   await expect(mapEl).toBeVisible();
   // Leaflet 初始化后容器自身带 .leaflet-container（瓦片为外网资源，不断言瓦片加载）
@@ -45,7 +46,7 @@ test("轨迹全流程：后台上传 → 前台总览与详情显示", async ({ 
   await expect(page.locator("#trail-detail-name")).toContainText("E2E 测试轨迹");
 
   // ---- 详情页：地图 + 数据卡片 + 瓦片图层切换控件 ----
-  await page.goto(detailUrl!);
+  await page.goto(detailUrl!, { waitUntil: "domcontentloaded" });
   await expect(page.locator("#trail-map")).toHaveClass(/leaflet-container/);
   await expect(page.locator(".trail-stats .trail-stat").first()).toBeVisible();
   await expect(page.locator(".trail-stat-value").first()).toBeVisible();
