@@ -223,8 +223,6 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     Ok(ctx)
 }
 
-/// 解析 settings 中的 JSON 数组/对象字符串；非法时回退空值。
-
 /// 导航项 hidden 判定：布尔 / "1" / 1 任一为真即隐藏。
 fn json_hidden(item: &Value) -> bool {
     item.get("hidden")
@@ -248,6 +246,7 @@ fn nav_has_hidden(nav_raw: &Value, ty: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// 解析 settings 中的 JSON 数组/对象字符串；非法时回退空值。
 fn parse_json_array(s: &str) -> Value {
     serde_json::from_str(s).unwrap_or_else(|_| json!([]))
 }
