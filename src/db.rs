@@ -214,6 +214,31 @@ CREATE INDEX IF NOT EXISTS idx_content_likes_target ON content_likes(content_typ
             .await?;
     }
 
+    // 迁移历史点赞数据到 content_likes（幂等：检测迁移标记记录，存在则跳过）
+    let migrated: Option<i64> = sqlx::query_as(
+        "SELECT COUNT(*) FROM content_likes WHERE visitor_id LIKE 'migrated-%' LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if migrated.is_none() {
+        // 迁移文章历史点赞
+        sqlx::raw_sql(
+            "INSERT INTO content_likes (content_type, content_id, visitor_id, ip_hash, ua_hash, created_at)
+             SELECT 'post', id, 'migrated-' || id, '', '', datetime('now')
+             FROM posts WHERE like_count > 0",
+        )
+        .execute(pool)
+        .await?;
+        // 迁移说说历史点赞
+        sqlx::raw_sql(
+            "INSERT INTO content_likes (content_type, content_id, visitor_id, ip_hash, ua_hash, created_at)
+             SELECT 'moment', id, 'migrated-' || id, '', '', datetime('now')
+             FROM moments WHERE like_count > 0",
+        )
+        .execute(pool)
+        .await?;
+    }
+
     Ok(())
 }
 
