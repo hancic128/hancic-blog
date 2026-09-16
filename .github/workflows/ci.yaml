@@ -1,9 +1,18 @@
 name: CI
 
-# 只在打 tag（v*）时触发：所有分支 push / PR 均不跑 Actions（省额度，日常构建走本地/上海 native）
+# 路线 v1.10b：发版 workflow 必须 workflow_dispatch 触发，不许 push / schedule 自动跑，
+# 避免发版时间戳落在京东工作时间窗口（10:00–22:00）。所有分支 push / PR 均不跑 Actions
+# （省额度，日常构建走本地/上海 native）。test job 由 push main 触发；
+# docker + deploy 只能由 workflow_dispatch + inputs.tag 手动指定版本号触发。
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（如 v0.4.0），docker + deploy 任务构建此 tag 的镜像并部署'
+        required: true
+        type: string
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -71,15 +80,18 @@ jobs:
         run: cd e2e && npx playwright test
 
   docker:
-    # 打 tag（v*）时构建镜像并部署上海主机（workflow 仅 tag 触发，此条件保留作双重保险）
+    # 路线 v1.10b：workflow_dispatch + inputs.tag 手动触发。tag 在非工作窗口（工作日
+    # 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面 dispatch 输入。
     # needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -91,7 +103,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/angryshark128/hancic:latest
+          tags: ghcr.io/angryshark128/hancic:${{ inputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -107,8 +119,8 @@ jobs:
           ssh $SSH_OPTS ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} '
             set -euo pipefail
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/angryshark128/hancic:latest
-            docker tag ghcr.io/angryshark128/hancic:latest hancic:latest
+            docker pull ghcr.io/angryshark128/hancic:${{ inputs.tag }}
+            docker tag ghcr.io/angryshark128/hancic:${{ inputs.tag }} hancic:latest
             cd /opt/hancic && docker compose up -d --force-recreate hancic
             sleep 8
             curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"
