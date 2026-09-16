@@ -1,16 +1,14 @@
 name: CI
 
 # 路线 v1.10b：发版 workflow 必须 workflow_dispatch 触发，不许 push / schedule 自动跑，
-# 避免发版时间戳落在京东工作时间窗口（10:00–22:00）。所有分支 push / PR 均不跑 Actions
-# （省额度，日常构建走本地/上海 native）。test job 由 push main 触发；
-# docker + deploy 只能由 workflow_dispatch + inputs.tag 手动指定版本号触发。
+# 避免发版时间戳落在京东工作时间窗口（10:00–22:00）。push / PR 一律不跑 Actions
+# （省额度，日常构建走本地/上海 native）。一次 dispatch = test → docker → deploy 完整链路，
+# tag 在非工作窗口（工作日 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面输入。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布 tag（如 v0.4.0），docker + deploy 任务构建此 tag 的镜像并部署'
+        description: '发布 tag（如 v0.4.0），checkout 此 tag 构建镜像并部署'
         required: true
         type: string
 
@@ -22,6 +20,23 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # GitHub-hosted runner 根分区约 72GB，预装 Android SDK / .NET / GHC / CodeQL 等
+      # 与 Rust 无关的工具约 22GB。cargo target（~5GB）+ Playwright 浏览器（~1.5GB）
+      # + node_modules 会把剩余空间用尽——upload_* 测试曾报 os error 28
+      # （No space left on device）。构建前删掉这些不用的预装工具释放空间。
+      - name: 释放 runner 磁盘空间
+        run: |
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift \
+            /opt/az \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - uses: actions/checkout@v4
 
       # rust-toolchain.toml 固定 1.88.0。显式安装同一版本并带上 clippy 组件，
@@ -82,8 +97,8 @@ jobs:
   docker:
     # 路线 v1.10b：workflow_dispatch + inputs.tag 手动触发。tag 在非工作窗口（工作日
     # 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面 dispatch 输入。
-    # needs: test
-    if: github.event_name == 'workflow_dispatch'
+    # 依赖 test：测试不过不允许构建镜像与部署。
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -113,8 +128,10 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HANCIC_SH_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # 快速失败：runner→上海 SSH 被丢包时不再无限重试挂死（此前 ssh/ssh-keyscan 无超时）
-          SSH_OPTS="-o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+          # ConnectTimeout 只管建连；ServerAliveInterval 保证连上后的空闲期有心跳——
+          # docker pull 82MB 镜像时远端可达数分钟无输出，中间 NAT/防火墙会因此断开空闲
+          # TCP（实测 Broken pipe + exit 255），心跳每 15s 一次、容忍 8 次无响应（2 分钟）。
+          SSH_OPTS="-o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
           # 上海后端直连 ghcr 拉镜像（后端可达 ghcr.io），绕过 runner→上海传 82MB 镜像的慢链路
           ssh $SSH_OPTS ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} '
             set -euo pipefail
