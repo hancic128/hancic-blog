@@ -108,6 +108,35 @@ pub async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// POST /api/posts/{id}/timestamps：仅修改 `published_at` 与 `updated_at` 的白名单端点。
+///
+/// 用于工作时间窗口外的事后回填：请求体必须至少含一个字段，否则 400（避免无操作）。
+/// `published_at` 三态、`updated_at` 二态，语义与 PATCH 同步。
+pub async fn update_timestamps(
+    State(state): State<AppState>,
+    session: Session,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    body: Result<Json<Value>, JsonRejection>,
+) -> Result<Json<Value>, AppError> {
+    api::require_admin_or_token(&state, &session, &headers).await?;
+    let body = api::valid_json(body)?;
+    let published_at = parse_optional_datetime(&body, "published_at")?;
+    let updated_at = match body.get("updated_at") {
+        None => None,
+        Some(Value::Null) => return Err(AppError::BadRequest("updated_at 不能为 null".into())),
+        Some(Value::String(s)) => Some(parse_rfc3339(s, "updated_at")?),
+        Some(_) => return Err(AppError::BadRequest("updated_at 必须是 RFC3339 字符串".into())),
+    };
+    if published_at.is_none() && updated_at.is_none() {
+        return Err(AppError::BadRequest(
+            "至少需要 published_at 或 updated_at 之一".into(),
+        ));
+    }
+    let post = service::update_post_timestamps(&state.db, id, published_at, updated_at).await?;
+    Ok(Json(json!({ "data": post })))
+}
+
 // ---------- 请求体 → 服务层结构 ----------
 
 /// 创建：按 JSON 字段类型逐项映射，非法类型/枚举/分类引用一律 400。
@@ -175,6 +204,15 @@ async fn parse_update_post(
         Some(_) => return Err(AppError::BadRequest("category_id 必须是整数".into())),
     };
     let tags = opt_string_array(body, "tags")?;
+    // published_at 三态：缺失→None；null→Some(None)（清空）；RFC3339 字符串→Some(Some(t))。
+    let published_at = parse_optional_datetime(body, "published_at")?;
+    // updated_at 二态：缺失→None；RFC3339 字符串→Some(t)。不允许 null（updated_at 不为空）。
+    let updated_at = match body.get("updated_at") {
+        None => None,
+        Some(Value::Null) => return Err(AppError::BadRequest("updated_at 不能为 null".into())),
+        Some(Value::String(s)) => Some(parse_rfc3339(s, "updated_at")?),
+        Some(_) => return Err(AppError::BadRequest("updated_at 必须是 RFC3339 字符串".into())),
+    };
     Ok(service::UpdatePost {
         title,
         content_md,
@@ -185,6 +223,8 @@ async fn parse_update_post(
         category_id,
         column_id: None, // 专栏由后台编辑页维护，API 暂不暴露
         tags,
+        published_at,
+        updated_at,
     })
 }
 
@@ -276,5 +316,25 @@ fn parse_int_param(
         Some(s) => s
             .parse::<i64>()
             .map_err(|_| AppError::BadRequest(format!("{key} 必须是整数"))),
+    }
+}
+
+/// RFC3339 字符串 → UTC `DateTime`。非法格式 400。
+fn parse_rfc3339(s: &str, key: &str) -> Result<chrono::DateTime<chrono::Utc>, AppError> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .map(|d| d.with_timezone(&chrono::Utc))
+        .map_err(|_| AppError::BadRequest(format!("{key} 必须是合法 RFC3339 时间字符串")))
+}
+
+/// 可选时间字段，published_at 用：缺失 → `None`；`null` → `Some(None)`（清空）；RFC3339 字符串 → `Some(Some(t))`。
+fn parse_optional_datetime(
+    body: &Value,
+    key: &str,
+) -> Result<Option<Option<chrono::DateTime<chrono::Utc>>>, AppError> {
+    match body.get(key) {
+        None => Ok(None),
+        Some(Value::Null) => Ok(Some(None)),
+        Some(Value::String(s)) => Ok(Some(Some(parse_rfc3339(s, key)?))),
+        Some(_) => Err(AppError::BadRequest(format!("{key} 必须是 RFC3339 字符串或 null"))),
     }
 }

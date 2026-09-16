@@ -126,8 +126,32 @@ PATCH 语义：
 - `"category_id": null` → **清空分类**；传整数则改分类（需存在）
 - `"excerpt": ""` 或 `"excerpt": null` → **清空摘要**
 - `"status": "published"` 会写入 `published_at`（草稿 → 发布时）
+- `"published_at"`：可选 RFC3339 字符串 → 设值；`null` → 清空（回到草稿合法值）；缺省 → 不变。**显式值覆盖**「草稿 → 发布」自动设值。
+- `"updated_at"`：可选 RFC3339 字符串 → 设值。**传了就跳过自动刷 `Utc::now()`**，允许事后回填到非工作时间窗口。非法格式 → 400。
 
-### 3.5 删除文章
+### 3.5 事后回填时间戳（专用白名单端点）
+
+仅修改 `published_at` 与 `updated_at`，不动内容/分类/标签/状态——审计/排查时一眼能看出「这次只动了时间」。用于工作时间窗口外的事后回填（路线 v1.10：所有 GitHub/外部时间戳必须落在工作日 08:00–09:30 / 22:30–01:30 或任意周末）。
+
+```bash
+curl -s -X POST https://example.com/api/posts/42/timestamps \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "published_at": "2026-09-15T01:30:00Z",
+    "updated_at":  "2026-09-15T01:30:00Z"
+  }'
+```
+
+请求体字段：
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `published_at` | 二选一 | RFC3339 字符串 → 设值；`null` → 清空（合法：回到草稿状态时 published_at 为 NULL） |
+| `updated_at` | 二选一 | RFC3339 字符串 → 设值；**不允许 null**（updated_at 必非空） |
+
+至少传一个字段，否则 400。响应 `200 OK`，返回完整 Post 对象（与 `GET /api/posts/{id}` 形态一致）。
+
+### 3.6 删除文章
 
 ```bash
 curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://example.com/api/posts/42

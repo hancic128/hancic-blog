@@ -38,6 +38,7 @@ pub fn router() -> Router<AppState> {
         .route("/uploads", post(uploads::upload))
         .route("/posts", get(posts::list).post(posts::create))
         .route("/posts/{id}", get(posts::get).patch(posts::update).delete(posts::delete))
+        .route("/posts/{id}/timestamps", post(posts::update_timestamps))
         .route("/moments", get(moments::list).post(moments::create))
         .route("/moments/{id}", get(moments::get).patch(moments::update).delete(moments::delete))
         .route("/attachments", get(attachments::list))

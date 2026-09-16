@@ -390,3 +390,143 @@ async fn assert_json_error(res: axum::response::Response, status: StatusCode, me
     assert_eq!(body["error"]["code"], json!(status.as_u16()));
     assert_eq!(body["error"]["message"], message);
 }
+
+/// P1-H：PATCH /api/posts/{id} 支持 `published_at` / `updated_at` 字段，
+/// RFC3339 字符串解析 → 设值；非法格式 → 400。
+#[tokio::test]
+async fn patch_post_with_timestamps() {
+    let (app, pool): (Router, Db) = test_app("api-posts-ts").await;
+    let (_tok, raw) = tokens::generate(&pool, "ci").await.unwrap();
+    let token = raw.as_str();
+
+    // 先建一篇文章
+    let (_, body) = send(
+        &app,
+        Method::POST,
+        "/api/posts",
+        Some(token),
+        Some(json!({"title": "回填测试", "content_md": "x", "status": "draft"})),
+    )
+    .await;
+    let id = body["data"]["id"].as_i64().unwrap();
+    let custom = "2026-09-15T01:30:00Z";
+
+    // PATCH 同时设 published_at + updated_at
+    let (status, body) = send(
+        &app,
+        Method::PATCH,
+        &format!("/api/posts/{id}"),
+        Some(token),
+        Some(json!({
+            "status": "published",
+            "published_at": custom,
+            "updated_at": custom,
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let pub_at = body["data"]["published_at"].as_str().unwrap();
+    assert!(pub_at.starts_with("2026-09-15T01:30:00"), "published_at 应以用户时间开头,实际 {pub_at}");
+    assert!(pub_at.ends_with('Z'), "published_at 应以 Z 结尾,实际 {pub_at}");
+    let upd_at = body["data"]["updated_at"].as_str().unwrap();
+    assert!(upd_at.starts_with("2026-09-15T01:30:00"), "updated_at 应跳过自动刷,等于用户值,实际 {upd_at}");
+    assert!(upd_at.ends_with('Z'), "updated_at 应以 Z 结尾,实际 {upd_at}");
+
+    // 非法 RFC3339 → 400
+    let (status, body) = send(
+        &app,
+        Method::PATCH,
+        &format!("/api/posts/{id}"),
+        Some(token),
+        Some(json!({"updated_at": "not-a-time"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"]["code"], json!(400));
+}
+
+/// P1-H：POST /api/posts/{id}/timestamps 专用端点。
+#[tokio::test]
+async fn post_timestamps_endpoint() {
+    let (app, pool): (Router, Db) = test_app("api-posts-ts-endpoint").await;
+    let (_tok, raw) = tokens::generate(&pool, "ci").await.unwrap();
+    let token = raw.as_str();
+
+    let (_, body) = send(
+        &app,
+        Method::POST,
+        "/api/posts",
+        Some(token),
+        Some(json!({"title": "回填专用端点", "content_md": "不变", "status": "draft"})),
+    )
+    .await;
+    let id = body["data"]["id"].as_i64().unwrap();
+
+    // 1) 设 published_at + updated_at
+    let (status, body) = send(
+        &app,
+        Method::POST,
+        &format!("/api/posts/{id}/timestamps"),
+        Some(token),
+        Some(json!({
+            "published_at": "2026-09-14T23:00:00Z",
+            "updated_at": "2026-09-15T01:30:00Z",
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "设置时间戳失败: {body}");
+    let pub_at = body["data"]["published_at"].as_str().unwrap();
+    assert!(pub_at.starts_with("2026-09-14T23:00:00"), "published_at 应为用户值,实际 {pub_at}");
+    let upd_at = body["data"]["updated_at"].as_str().unwrap();
+    assert!(upd_at.starts_with("2026-09-15T01:30:00"), "updated_at 应为用户值,实际 {upd_at}");
+    assert_eq!(body["data"]["content_md"], "不变", "正文不应被时间戳端点动");
+
+    // 2) 清空 published_at (null)
+    let (status, body) = send(
+        &app,
+        Method::POST,
+        &format!("/api/posts/{id}/timestamps"),
+        Some(token),
+        Some(json!({"published_at": null})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["data"]["published_at"].is_null(), "null 应清空 published_at");
+
+    // 3) 空 body → 400
+    let (status, _body) = send(
+        &app,
+        Method::POST,
+        &format!("/api/posts/{id}/timestamps"),
+        Some(token),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 4) 非法 RFC3339 → 400
+    let (status, _body) = send(
+        &app,
+        Method::POST,
+        &format!("/api/posts/{id}/timestamps"),
+        Some(token),
+        Some(json!({"updated_at": "bad"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 5) 无 token → 401
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri(format!("/api/posts/{id}/timestamps"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(json!({"updated_at": "2026-09-15T01:30:00Z"}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}

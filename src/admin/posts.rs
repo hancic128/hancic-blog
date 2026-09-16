@@ -485,6 +485,8 @@ pub async fn update(
             _ => parse_id(form.get("column_id")).map(Some),
         },
         tags: Some(parse_tags(form.get("tags"))),
+        published_at: None,
+        updated_at: None,
     };
     // 发布后自动返回列表；存草稿留在编辑页继续编辑
     let is_published = input.status == Some(PostStatus::Published);
@@ -551,6 +553,8 @@ pub async fn autosave(
             category_id: None,
             column_id: None,
             tags: None,
+            published_at: None,
+            updated_at: None,
         },
     )
     .await?;

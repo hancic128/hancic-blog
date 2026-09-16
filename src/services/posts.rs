@@ -41,6 +41,12 @@ pub struct UpdatePost {
     pub category_id: Option<Option<i64>>,
     pub column_id: Option<Option<i64>>,
     pub tags: Option<Vec<String>>,
+    /// `published_at`：None = 不变；`Some(None)` = 清空（回到草稿状态合法值）；`Some(Some(t))` = 设值。
+    /// 显式值会覆盖「草稿 → 发布」时的自动设值。
+    pub published_at: Option<Option<DateTime<Utc>>>,
+    /// `updated_at`：None = 不显式控制（service 末尾自动刷 Utc::now()）；
+    /// `Some(t)` = 跳过自动刷，直接用 t（用于事后回填到非工作窗口）。
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 pub struct PostListOptions {
@@ -492,7 +498,17 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
     if let Some(status) = input.status {
         sets.push("status = ?");
         values.push(BindVal::Text(status.to_str().to_string()));
-        // 草稿 → 发布 时设置发布时间
+    }
+    // published_at：用户显式优先；显式未传时才走「草稿 → 发布」自动设。
+    if let Some(pat) = &input.published_at {
+        sets.push("published_at = ?");
+        match pat {
+            Some(t) => values.push(BindVal::Text(
+                t.to_rfc3339_opts(SecondsFormat::Nanos, true),
+            )),
+            None => values.push(BindVal::Null),
+        }
+    } else if let Some(status) = input.status {
         if old.status == PostStatus::Draft && status == PostStatus::Published {
             sets.push("published_at = ?");
             values.push(BindVal::Text(
@@ -520,8 +536,13 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
             None => values.push(BindVal::Null),
         }
     }
+    // updated_at：用户显式跳过自动刷；未传时维持旧行为（Utc::now()）。
+    let updated_at_value = match input.updated_at {
+        Some(t) => t.to_rfc3339(),
+        None => Utc::now().to_rfc3339(),
+    };
     sets.push("updated_at = ?");
-    values.push(BindVal::Text(Utc::now().to_rfc3339()));
+    values.push(BindVal::Text(updated_at_value));
 
     let mut sql = String::from("UPDATE posts SET ");
     sql.push_str(&sets.join(", "));
@@ -540,6 +561,55 @@ pub async fn update_post(db: &Db, id: i64, input: UpdatePost) -> Result<Post, Ap
     if let Some(tags) = input.tags {
         set_post_tags(db, id, &tags).await?;
     }
+    get_post(db, id)
+        .await?
+        .ok_or_else(|| AppError::Internal("更新后读取失败".into()))
+}
+
+/// 仅修改 `published_at` 与 `updated_at` 的专用入口；用于事后回填到非工作窗口。
+///
+/// `published_at` 三态：`None` 不动；`Some(None)` 清空；`Some(Some(t))` 设值。
+/// `updated_at` 二态：`None` 不动；`Some(t)` 设值（**不**自动刷 Utc::now()）。
+/// 两个参数均为 `None` 时直接返回当前 Post 不写库（调用方应在 API 层挡 400）。
+pub async fn update_post_timestamps(
+    db: &Db,
+    id: i64,
+    published_at: Option<Option<DateTime<Utc>>>,
+    updated_at: Option<DateTime<Utc>>,
+) -> Result<Post, AppError> {
+    if published_at.is_none() && updated_at.is_none() {
+        return get_post(db, id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("文章不存在".into()));
+    }
+    let mut sets: Vec<&str> = Vec::new();
+    let mut values: Vec<BindVal> = Vec::new();
+    if let Some(pat) = &published_at {
+        sets.push("published_at = ?");
+        match pat {
+            Some(t) => values.push(BindVal::Text(
+                t.to_rfc3339_opts(SecondsFormat::Nanos, true),
+            )),
+            None => values.push(BindVal::Null),
+        }
+    }
+    if let Some(t) = updated_at {
+        sets.push("updated_at = ?");
+        values.push(BindVal::Text(t.to_rfc3339()));
+    }
+    let mut sql = String::from("UPDATE posts SET ");
+    sql.push_str(&sets.join(", "));
+    sql.push_str(" WHERE id = ?");
+    values.push(BindVal::Int(id));
+    let mut q = sqlx::query(&sql);
+    for v in values {
+        match v {
+            BindVal::Text(s) => q = q.bind(s),
+            BindVal::Int(i) => q = q.bind(i),
+            BindVal::Null => q = q.bind(None::<i64>),
+        }
+    }
+    q.execute(db).await?;
     get_post(db, id)
         .await?
         .ok_or_else(|| AppError::Internal("更新后读取失败".into()))

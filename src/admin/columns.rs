@@ -283,6 +283,8 @@ pub async fn add_post(
         category_id: None,
         column_id: Some(Some(id)),
         tags: None,
+        published_at: None,
+        updated_at: None,
     })
     .await
     {
@@ -317,6 +319,8 @@ pub async fn remove_post(
         category_id: None,
         column_id: Some(None),
         tags: None,
+        published_at: None,
+        updated_at: None,
     })
     .await
     {
