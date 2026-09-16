@@ -215,7 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_content_likes_target ON content_likes(content_typ
     }
 
     // 迁移历史点赞数据到 content_likes（幂等：检测迁移标记记录，存在则跳过）
-    let migrated: Option<i64> = sqlx::query_as(
+    let migrated: Option<(i64,)> = sqlx::query_as(
         "SELECT COUNT(*) FROM content_likes WHERE visitor_id LIKE 'migrated-%' LIMIT 1",
     )
     .fetch_optional(pool)
