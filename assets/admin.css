@@ -2128,7 +2128,9 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 /* API 帮助页：目录导航 + 说明排版 */
 .api-toc { margin: 8px 0 4px; }
 .api-toc h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
-.api-toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.api-toc ul { list-style: none; margin: 0; padding: 0; }
+.api-toc li { display: block; padding: 3px 0; line-height: 1.5; }
+.api-toc li > ul { padding-left: 1.25rem; margin-top: 3px; }
 .api-toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
 .api-toc a:hover { text-decoration: underline; }
 .panel-section > h2 { scroll-margin-top: 24px; }

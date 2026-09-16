@@ -560,28 +560,15 @@ if (document.readyState !== "loading") {
     return null;
   }
   function layoutFloats(expanded) {
-    var back = document.getElementById("back-top");
+    // back-top 现在固定在 fab 主按钮左侧（CSS 定位），不再让位；
+    // 只在阅读模式按钮存在时为其让位，避免与 fab 展开项冲突。
     var read = document.querySelector(".reading-float");
-    if (!back && !read) return;
-    var base = 90;
+    if (!read) return;
     if (expanded) {
       var top = firstVisibleItemTop();
-      if (top !== null) base = window.innerHeight - top + GAP;
-    }
-    var backOn = !!(back && !back.hidden);
-    var readOn = !!read;
-    if (backOn && readOn) {
-      back.style.bottom = base + "px";
-      read.style.bottom = (base + 42 + BTN_GAP) + "px";
-    } else if (backOn) {
-      back.style.bottom = base + "px";
-      if (read) read.style.bottom = "";
-    } else if (readOn) {
-      read.style.bottom = base + "px";
-      if (back) back.style.bottom = "";
+      if (top !== null) read.style.bottom = (window.innerHeight - top + GAP) + "px";
     } else {
-      if (back) back.style.bottom = "";
-      if (read) read.style.bottom = "";
+      read.style.bottom = "";
     }
   }
   function setOpen(v) {
