@@ -5,12 +5,6 @@
 <p class="page-sub">REST API 使用说明与 MCP（AI 工具）集成 —— 接口 Token 在「API Token」页生成</p>
 
 <div class="panel">
-  <section class="panel-section">
-  <h2>总览</h2>
-  <p class="muted">除 <code>/api/health</code> 外，所有接口都要求鉴权：携带
-    <code>Authorization: Bearer &lt;你的 Token&gt;</code> 请求头（也可直接用后台登录会话）。
-    失败统一返回 <code>401</code>；业务错误返回 <code>{error: {code, message}}</code>，
-    成功返回 <code>{data: ...}</code>。接口地址形如 <code>{{ api_base }}/api/posts</code>。</p>
   <nav class="api-toc">
     <h3>目录</h3>
     <ul>
@@ -31,6 +25,13 @@
       <li><a href="#mcp">MCP 集成（AI 工具）</a></li>
     </ul>
   </nav>
+
+  <section class="panel-section">
+  <h2>总览</h2>
+  <p class="muted">除 <code>/api/health</code> 外，所有接口都要求鉴权：携带
+    <code>Authorization: Bearer &lt;你的 Token&gt;</code> 请求头（也可直接用后台登录会话）。
+    失败统一返回 <code>401</code>；业务错误返回 <code>{error: {code, message}}</code>，
+    成功返回 <code>{data: ...}</code>。接口地址形如 <code>{{ api_base }}/api/posts</code>。</p>
   </section>
 
   <section class="panel-section">

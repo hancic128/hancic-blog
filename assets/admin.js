@@ -1102,8 +1102,8 @@
     var isLight = currentMode() === 'light';
     return {
       accent: readCssVar('--accent', isLight ? '#059669' : '#10b981'),
-      // 渐变从浅绿到深绿，不用极淡的背景色
-      low: isLight ? '#A7F3D0' : '#064E3B',
+      // 渐变从浅绿到深绿（暗色模式也用明显绿色，避免深到接近黑色）
+      low: isLight ? '#A7F3D0' : '#047857',
       land: readCssVar('--surface-2', isLight ? '#F3F5F9' : '#0B1220'),
       border: readCssVar('--surface-4', isLight ? '#CBD5E1' : '#2C3E5F'),
       tooltipBg: readCssVar('--surface-0', isLight ? '#FFFFFF' : '#111A2C'),
@@ -2121,6 +2121,24 @@
   });
   setOpen(false);
 })();
+
+  // ---- 后台回到顶部按钮：滚动超过阈值才显示，点击平滑回顶（独立于悬浮组左侧）----
+  (function () {
+    'use strict';
+    var btn = document.getElementById('back-top');
+    if (!btn) return;
+    var scroller = document.querySelector('.admin-main') || document.scrollingElement || document.documentElement;
+    var THRESHOLD = 300;
+    function onScroll() {
+      var y = scroller.scrollTop || 0;
+      btn.hidden = y <= THRESHOLD;
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    btn.addEventListener('click', function () {
+      scroller.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
 
   // ---- 表单提交防重复 + 按钮 loading（规范 8：提交中按钮 disabled）----
   (function () {

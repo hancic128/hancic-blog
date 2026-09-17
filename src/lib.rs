@@ -131,7 +131,7 @@ fn init_ip_searcher(data_dir: &Path) -> Result<ipregion::Searcher, AppError> {
     ipregion::Searcher::new(&xdb).map_err(AppError::Internal)
 }
 
-/// 每日 00:00（Asia/Shanghai）自动全量备份到 `data_dir/backups/`，轮转保留最近 3 份。
+/// 每日 00:00（Asia/Shanghai）自动全量备份到 `data_dir/backups/`，轮转保留最近 7 天。
 /// 每小时 tick 检查一次是否进入 00 点窗口；当天备份文件已存在则跳过（重启防重）。
 /// 备份记录写入 `backup_logs`（kind='export'），后台备份页可见。
 fn spawn_daily_backup(data_dir: PathBuf, db: db::Db) {
@@ -171,7 +171,7 @@ fn spawn_daily_backup(data_dir: PathBuf, db: db::Db) {
                     .bind(report.counts.files as i64)
                     .execute(&db)
                     .await;
-                    // 轮转：仅保留最近 3 份自动备份
+                    // 轮转：滚动保留最近 7 天自动备份
                     let mut files: Vec<PathBuf> = std::fs::read_dir(&backup_dir)
                         .into_iter()
                         .flatten()
@@ -184,7 +184,7 @@ fn spawn_daily_backup(data_dir: PathBuf, db: db::Db) {
                         })
                         .collect();
                     files.sort();
-                    while files.len() > 3 {
+                    while files.len() > 7 {
                         if let Some(oldest) = files.first() {
                             let _ = std::fs::remove_file(oldest);
                             files.remove(0);

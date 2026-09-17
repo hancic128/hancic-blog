@@ -2126,7 +2126,18 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .panel-section > .stat-grid { margin-bottom: 0; }
 
 /* API 帮助页：目录导航 + 说明排版 */
-.api-toc { margin: 8px 0 4px; }
+/* 目录固定悬浮：粘在滚动容器顶部，滚动帮助页时保持可见（帮助页面板很长） */
+.api-toc {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
 .api-toc h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
 .api-toc ul { list-style: none; margin: 0; padding: 0; }
 .api-toc li { display: block; padding: 3px 0; line-height: 1.5; white-space: normal; word-break: break-word; }
@@ -2599,6 +2610,30 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .fab-btn .icon-moon { display: block; }
 [data-mode="light"] .fab-btn .icon-sun { display: block; }
 [data-mode="light"] .fab-btn .icon-moon { display: none; }
+/* 回到顶部独立按钮（不入悬浮组）：与 fab 主按钮同水平、左侧（间距 12px）。
+   滚动超过阈值才显示（hidden 控制）；needs暂无脚本让位，悬浮组展开时不被遮挡 */
+.back-top {
+  position: fixed;
+  right: calc(24px + 48px + 12px);
+  bottom: 24px;
+  z-index: 79;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--surface-3);
+  background: var(--surface-0);
+  color: var(--ink-700);
+  box-shadow: var(--shadow-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.back-top:hover { background: var(--surface-2); color: var(--accent); transform: scale(1.05); }
+.back-top:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.back-top[hidden] { display: none; }
 /* 主题色气泡：相对其按钮在左侧水平展开（10 更新：避免遮挡同级悬浮按钮） */
 .fab-root .accent-wrap { position: relative; }
 .fab-root .accent-panel {
