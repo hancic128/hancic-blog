@@ -408,6 +408,17 @@ const DASHBOARD_TOP_POSTS: i64 = 10;
 /// 地区明细每页行数。
 const REGION_PAGE_SIZE: usize = 10;
 
+/// 国内及港澳台地区名（与 admin.js 的 domesticSet / COUNTRY_ALIAS 归入 China 的集合一致）：
+/// 这些行已并入地图「中国」色块（悬停显示省市明细），不再出现在明细表中。
+fn is_domestic_region(country: &str) -> bool {
+    matches!(
+        country,
+        "中国" | "中國"
+            | "中国台湾" | "中国香港" | "中国澳门"
+            | "香港" | "澳门" | "台湾"
+    )
+}
+
 /// 仪表盘上下文：统计（卡片 + 区间趋势 + 文章排行 Top10 + 全球地区地图 + 跳转来源饼图）。
 /// `from`/`to` 为有效区间（缺省近 30 天；双 None = 显式「全部」不设限），
 /// `query` 提供地区明细分页（region_page）；趋势/范围按站点时区 `tz` 自然日。
@@ -508,18 +519,31 @@ async fn fill_dashboard(
     );
 
     // 地区：按 (国家, 省份) 聚合，阅读降序。
-    // 全量行注入地图 JSON（JS 按国家聚合着色全球地图）；表格展示当前页切片
+    // 全量行注入地图 JSON（JS 按国家聚合着色全球地图）；明细表排除国内省市行
     let regions =
         stats_service::by_region(&state.db, from.as_deref(), to.as_deref(), tz).await?;
     let region_rows = stats::region_view(&regions);
-    let region_total_pages = region_rows.len().div_ceil(REGION_PAGE_SIZE).max(1);
+    // 国内行（中国及港澳台）已并入地图「中国」色块（悬停显示省市 Top10），
+    // 明细表只保留无法归入地图的行；region_data 仍用全量行供地图 JS 聚合。
+    let detail_rows: Vec<Value> = region_rows
+        .iter()
+        .filter(|r| {
+            let c = r
+                .get("country")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            !is_domestic_region(c)
+        })
+        .cloned()
+        .collect();
+    let region_total_pages = detail_rows.len().div_ceil(REGION_PAGE_SIZE).max(1);
     let region_page = query
         .get("region_page")
         .and_then(|p| p.parse::<usize>().ok())
         .filter(|&p| p > 0)
         .unwrap_or(1)
         .min(region_total_pages);
-    let region_slice = region_rows
+    let region_slice = detail_rows
         .iter()
         .skip((region_page - 1) * REGION_PAGE_SIZE)
         .take(REGION_PAGE_SIZE)
@@ -528,8 +552,10 @@ async fn fill_dashboard(
     ctx.insert("regions", &region_slice);
     ctx.insert("region_page", &region_page);
     ctx.insert("region_total_pages", &region_total_pages);
-    ctx.insert("region_total", &region_rows.len());
+    ctx.insert("region_total", &detail_rows.len());
     ctx.insert("region_page_size", &REGION_PAGE_SIZE);
+    // 全量地区行是否非空：控制地图区域渲染（即使全部行都是国内/港澳台，也要显示地图）
+    ctx.insert("region_rows_any", &(!region_rows.is_empty()));
     // 地图数据（全量行；JS 侧按国家聚合 + 名称归一化匹配世界省界）
     ctx.insert_value(
         "region_data",

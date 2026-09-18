@@ -137,9 +137,10 @@
 
   <section class="panel-section">
   <h2>地区分布 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %} · 全球</small></h2>
-  {% if region_total %}
+  {% if region_rows_any %}
   <div class="map-wrap" id="region-map" role="img" aria-label="全球阅读分布地图（悬停国家查看数值）"></div>
-  <p class="muted">地图按国家/地区着色（阅读量）；无法归入地图的行列于下方明细</p>
+  <p class="muted">地图按国家/地区着色（阅读量）；国内及港澳台已并入地图中，悬停「中国」查看各省市明细，无法归入地图的海外访问列于下方明细</p>
+  {% if regions %}
   <table class="data-table region-detail">
     <thead><tr><th>#</th><th>国家</th><th>省份</th><th>阅读</th></tr></thead>
     <tbody>
@@ -164,6 +165,9 @@
     <a class="btn btn-sm" href="?region_page={{ region_page + 1 }}{% if all %}&amp;range=all{% else %}&amp;from={{ from }}&amp;to={{ to }}{% endif %}">下一页</a>
     {% endif %}
   </div>
+  {% endif %}
+  {% else %}
+  <p class="muted">当前区间访问全部来自国内及港澳台（已并入地图「中国」色块，悬停可查看省市明细）</p>
   {% endif %}
   {% else %}
   <div class="empty-state">

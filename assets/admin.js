@@ -1070,12 +1070,20 @@
     return set;
   }
   // 从 regionData（country/province/count）按国家聚合；中英名归一化后仅保留地图可匹配的行
+  // 国内（中國）省市单独返回，不归入"无法归入地图"
   function countryMapData(featureNames) {
     var map = {};
     var zh = {};
+    var domestic = [];  // 国内省市数据
+    var domesticSet = { '中国': true, '中國': true };
     (window.regionData || []).forEach(function (r) {
       var raw = String(r.country || '').trim();
       if (!raw || raw === '本地' || raw === '未知') return;
+      // 国内数据单独收集
+      if (domesticSet[raw]) {
+        domestic.push({ province: r.province || '—', count: r.count || 0 });
+        return;
+      }
       var name = COUNTRY_ALIAS[raw] || raw;
       if (!featureNames[name]) return;
       map[name] = (map[name] || 0) + (r.count || 0);
@@ -1084,13 +1092,18 @@
     var data = Object.keys(map)
       .sort(function (a, b) { return map[b] - map[a]; })
       .map(function (name) { return { name: name, value: map[name], zh: zh[name] }; });
-    return { data: data, max: data.reduce(function (m, d) { return d.value > m ? d.value : m; }, 1) };
+    return {
+      data: data,
+      max: data.reduce(function (m, d) { return d.value > m ? d.value : m; }, 1),
+      domestic: domestic
+    };
   }
   function mapTheme() {
     var isLight = currentMode() === 'light';
     return {
       accent: readCssVar('--accent', isLight ? '#059669' : '#10b981'),
-      low: readCssVar('--accent-soft', isLight ? 'rgba(5, 150, 105, 0.18)' : 'rgba(16, 185, 129, 0.2)'),
+      // 渐变从浅绿到深绿（暗色模式也用明显绿色，避免深到接近黑色）
+      low: isLight ? '#A7F3D0' : '#047857',
       land: readCssVar('--surface-2', isLight ? '#F3F5F9' : '#0B1220'),
       border: readCssVar('--surface-4', isLight ? '#CBD5E1' : '#2C3E5F'),
       tooltipBg: readCssVar('--surface-0', isLight ? '#FFFFFF' : '#111A2C'),
@@ -1117,7 +1130,17 @@
           var v = p.value;
           // 无数据的国家 ECharts 给 NaN，只显示国名
           if (v === undefined || v === null || (typeof v === 'number' && isNaN(v))) return zh || p.name;
-          return (zh || p.name) + '：' + v + ' 次阅读';
+          var html = (zh || p.name) + '：' + v + ' 次阅读';
+          // 中国时显示省份明细
+          if (p.data && p.data.provinces && p.data.provinces.length) {
+            var probs = p.data.provinces
+              .sort(function (a, b) { return b.count - a.count; })
+              .slice(0, 10)
+              .map(function (d) { return d.province + '：' + d.count; })
+              .join('<br>');
+            html += '<br><span class="muted">' + probs + '</span>';
+          }
+          return html;
         }
       },
       visualMap: {
@@ -1242,7 +1265,8 @@
     if (mapEl && window.echarts && window.HANCIC_WORLD_GEO) {
       var names = worldFeatureNames();
       var ctx = countryMapData(names);
-      if (!ctx.data.length) {
+      // 有国内数据时显示地图（国内省市在 tooltip/明细表展示）
+      if (!ctx.data.length && !ctx.domestic.length) {
         mapEl.hidden = true;
         return;
       }
@@ -1250,6 +1274,23 @@
       var map = window.echarts.init(mapEl);
       window._worldMapCtx = ctx;
       window._adminMap = map;
+      // 国内数据加到地图 tooltip：悬停中国时显示各省市分布
+      if (ctx.domestic.length) {
+        var total = ctx.domestic.reduce(function (s, d) { return s + d.count; }, 0);
+        var domesticTooltip = ctx.domestic
+          .sort(function (a, b) { return b.count - a.count; })
+          .map(function (d) { return d.province + '：' + d.count; })
+          .join('<br>');
+        // 为中国数据添加省份分布信息
+        ctx.data.push({
+          name: 'China',
+          value: total,
+          zh: '中国',
+          provinces: ctx.domestic
+        });
+        // 扩展最大值为中国数据
+        if (total > ctx.max) ctx.max = total;
+      }
       map.setOption(buildMapOption(ctx, mapTheme()));
       window.addEventListener('resize', function () { map.resize(); });
     }
@@ -2080,6 +2121,24 @@
   });
   setOpen(false);
 })();
+
+  // ---- 后台回到顶部按钮：滚动超过阈值才显示，点击平滑回顶（独立于悬浮组左侧）----
+  (function () {
+    'use strict';
+    var btn = document.getElementById('back-top');
+    if (!btn) return;
+    var scroller = document.querySelector('.admin-main') || document.scrollingElement || document.documentElement;
+    var THRESHOLD = 300;
+    function onScroll() {
+      var y = scroller.scrollTop || 0;
+      btn.hidden = y <= THRESHOLD;
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    btn.addEventListener('click', function () {
+      scroller.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
 
   // ---- 表单提交防重复 + 按钮 loading（规范 8：提交中按钮 disabled）----
   (function () {

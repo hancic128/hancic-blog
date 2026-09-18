@@ -43,6 +43,7 @@ hancic（寒蝉）用 Rust 编写，以 SQLite 为存储，提供完整的博客
 | 时区 | `Asia/Shanghai`（阅读统计按该时区自然日分组） | 后台「系统设置」 |
 | 运行配置 | 见 `config.example.toml`（端口 / 数据目录 / 上传限制等） | 复制为 `config.toml` 后按需修改 |
 
+> 界面以在线预览 / 自行部署后实际体验为准，仓库不再附静态截图，保持文档轻量。
 ## 🚀 快速开始
 
 ### 本地构建运行
@@ -69,15 +70,15 @@ cp config.example.toml config.toml
 ### Docker 部署
 
 ```bash
-docker build -t hancic-blog .
-docker run -d --name hancic -p 8090:8090 -v "$(pwd)/data:/data" hancic-blog
+docker build -t hancic .
+docker run -d --name hancic -p 8090:8090 -v "$(pwd)/data:/data" hancic
 ```
 
 镜像已内置 `default` / `modern` / `medium` 三套主题，首次启动自动同步到数据目录。
 
 ### Docker Compose 部署
 
-仓库附带了 `docker-compose.yaml`（默认使用发布镜像 `ghcr.io/angryshark128/hancic-blog:latest`；也可本地构建后替换 `image` 字段）：
+仓库附带了 `docker-compose.yaml`（默认本地构建 `hancic:latest`；也可自行推送镜像后替换 `image`）：
 
 ```bash
 # 使用发布镜像（GitHub Container Registry 拉取）

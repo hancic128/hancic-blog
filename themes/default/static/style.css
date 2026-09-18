@@ -1405,13 +1405,14 @@ html { scroll-behavior: smooth; }
 }
 
 
-/* 回到顶部独立按钮（不入组）：默认位于悬浮组主按钮上方，组展开时由脚本向上让位 */
+/* 回到顶部独立按钮（不入组）：与悬浮组主按钮同水平、左侧（间距 12px）。
+   不再垂直堆叠在主按钮上方，所以 fab 展开时不会被遮挡，无需脚本让位。 */
 #back-top {
   position: fixed;
-  right: 1.25rem;
-  bottom: 90px;
+  right: calc(1.25rem + 46px + 12px);
+  bottom: 1.25rem;
   z-index: 61;
-  transition: bottom .2s ease, color .15s ease, border-color .15s ease, background .15s ease;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
 }
 #back-top[hidden] { display: none; }
 #contact-panel { z-index: 64; }

@@ -128,7 +128,7 @@ def create_post(
     return _request("POST", "/posts", json=body)
 
 
-@mcp.tool(description="更新文章（PATCH：只传要改的字段；category_id=0 或 excerpt=\"\" 清空对应项）")
+@mcp.tool(description="更新文章（PATCH：只传要改的字段；category_id=0 或 excerpt=\"\" 清空对应项；published_at/updated_at 接受 RFC3339 字符串用于事后回填，传 updated_at 时跳过自动刷新）")
 def update_post(
     post_id: int,
     title: str = "",
@@ -138,6 +138,8 @@ def update_post(
     slug: str = "",
     category_id: int = None,
     tags: list = None,
+    published_at: str = "",
+    updated_at: str = "",
 ) -> dict:
     body = {}
     if title:
@@ -154,7 +156,28 @@ def update_post(
         body["category_id"] = category_id if category_id else None
     if tags is not None:
         body["tags"] = tags
+    if published_at:
+        body["published_at"] = published_at
+    if updated_at:
+        body["updated_at"] = updated_at
     return _request("PATCH", f"/posts/{post_id}", json=body)
+
+
+@mcp.tool(description="事后回填文章时间戳（POST /api/posts/{id}/timestamps：published_at 传 null 表示清空，传 RFC3339 字符串设值；updated_at 只接受 RFC3339；至少传一个）")
+def set_post_timestamps(
+    post_id: int,
+    published_at: str = "",
+    updated_at: str = "",
+    clear_published_at: bool = False,
+) -> dict:
+    body = {}
+    if published_at:
+        body["published_at"] = published_at
+    elif clear_published_at:
+        body["published_at"] = None
+    if updated_at:
+        body["updated_at"] = updated_at
+    return _request("POST", f"/posts/{post_id}/timestamps", json=body)
 
 
 @mcp.tool(description="删除文章（不可恢复）")

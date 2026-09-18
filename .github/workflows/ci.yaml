@@ -1,10 +1,16 @@
 name: CI
 
-# 仅打 tag（v*）时触发：测试 + 静态检查 + 构建并发布 Docker 镜像。
-# 日常分支开发不跑 Actions（省额度，本地验证为准）；不含任何部署步骤。
+# 路线 v1.10b：发版 workflow 必须 workflow_dispatch 触发，不许 push / schedule 自动跑，
+# 避免发版时间戳落在京东工作时间窗口（10:00–22:00）。push / PR 一律不跑 Actions
+# （省额度，日常构建走本地/上海 native）。一次 dispatch = test → docker → deploy 完整链路，
+# tag 在非工作窗口（工作日 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面输入。
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（如 v0.4.0），checkout 此 tag 构建镜像并部署'
+        required: true
+        type: string
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -14,29 +20,71 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # GitHub-hosted runner 根分区约 72GB，预装 Android SDK / .NET / GHC / CodeQL 等
+      # 与 Rust 无关的工具约 22GB。cargo target（~5GB）+ Playwright 浏览器（~1.5GB）
+      # + node_modules 会把剩余空间用尽——upload_* 测试曾报 os error 28
+      # （No space left on device）。构建前删掉这些不用的预装工具释放空间。
+      - name: 释放 runner 磁盘空间
+        run: |
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift \
+            /opt/az \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - uses: actions/checkout@v4
 
-      # rust-toolchain.toml 固定工具链版本；显式安装同一版本并带 clippy
+      # rust-toolchain.toml 固定 1.88.0。显式安装同一版本并带上 clippy 组件，
+      # 避免 rustup 按目录文件自动安装 minimal profile（无 clippy）导致后续
+      # cargo clippy 找不到工具；版本与本地开发环境对齐，CI 结果可复现。
       - uses: dtolnay/rust-toolchain@1.88.0
         with:
-          components: clippy
+          components: rustfmt, clippy
 
+      # cargo 构建缓存：依赖编译产物跨 run 复用，test job 从 ~10min 压到 2-3min
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
 
+      # assets 已提交入库（T13），此步用于验证 fetch-assets.sh 仍可用（含代理回退路径）。
+      # 若因网络受限下载失败，只要 assets/vendor/vditor.min.js 在（已入库）即短路通过。
+      # 幂等逻辑放 workflow 而非脚本本身：脚本是本地刷新资产的入口（升级版本后重跑入库），
+      # 在脚本里加"存在即跳过"会破坏该工作流。
+      - name: 拉取前端资产（验证脚本；网络失败时短路）
+        run: |
+          bash scripts/fetch-assets.sh || {
+            echo "::warning::fetch-assets.sh 下载失败（网络受限？），assets 已提交入库，跳过继续"
+            [ -f assets/vendor/vditor.min.js ]
+          }
+
+      # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。cargo 不支持用
+      # --config 把 crates-io 替换回官方源（指向 index.crates.io 会报
+      # "source already defined"；replace-with 置空报 "no source with the name"），
+      # 故在 CI 移除该文件让 cargo 走官方 crates.io——与 Docker 构建一致
+      # （.dockerignore 已排除 .cargo/config.toml，见 Dockerfile）。
+      - name: 去除 rsproxy 镜像配置（CI 直连 crates.io）
+        run: rm -f .cargo/config.toml
+
+      # 仓库存在既有 rustfmt 漂移（M125），cargo fmt --check 无法全绿且格式化属本地职责，
+      # 故 CI 不跑 fmt；以 clippy -D warnings 兜底代码质量。
       - name: Clippy（-D warnings）
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: 单元 / 集成测试
+      - name: 单元/集成测试
         run: cargo test
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # e2e/package-lock.json 的 resolved 指向 npmmirror（本地环境配置所致）；
-      # CI 显式走官方 registry 并把 lockfile 中的 registry host 改写为 npmjs
+      # e2e/package-lock.json 的 resolved 指向 npmmirror（M124，本地配置所致）。
+      # GitHub 运行时显式用官方 registry，并 --replace-registry-host=always 强制把
+      # lockfile 里的 registry host 改写到 npmjs，避免从 npmmirror 拉包变慢/失败。
       - name: E2E 依赖安装（Playwright）
         run: |
           cd e2e
@@ -47,13 +95,18 @@ jobs:
         run: cd e2e && npx playwright test
 
   docker:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # 路线 v1.10b：workflow_dispatch + inputs.tag 手动触发。tag 在非工作窗口（工作日
+    # 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面 dispatch 输入。
+    # 依赖 test：测试不过不允许构建镜像与部署。
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -65,10 +118,27 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          # ghcr 要求仓库名全小写（org/用户大小写会被拒绝），此处使用固定小写路径；
-          # 若 fork 到其它命名空间发布，请同步修改
-          tags: |
-            ghcr.io/angryshark128/hancic-blog:latest
-            ghcr.io/angryshark128/hancic-blog:${{ github.ref_name }}
+          tags: ghcr.io/angryshark128/hancic:${{ inputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Deploy to Shanghai
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HANCIC_SH_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # ConnectTimeout 只管建连；ServerAliveInterval 保证连上后的空闲期有心跳——
+          # docker pull 82MB 镜像时远端可达数分钟无输出，中间 NAT/防火墙会因此断开空闲
+          # TCP（实测 Broken pipe + exit 255），心跳每 15s 一次、容忍 8 次无响应（2 分钟）。
+          SSH_OPTS="-o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+          # 上海后端直连 ghcr 拉镜像（后端可达 ghcr.io），绕过 runner→上海传 82MB 镜像的慢链路
+          ssh $SSH_OPTS ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} '
+            set -euo pipefail
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/angryshark128/hancic:${{ inputs.tag }}
+            docker tag ghcr.io/angryshark128/hancic:${{ inputs.tag }} hancic:latest
+            cd /opt/hancic && docker compose up -d --force-recreate hancic
+            sleep 8
+            curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"
+          '

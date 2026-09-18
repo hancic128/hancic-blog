@@ -223,11 +223,6 @@ pub async fn site_context(db: &Db, base: &str, preview: Option<String>) -> AppRe
     Ok(ctx)
 }
 
-/// 解析 settings 中的 JSON 数组/对象字符串；非法时回退空值。
-fn parse_json_array(s: &str) -> Value {
-    serde_json::from_str(s).unwrap_or_else(|_| json!([]))
-}
-
 /// 导航项 hidden 判定：布尔 / "1" / 1 任一为真即隐藏。
 fn json_hidden(item: &Value) -> bool {
     item.get("hidden")
@@ -251,6 +246,10 @@ fn nav_has_hidden(nav_raw: &Value, ty: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// 解析 settings 中的 JSON 数组/对象字符串；非法时回退空值。
+fn parse_json_array(s: &str) -> Value {
+    serde_json::from_str(s).unwrap_or_else(|_| json!([]))
+}
 
 /// 解析 `?theme_preview=`：名字合法且主题存在（theme.toml 可读）才生效，
 /// 否则回退默认渲染——预览参数既不破坏页面，也不暴露不存在的主题。

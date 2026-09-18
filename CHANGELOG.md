@@ -2,7 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [1.0.0] - 2026-09-06
+## [0.4.0] - 2026-09-16
+
+### 新增
+
+- **REST API 文章时间戳端口**（路线 v1.10 落地）：PATCH `/api/posts/{id}` 支持 `published_at` / `updated_at` RFC3339 字段（`published_at` 三态：缺失/null/RFC3339；`updated_at` 二态：缺失/RFC3339）；新增专用白名单端点 `POST /api/posts/{id}/timestamps` 用于事后回填到非工作时间窗口，至少传一字段否则 400。MCP `update_post` 加同名字段、新工具 `set_post_timestamps(post_id, published_at, updated_at, clear_published_at)`。`docs/ai-integration.md` 同步补 3.4 字段表 + 3.5 专用端点说明。
+- **CI 发版 workflow 改造**（路线 v1.10b 落地）：`docker + deploy` job 从 push-tag 自动触发改为 `workflow_dispatch + inputs.tag` 手动触发；tag 在非工作窗口（工作日 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面 dispatch 输入，避免发版时间戳落在京东工作时间（10:00–22:00）。镜像 tag 跟随 `inputs.tag`，上海部署拉 `${{ inputs.tag }}` 而非 `latest`。
+
+### 修复
+
+- 帮助页目录格式：`admin.css` `.api-toc ul` 去掉 `display: flex; flex-wrap: wrap`（把目录项挤一行的根因），改为块级，每项一行；嵌套 `ul` 加 `padding-left: 1.25rem` 缩进表达层级。
+- 前台右下悬浮按钮组：`#back-top` 从「垂直堆叠在主按钮上方」改为「与主按钮同水平、左侧间距 12px」（三主题 CSS + JS 同步），`layoutFloats` 移除 back-top 让位分支，只保留阅读模式按钮让位逻辑。fab 展开不再遮挡回顶按钮。
+
+### 测试
+
+- `tests/services_posts.rs` +5：自定义 `published_at` / 自定义 `updated_at` 跳过自动刷 / 不传仍自动刷 / 专用 `update_post_timestamps` / None 不写库。
+- `tests/api_posts.rs` +2：PATCH 时间戳（含非法 400）+ 专用端点（成功/清空/空 body 400/非法 400/无 token 401）。
+- `services_posts.rs::list_posts` 回归保险：`list_paginate_by_category_keeps_items_total_consistent` 覆盖「按分类筛选 + 分页 + content_md 不拼接」（P1-G 待办描述基于过期数据，加测试兜底）。
+- 全量 `cargo test` 0 failed（含 Playwright E2E 9/9）。
+
+## [0.3.0] - 2026-09-06
 
 ### 新增（后台）
 

@@ -1,7 +1,7 @@
 services:
   hancic:
     build: .
-    image: ghcr.io/angryshark128/hancic-blog:latest
+    image: ghcr.io/angryshark128/hancic:latest
     container_name: hancic
     restart: unless-stopped
     ports:

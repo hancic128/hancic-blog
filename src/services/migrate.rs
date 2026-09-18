@@ -350,6 +350,8 @@ pub async fn import_halo_zip(
                     category_id: None,
                     column_id: None,
                     tags: None,
+                    published_at: None,
+                    updated_at: None,
                 },
             )
             .await

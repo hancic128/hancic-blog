@@ -1,6 +1,6 @@
 [package]
 name = "hancic"
-version = "1.0.0"
+version = "0.1.0"
 edition = "2024"
 description = "寒蝉 Hancic —— 简洁自托管的博客与内容发布系统（Rust + SQLite）"
 license = "MIT"
