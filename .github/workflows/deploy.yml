@@ -1,20 +1,32 @@
-name: CI
+name: Deploy
 
-# 路线 v1.10b：发版 workflow 必须 workflow_dispatch 触发，不许 push / schedule 自动跑，
-# 避免发版时间戳落在京东工作时间窗口（10:00–22:00）。push / PR 一律不跑 Actions
-# （省额度，日常构建走本地/上海 native）。一次 dispatch = test → docker → deploy 完整链路，
-# tag 在非工作窗口（工作日 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面输入。
+# 触发：只允许 tag（v*）。相对旧 ci.yaml 的三处改动，理由：
+#
+# 1) 去掉 `push: branches: [main]` 与 `pull_request`
+#    - app-deploy《部署规范》：业务仓库 workflow 只允许 tag 或手动触发（个人账户 2000 min/月额度）
+#    - 旧触发会在每次提交/PR 上跑 cargo test + Playwright，既烧额度，也和「发版才动 Actions」相冲突
+#    - 日常回归在本地跑（本地有 rust 1.88 + e2e 环境），tag 时的 test job 作为发布闸门
+#
+# 2) 去掉 docker job 里的 SSH 直连部署步骤（原 Deploy to Shanghai）
+#    - 本仓库是**公开仓库**：CI 里不得出现主机 IP / 内部路径 / 密钥。旧步骤显式引用了
+#      secrets.HANCIC_SH_HOST、secrets.HANCIC_SH_SSH_KEY 并把 SSH 私钥写进 runner 的 ~/.ssh
+#    - 部署收口到 app-deploy（镜像搬运 + SSH + 健康检查都在那边做），本仓库只出镜像 + 发一个 dispatch
+#    - 顺带修掉旧的镜像名漂移：ghcr.io/angryshark128/hancic → ghcr.io/hancic128/hancic-blog，
+#      必须与 app-deploy services/hancic-blog/target.conf 的 `images: [hancic-blog]` 对齐
+#
+# 注意：tag 触发用的是「被打 tag 的那个 commit 上的 workflow 文件」——
+# 必须先把本文件合并进 main，再打 tag，否则那次 tag 不会触发任何东西。
+
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: '发布 tag（如 v0.4.0），checkout 此 tag 构建镜像并部署'
-        required: true
-        type: string
+  push:
+    tags: ['v*']
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false   # 半途取消一次发布比排队更糟（镜像/镜像搬运可能只做了一半）
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -53,8 +65,6 @@ jobs:
 
       # assets 已提交入库（T13），此步用于验证 fetch-assets.sh 仍可用（含代理回退路径）。
       # 若因网络受限下载失败，只要 assets/vendor/vditor.min.js 在（已入库）即短路通过。
-      # 幂等逻辑放 workflow 而非脚本本身：脚本是本地刷新资产的入口（升级版本后重跑入库），
-      # 在脚本里加"存在即跳过"会破坏该工作流。
       - name: 拉取前端资产（验证脚本；网络失败时短路）
         run: |
           bash scripts/fetch-assets.sh || {
@@ -63,10 +73,8 @@ jobs:
           }
 
       # 仓库 .cargo/config.toml 指向 rsproxy 镜像（本地开发用）。cargo 不支持用
-      # --config 把 crates-io 替换回官方源（指向 index.crates.io 会报
-      # "source already defined"；replace-with 置空报 "no source with the name"），
-      # 故在 CI 移除该文件让 cargo 走官方 crates.io——与 Docker 构建一致
-      # （.dockerignore 已排除 .cargo/config.toml，见 Dockerfile）。
+      # --config 把 crates-io 替换回官方源，故在 CI 移除该文件让 cargo 走官方 crates.io
+      # ——与 Docker 构建一致（.dockerignore 已排除 .cargo/config.toml）。
       - name: 去除 rsproxy 镜像配置（CI 直连 crates.io）
         run: rm -f .cargo/config.toml
 
@@ -82,9 +90,6 @@ jobs:
         with:
           node-version: 22
 
-      # e2e/package-lock.json 的 resolved 指向 npmmirror（M124，本地配置所致）。
-      # GitHub 运行时显式用官方 registry，并 --replace-registry-host=always 强制把
-      # lockfile 里的 registry host 改写到 npmjs，避免从 npmmirror 拉包变慢/失败。
       - name: E2E 依赖安装（Playwright）
         run: |
           cd e2e
@@ -95,50 +100,47 @@ jobs:
         run: cd e2e && npx playwright test
 
   docker:
-    # 路线 v1.10b：workflow_dispatch + inputs.tag 手动触发。tag 在非工作窗口（工作日
-    # 08:00–09:30 / 22:30–01:30 或任意周末）由人在 Actions 页面 dispatch 输入。
-    # 依赖 test：测试不过不允许构建镜像与部署。
+    # 测试不过不允许构建推镜像（镜像一旦进 ghcr + ACR，app-deploy 就会开始部署）
     needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
+      - uses: actions/checkout@v4        # tag 触发 → 自动检出的就是被打 tag 的 commit
+
       - uses: docker/setup-buildx-action@v3
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 镜像名 = app 名 = app-deploy services/<app> 目录名：
+      #   ghcr.io/hancic128/hancic-blog:<tag>  →  app-deploy 搬到 ACR 后为 <ACR>/hancic128/hancic-blog:<tag>
+      # tag 直接用 git tag 名（与 app-deploy 手动回滚时填的 tag 一致）。
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/angryshark128/hancic:${{ inputs.tag }}
+          tags: ghcr.io/hancic128/hancic-blog:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Shanghai
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HANCIC_SH_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          # ConnectTimeout 只管建连；ServerAliveInterval 保证连上后的空闲期有心跳——
-          # docker pull 82MB 镜像时远端可达数分钟无输出，中间 NAT/防火墙会因此断开空闲
-          # TCP（实测 Broken pipe + exit 255），心跳每 15s 一次、容忍 8 次无响应（2 分钟）。
-          SSH_OPTS="-o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
-          # 上海后端直连 ghcr 拉镜像（后端可达 ghcr.io），绕过 runner→上海传 82MB 镜像的慢链路
-          ssh $SSH_OPTS ${{ vars.HANCIC_SH_USER || 'root' }}@${{ secrets.HANCIC_SH_HOST }} '
-            set -euo pipefail
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/angryshark128/hancic:${{ inputs.tag }}
-            docker tag ghcr.io/angryshark128/hancic:${{ inputs.tag }} hancic:latest
-            cd /opt/hancic && docker compose up -d --force-recreate hancic
-            sleep 8
-            curl -sf http://127.0.0.1:8090/api/health && echo "DEPLOY_OK"
-          '
+  dispatch:
+    # 镜像已进 ghcr，交给 app-deploy：从 ghcr 搬 ACR → SSH 到 sh → docker compose pull/up -d → healthcheck.sh
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: 触发 app-deploy
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          # fine-grained PAT：Contents 读写，仅授权 hancic128/app-deploy（私有仓库，只读权限会 403）
+          token: ${{ secrets.APP_DEPLOY_DISPATCH_TOKEN }}
+          repository: hancic128/app-deploy
+          event-type: deploy
+          # app 必须等于 app-deploy/services/ 下的目录名；tag 必须等于上面推的镜像 tag
+          client-payload: |
+            {"app":"hancic-blog","tag":"${{ github.ref_name }}"}
