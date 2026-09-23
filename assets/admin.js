@@ -1333,17 +1333,19 @@
       files.forEach(function (file) { data.append('files', file); });
       return window.hancicFetch('/api/uploads', { method: 'POST', body: data })
         .then(function (res) {
-          if (res.ok) return res.json();
-          return res.json().then(function (body) {
+          return res.text().then(function (text) {
+            var body = null;
+            try { body = text ? JSON.parse(text) : {}; } catch (e) { /* 非 JSON 响应在下方统一提示 */ }
+            if (res.ok) {
+              if (!body) throw new Error('上传失败：服务端返回了非 JSON 响应');
+              return body;
+            }
             var serverMsg = body && body.error && body.error.message;
-            var msg = serverMsg || ('上传失败（HTTP ' + res.status + '）');
+            var msg = serverMsg || ('上传失败（HTTP ' + res.status + (body ? '）' : '，服务端返回非 JSON）'));
             if (res.status === 401 || res.status === 403) {
               msg = '登录已过期，请刷新页面重新登录';
             }
             throw new Error(msg);
-          }).catch(function (e) {
-            if (e instanceof Error && e.message) throw e;
-            throw new Error('上传失败（HTTP ' + res.status + '）');
           });
         })
         .then(function (json) {
@@ -1520,11 +1522,22 @@
         });
       }
       if (linkBtn) {
+        // 工具栏按钮 mousedown 默认会把焦点移出编辑器、丢掉选区；先阻止默认行为。
+        linkBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
         linkBtn.addEventListener('click', function () {
           window.hancicPrompt('链接地址（http/https）', 'https://').then(function (url) {
             if (!url) return;
-            if (editor) editor.insertLink(null, url);
-            editorEl.focus();
+            var selected = editor && editor.hasSelection && editor.hasSelection();
+            if (selected) {
+              editor.insertLink(null, url);
+              editorEl.focus();
+              return;
+            }
+            window.hancicPrompt('链接显示文字', '').then(function (text) {
+              if (!text) return;
+              if (editor) editor.insertLink(text, url);
+              editorEl.focus();
+            });
           });
         });
       }
