@@ -387,9 +387,25 @@ window.HancicEditor = {
         var view = ctx.get(editorViewCtx);
         var schema = view.state.schema;
         var mark = schema.marks.link.create({ href: href });
-        var node = schema.text(text || href, [mark]);
-        view.dispatch(view.state.tr.replaceSelectionWith(node));
+        var selection = view.state.selection;
+        if (!selection.empty) {
+          // 有选区：只给原文字套 link mark，不替换用户内容
+          view.dispatch(view.state.tr.addMark(selection.from, selection.to, mark).scrollIntoView());
+          return;
+        }
+        var value = text || href;
+        var tr = view.state.tr.insertText(value, selection.from);
+        tr.addMark(selection.from, selection.from + value.length, mark);
+        view.dispatch(tr.scrollIntoView());
       });
+    }
+
+    function hasSelection() {
+      var selected = false;
+      editor.action(function (ctx) {
+        selected = !ctx.get(editorViewCtx).state.selection.empty;
+      });
+      return selected;
     }
 
     // 重新解析 Markdown 为文档；空内容用 "\n" 保证至少一个空段落（空 doc.content 替换会损坏文档）
@@ -425,9 +441,24 @@ window.HancicEditor = {
       return true;
     }
 
+    function clipboardFiles(e) {
+      var data = e.clipboardData;
+      if (!data) return [];
+      var files = data.files ? Array.prototype.slice.call(data.files) : [];
+      if (files.length || !data.items) return files;
+      // 部分浏览器（微信/QQ 截图粘贴）只把图片放进 items，files 为空。
+      Array.prototype.forEach.call(data.items, function (item) {
+        if (item.kind === 'file' && isImage({ type: item.type })) {
+          var file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      });
+      return files;
+    }
+
     function onPaste(e) {
-      var files = e.clipboardData && e.clipboardData.files;
-      if (files && files.length && handleFiles(Array.prototype.slice.call(files))) {
+      var files = clipboardFiles(e);
+      if (files.length && handleFiles(files)) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -539,6 +570,7 @@ window.HancicEditor = {
       command: commandApi,
       insertImage: insertImage,
       insertLink: insertLink,
+      hasSelection: hasSelection,
       setContent: setContent,
       destroy: function () {
         el.removeEventListener("paste", onPaste, true);

@@ -62,7 +62,7 @@ async fn dashboard_requires_login_and_shows_counts() {
 }
 
 #[tokio::test]
-async fn admin_dashboard_shows_recent_7d_like_count() {
+async fn admin_dashboard_shows_total_like_count() {
     let cfg = test_config("admin-dash-like-count");
     let pool = hancic::db::init(&cfg.data_dir).await.unwrap();
     auth::set_password(&pool, common::TEST_PASSWORD).await.unwrap();
@@ -118,6 +118,6 @@ async fn admin_dashboard_shows_recent_7d_like_count() {
         .text()
         .await
         .unwrap();
-    assert!(html.contains("最近 7 天点赞"), "仪表盘应展示最近 7 天点赞卡片: {html}");
-    assert!(html.contains(">3<") || html.contains("3"), "仪表盘应展示最近 7 天点赞数 3: {html}");
+    assert!(html.contains("总点赞"), "仪表盘应展示累计点赞卡片: {html}");
+    assert!(html.contains(r#"<div class="stat-num">3</div>"#), "仪表盘应展示累计点赞数 3: {html}");
 }

@@ -49,7 +49,17 @@ def _request(method: str, path: str, **kwargs) -> httpx.Response:
 
 # ---------------- 读 ----------------
 
-@mcp.tool(description="文章列表（分页，可按状态/分类/标签筛选）")
+def _strip_post_content(payload: dict) -> dict:
+    """列表接口只返回摘要，避免把多篇 Markdown 正文塞进 MCP 响应。"""
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict):
+                item.pop("content_md", None)
+    return payload
+
+
+@mcp.tool(description="文章列表（分页，可按状态/分类/标签筛选；不返回正文）")
 def list_posts(
     page: int = 1,
     page_size: int = 10,
@@ -64,7 +74,7 @@ def list_posts(
         params["category"] = category
     if tag:
         params["tag"] = tag
-    return _request("GET", "/posts", params=params)
+    return _strip_post_content(_request("GET", "/posts", params=params))
 
 
 @mcp.tool(description="文章详情（含正文 Markdown）")

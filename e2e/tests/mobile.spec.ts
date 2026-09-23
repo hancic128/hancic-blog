@@ -20,6 +20,16 @@ const MOMENT_TEXT = `移动端说说 ${Date.now()} e2e-mobile-moment 这是一�
  * 3. 新建并发布带图文章
  * 4. 文章页无横向溢出（scrollWidth <= clientWidth）
  */
+test("移动端菜单按钮靠右对齐", async ({ page }) => {
+  await page.goto("/");
+  const box = await page.locator("#nav-toggle").boundingBox();
+  expect(box).not.toBeNull();
+  if (box) {
+    const viewport = page.viewportSize()!;
+    expect(box.x + box.width).toBeGreaterThan(viewport.width - 32);
+  }
+});
+
 test("首页移动端导航可展开/收起", async ({ page }) => {
   await page.goto("/");
   const nav = page.locator("#site-nav");

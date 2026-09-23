@@ -130,26 +130,55 @@ pub fn date_range(from: &str, to: &str) -> Vec<String> {
     out
 }
 
-/// 地区明细：按 (国家, 省份) 分组计数，阅读降序（城市并入省份，不单独展示）。
-/// 空维度保持原样由模板显示「—」。
+/// 地区明细：按国家汇总阅读量，并保留国家内的省份明细。
 pub fn region_view(rows: &[stats::RegionStat]) -> Vec<Value> {
-    let mut groups: Vec<(String, String, i64)> = Vec::new();
+    let mut by_country: std::collections::BTreeMap<String, std::collections::BTreeMap<String, i64>> =
+        std::collections::BTreeMap::new();
     for r in rows {
-        let key = (r.country.as_str(), r.province.as_str());
-        match groups
-            .iter_mut()
-            .find(|(c, p, _)| (c.as_str(), p.as_str()) == key)
-        {
-            Some((_, _, count)) => *count += r.count,
-            None => groups.push((r.country.clone(), r.province.clone(), r.count)),
-        }
+        by_country
+            .entry(r.country.clone())
+            .or_default()
+            .entry(r.province.clone())
+            .and_modify(|count| *count += r.count)
+            .or_insert(r.count);
     }
-    groups.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
-    groups
+    let mut out: Vec<Value> = by_country
         .into_iter()
-        .map(|(country, province, count)| {
-            json!({ "country": country, "province": province, "count": count })
+        .map(|(country, provinces)| {
+            let count = provinces.values().sum::<i64>();
+            let regions: Vec<Value> = provinces
+                .into_iter()
+                .map(|(province, count)| json!({ "province": province, "count": count }))
+                .collect();
+            json!({
+                "country": country,
+                "count": count,
+                "region_count": regions.len(),
+                "regions": regions,
+            })
         })
+        .collect();
+    out.sort_by(|a, b| {
+        b.get("count")
+            .and_then(Value::as_i64)
+            .cmp(&a.get("count").and_then(Value::as_i64))
+            .then_with(|| {
+                a.get("country")
+                    .and_then(Value::as_str)
+                    .cmp(&b.get("country").and_then(Value::as_str))
+            })
+    });
+    out
+}
+
+/// 地图原始明细：国家/省份/阅读量，保留省份维度供悬停展开。
+pub fn region_province_view(rows: &[stats::RegionStat]) -> Vec<Value> {
+    rows.iter()
+        .map(|r| json!({
+            "country": r.country,
+            "province": r.province,
+            "count": r.count
+        }))
         .collect()
 }
 

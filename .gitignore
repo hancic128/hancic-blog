@@ -23,3 +23,7 @@
 # mcp server 本地环境
 /mcp/.venv/
 /mcp/__pycache__/
+
+# Python
+__pycache__/
+*.pyc

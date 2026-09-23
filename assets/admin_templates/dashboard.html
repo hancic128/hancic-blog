@@ -20,30 +20,6 @@
 
 <div class="panel">
   <section class="panel-section">
-  <form class="filter-bar" method="get" action="{{ base_path }}/admin">
-    <div class="date-picker">
-      <input type="text" name="from" class="date-input" value="{{ from }}" placeholder="YYYY-MM-DD" aria-label="开始日期" autocomplete="off">
-      <button type="button" class="date-cal-btn" aria-label="选择开始日期" tabindex="-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </button>
-    </div>
-    <span class="date-sep">至</span>
-    <div class="date-picker">
-      <input type="text" name="to" class="date-input" value="{{ to }}" placeholder="YYYY-MM-DD" aria-label="结束日期" autocomplete="off">
-      <button type="button" class="date-cal-btn" aria-label="选择结束日期" tabindex="-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </button>
-    </div>
-    <button class="btn" type="submit">查询</button>
-    <span class="filter-sep" aria-hidden="true"></span>
-    <a class="quick-range{% if all %} active{% endif %}" href="?range=all">全部</a>
-    <a class="quick-range{% if active_days == 30 %} active{% endif %}" href="?days=30">最近30天</a>
-    <a class="quick-range{% if active_days == 60 %} active{% endif %}" href="?days=60">最近60天</a>
-    <a class="quick-range{% if active_days == 90 %} active{% endif %}" href="?days=90">最近90天</a>
-  </form>
-  </section>
-
-  <section class="panel-section">
 <div class="stat-grid">
   <div class="stat-card">
     <div class="stat-row">
@@ -85,7 +61,7 @@
       </span>
       <div>
         <div class="stat-num">{{ stats.total_views }}</div>
-        <div class="stat-label">区间阅读</div>
+        <div class="stat-label">总阅读</div>
       </div>
     </div>
   </div>
@@ -95,8 +71,8 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.716-4.534-9.193-8.242C.269 9.004 2.167 4 6.75 4c2.3 0 3.57 1.242 4.25 2.236C11.68 5.242 12.95 4 15.25 4 19.833 4 21.731 9.004 19.193 12.758 16.716 16.466 12 21 12 21z"/></svg>
       </span>
       <div>
-        <div class="stat-num">{{ stats.recent_like_count_7d }}</div>
-        <div class="stat-label">最近 7 天点赞</div>
+        <div class="stat-num">{{ stats.total_likes }}</div>
+        <div class="stat-label">总点赞</div>
       </div>
     </div>
   </div>
@@ -104,24 +80,51 @@
   </section>
 
   <section class="panel-section">
-  <h2>阅读 / 点赞趋势 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}（UTC 日期分组）</small></h2>
+  <h2>阅读 / 点赞趋势 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}（站点时区自然日）</small></h2>
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin">
+    <div class="date-picker">
+      <input type="text" name="from" class="date-input" value="{{ from }}" placeholder="YYYY-MM-DD" aria-label="开始日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择开始日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <span class="date-sep">至</span>
+    <div class="date-picker">
+      <input type="text" name="to" class="date-input" value="{{ to }}" placeholder="YYYY-MM-DD" aria-label="结束日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择结束日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <button class="btn" type="submit">查询</button>
+    <span class="filter-sep" aria-hidden="true"></span>
+    <a class="quick-range{% if all %} active{% endif %}" href="?range=all">全部</a>
+    <a class="quick-range{% if active_days == 30 %} active{% endif %}" href="?days=30">最近30天</a>
+    <a class="quick-range{% if active_days == 60 %} active{% endif %}" href="?days=60">最近60天</a>
+    <a class="quick-range{% if active_days == 90 %} active{% endif %}" href="?days=90">最近90天</a>
+  </form>
   <div class="chart-wrap"><canvas id="trend" role="img" aria-label="阅读量与点赞数趋势折线图"></canvas></div>
   </section>
 
   <section class="panel-section">
-  <h2>文章排行 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %} · Top 10</small></h2>
+  <div class="ranking-head">
+    <h2>文章排行 <small class="muted">全部时间 · Top 10</small></h2>
+    <div class="ranking-metric" role="group" aria-label="排行指标">
+      <a class="ranking-metric-btn{% if ranking_metric == "views" %} active{% endif %}" href="{{ ranking_views_href }}">阅读量</a>
+      <a class="ranking-metric-btn{% if ranking_metric == "likes" %} active{% endif %}" href="{{ ranking_likes_href }}">点赞量</a>
+    </div>
+  </div>
   {% if posts %}
-  <table class="data-table">
+  <table class="data-table ranking-table">
     <thead>
-      <tr><th>#</th><th>标题</th><th>{% if all %}阅读{% else %}期间阅读{% endif %}</th><th>累计阅读</th></tr>
+      <tr><th>#</th><th>标题</th><th class="{% if ranking_metric == "views" %}active{% endif %}">阅读量</th><th class="{% if ranking_metric == "likes" %}active{% endif %}">点赞量</th></tr>
     </thead>
     <tbody>
       {% for p in posts %}
       <tr>
         <td class="muted">{{ loop.index }}</td>
         <td><a href="{{ base_path }}/admin/posts/{{ p.id }}/edit">{{ p.title }}</a></td>
-        <td>{{ p.period_views }}</td>
-        <td class="muted">{{ p.views }}</td>
+        <td class="{% if ranking_metric == "views" %}active{% endif %}">{{ p.views }}</td>
+        <td class="{% if ranking_metric == "likes" %}active{% endif %}">{{ p.like_count }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -136,25 +139,33 @@
   </section>
 
   <section class="panel-section">
-  <h2>地区分布 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %} · 全球</small></h2>
+  <h2>地区分布 <small class="muted">全部时间 · 全球</small></h2>
   {% if region_rows_any %}
   <div class="map-wrap" id="region-map" role="img" aria-label="全球阅读分布地图（悬停国家查看数值）"></div>
-  <p class="muted">地图按国家/地区着色（阅读量）；国内及港澳台已并入地图中，悬停「中国」查看各省市明细，无法归入地图的海外访问列于下方明细</p>
+  <p class="muted">地图按国家/地区着色（累计阅读量）；悬停或点击展开国家内地区明细，明细表按国家汇总</p>
   {% if regions %}
   <table class="data-table region-detail">
-    <thead><tr><th>#</th><th>国家</th><th>省份</th><th>阅读</th></tr></thead>
+    <thead><tr><th>#</th><th>国家</th><th>地区数</th><th>阅读</th><th>省份明细</th></tr></thead>
     <tbody>
       {% for r in regions %}
       <tr>
         <td class="muted">{{ (region_page - 1) * region_page_size + loop.index }}</td>
         <td>{{ r.country if r.country else "—" }}</td>
-        <td>{{ r.province if r.province else "—" }}</td>
+        <td>{{ r.region_count }}</td>
         <td class="muted">{{ r.count }}</td>
+        <td>
+          <details class="region-detail-popover">
+            <summary>展开</summary>
+            <ul class="region-detail-list">
+              {% for p in r.regions %}<li>{{ p.province if p.province else "—" }}：{{ p.count }}</li>{% endfor %}
+            </ul>
+          </details>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted">共 {{ region_total }} 条地区记录{% if region_total > 1 %}（按期间阅读降序）{% endif %}</p>
+  <p class="muted">共 {{ region_total }} 个国家/地区{% if region_total > 1 %}（按累计阅读降序）{% endif %}</p>
   {% if region_total_pages > 1 %}
   <div class="pagination">
     {% if region_page > 1 %}
@@ -179,7 +190,7 @@
   </section>
 
   <section class="panel-section">
-  <h2>跳转来源 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}</small></h2>
+  <h2>跳转来源 <small class="muted">全部时间</small></h2>
   {% if sources %}
   <div class="source-grid">
     <div class="chart-wrap chart-doughnut"><canvas id="source-chart" role="img" aria-label="跳转来源分布饼状图"></canvas></div>
