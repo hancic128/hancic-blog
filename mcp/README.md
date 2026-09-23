@@ -65,6 +65,8 @@ codex mcp add hancic -- \
 ## 工具清单
 
 文章：`list_posts` / `get_post` / `create_post` / `update_post` / `delete_post`
+
+> `list_posts` 只返回文章摘要，不包含 `content_md`；需要正文时用 `get_post`。
 说说：`list_moments` / `get_moment` / `create_moment` / `update_moment` / `delete_moment`
 分类 / 标签：`list_categories` / `create_category` / `update_category` / `delete_category` /
 `list_tags` / `create_tag` / `delete_tag`
