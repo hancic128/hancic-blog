@@ -180,6 +180,56 @@ pub async fn summary(
     })
 }
 
+/// 全站排行指标：累计阅读量 / 累计点赞量。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RankingMetric {
+    Views,
+    Likes,
+}
+
+impl RankingMetric {
+    pub fn from_query(value: Option<&str>) -> Self {
+        match value {
+            Some("likes") => Self::Likes,
+            _ => Self::Views,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Views => "views",
+            Self::Likes => "likes",
+        }
+    }
+}
+
+/// 全站累计排行：按 posts.views 或 posts.like_count 降序，只统计已发布文章。
+pub async fn top_posts_by_metric(
+    db: &Db,
+    metric: RankingMetric,
+    limit: i64,
+) -> AppResult<Vec<(Post, i64)>> {
+    let (value_col, order_sql) = match metric {
+        RankingMetric::Views => ("p.views", "p.views DESC, p.id ASC"),
+        RankingMetric::Likes => ("p.like_count", "p.like_count DESC, p.id ASC"),
+    };
+    let sql = format!(
+        "SELECT {POST_COLUMNS}, {value_col} AS metric_value \
+         FROM posts p WHERE p.status = 'published' AND p.post_type = 'post' \
+         ORDER BY {order_sql} LIMIT ?"
+    );
+    let rows = sqlx::query(&sql).bind(limit).fetch_all(db).await?;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (
+                PostStatRow::from_row(r).expect("行结构匹配").into(),
+                r.get("metric_value"),
+            )
+        })
+        .collect())
+}
+
 /// 阅读量 Top 文章（按浏览量倒序），返回 (Post, 期间浏览量)。
 pub async fn top_posts(
     db: &Db,

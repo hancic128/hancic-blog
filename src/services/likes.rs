@@ -156,6 +156,14 @@ pub async fn recent_like_count(db: &Db, days: i64) -> Result<i64, AppError> {
     Ok(total)
 }
 
+/// 全站累计点赞数（文章与说说合计）。
+pub async fn total_like_count(db: &Db) -> Result<i64, AppError> {
+    let total = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM content_likes")
+        .fetch_one(db)
+        .await?;
+    Ok(total)
+}
+
 /// 按日点赞数（站点时区自然日分组，与仪表盘阅读趋势横轴一致）。
 /// `from`/`to` 为 `YYYY-MM-DD`（站点时区日期），缺省不设限；返回 [(日期, 点赞数)] 升序。
 pub async fn daily_like_count(

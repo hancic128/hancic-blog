@@ -408,20 +408,20 @@ const DASHBOARD_TOP_POSTS: i64 = 10;
 /// 地区明细每页行数。
 const REGION_PAGE_SIZE: usize = 10;
 
-/// 国内及港澳台地区名（与 admin.js 的 domesticSet / COUNTRY_ALIAS 归入 China 的集合一致）：
-/// 这些行已并入地图「中国」色块（悬停显示省市明细），不再出现在明细表中。
-fn is_domestic_region(country: &str) -> bool {
-    matches!(
-        country,
-        "中国" | "中國"
-            | "中国台湾" | "中国香港" | "中国澳门"
-            | "香港" | "澳门" | "台湾"
-    )
-}
-
 /// 仪表盘上下文：统计（卡片 + 区间趋势 + 文章排行 Top10 + 全球地区地图 + 跳转来源饼图）。
 /// `from`/`to` 为有效区间（缺省近 30 天；双 None = 显式「全部」不设限），
 /// `query` 提供地区明细分页（region_page）；趋势/范围按站点时区 `tz` 自然日。
+/// 排行指标切换链接：保留日期范围参数，避免切换排行时重置趋势范围。
+fn ranking_href(query: &HashMap<String, String>, metric: &str) -> String {
+    let mut params = vec![format!("metric={metric}")];
+    for key in ["from", "to", "days", "range"] {
+        if let Some(value) = query.get(key).filter(|v| !v.is_empty()) {
+            params.push(format!("{key}={value}"));
+        }
+    }
+    format!("?{}", params.join("&"))
+}
+
 async fn fill_dashboard(
     state: &AppState,
     ctx: &mut Context,
@@ -455,8 +455,8 @@ async fn fill_dashboard(
         .unwrap_or(0);
     ctx.insert("active_days", &active_days);
 
-    // 卡片（total_views 随区间过滤，文章/说说/附件为全量）+ 趋势。
-    // 横轴：全部=实际有阅读数据的日期序列；区间=逐日补 0。
+    // 统计卡使用累计口径；日期范围只控制阅读/点赞趋势。
+    let summary_all = stats_service::summary(&state.db, None, None, tz).await?;
     let summary =
         stats_service::summary(&state.db, from.as_deref(), to.as_deref(), tz).await?;
     let (labels, views) = if all {
@@ -494,48 +494,33 @@ async fn fill_dashboard(
         .map(|d| like_counts.get(d.as_str()).copied().unwrap_or(0))
         .collect();
 
-    // 文章排行：服务层 Top N（区间内阅读降序），固定展示前 10 不设分页
-    let top = stats_service::top_posts(
-        &state.db,
-        from.as_deref(),
-        to.as_deref(),
-        DASHBOARD_TOP_POSTS,
-        tz,
-    )
-    .await?;
+    // 文章排行：累计阅读量/点赞量 Top N，固定展示前 10 不设分页
+    let ranking_metric = stats_service::RankingMetric::from_query(query.get("metric").map(String::as_str));
+    let top = stats_service::top_posts_by_metric(&state.db, ranking_metric, DASHBOARD_TOP_POSTS).await?;
+    ctx.insert("ranking_metric", ranking_metric.as_str());
+    ctx.insert("ranking_value_label", if ranking_metric == stats_service::RankingMetric::Views { "阅读量" } else { "点赞量" });
+    ctx.insert("ranking_views_href", &ranking_href(query, "views"));
+    ctx.insert("ranking_likes_href", &ranking_href(query, "likes"));
     ctx.insert(
         "posts",
         &top
             .iter()
-            .map(|(p, period)| {
+            .map(|(p, value)| {
                 json!({
                     "id": p.id,
                     "title": p.title,
                     "views": p.views,
-                    "period_views": period,
+                    "like_count": p.like_count,
+                    "ranking_value": value,
                 })
             })
             .collect::<Vec<_>>(),
     );
 
-    // 地区：按 (国家, 省份) 聚合，阅读降序。
-    // 全量行注入地图 JSON（JS 按国家聚合着色全球地图）；明细表排除国内省市行
-    let regions =
-        stats_service::by_region(&state.db, from.as_deref(), to.as_deref(), tz).await?;
+    // 地区：累计阅读量按国家汇总，省份明细保留给地图悬停/展开。
+    let regions = stats_service::by_region(&state.db, None, None, tz).await?;
     let region_rows = stats::region_view(&regions);
-    // 国内行（中国及港澳台）已并入地图「中国」色块（悬停显示省市 Top10），
-    // 明细表只保留无法归入地图的行；region_data 仍用全量行供地图 JS 聚合。
-    let detail_rows: Vec<Value> = region_rows
-        .iter()
-        .filter(|r| {
-            let c = r
-                .get("country")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            !is_domestic_region(c)
-        })
-        .cloned()
-        .collect();
+    let detail_rows = region_rows.clone();
     let region_total_pages = detail_rows.len().div_ceil(REGION_PAGE_SIZE).max(1);
     let region_page = query
         .get("region_page")
@@ -554,19 +539,19 @@ async fn fill_dashboard(
     ctx.insert("region_total_pages", &region_total_pages);
     ctx.insert("region_total", &detail_rows.len());
     ctx.insert("region_page_size", &REGION_PAGE_SIZE);
-    // 全量地区行是否非空：控制地图区域渲染（即使全部行都是国内/港澳台，也要显示地图）
-    ctx.insert("region_rows_any", &(!region_rows.is_empty()));
-    // 地图数据（全量行；JS 侧按国家聚合 + 名称归一化匹配世界省界）
+    // 全量地区行是否非空：控制地图区域渲染
+    ctx.insert("region_rows_any", &(!regions.is_empty()));
+    // 地图数据保留省份维度；JS 侧按国家聚合 + 名称归一化匹配世界地图。
+    let region_provinces = stats::region_province_view(&regions);
     ctx.insert_value(
         "region_data",
         tera::Value::safe_string(
-            &serde_json::to_string(&region_rows).unwrap_or_else(|_| "[]".into()),
+            &serde_json::to_string(&region_provinces).unwrap_or_else(|_| "[]".into()),
         ),
     );
 
-    // 跳转来源：按 referer 平台分类分组，阅读降序（模板空态判断 + 饼图 JSON）
-    let sources =
-        stats_service::by_source(&state.db, from.as_deref(), to.as_deref(), tz).await?;
+    // 跳转来源：累计阅读按 referer 平台分类分组，阅读降序（模板空态判断 + 饼图 JSON）
+    let sources = stats_service::by_source(&state.db, None, None, tz).await?;
     let source_rows = stats::source_view(&sources);
     ctx.insert("sources", &source_rows);
     ctx.insert_value(
@@ -576,17 +561,17 @@ async fn fill_dashboard(
         ),
     );
 
-    let recent_like_count_7d = crate::services::likes::recent_like_count(&state.db, 7)
+    let total_likes = crate::services::likes::total_like_count(&state.db)
         .await
         .unwrap_or(0);
     ctx.insert(
         "stats",
         &json!({
-            "total_posts": summary.total_posts,
-            "total_moments": summary.total_moments,
-            "total_attachments": summary.total_attachments,
-            "total_views": summary.total_views,
-            "recent_like_count_7d": recent_like_count_7d,
+            "total_posts": summary_all.total_posts,
+            "total_moments": summary_all.total_moments,
+            "total_attachments": summary_all.total_attachments,
+            "total_views": summary_all.total_views,
+            "total_likes": total_likes,
         }),
     );
     // 内嵌 JSON 供 admin.js 画图：safe_string 标记避免 tera 自动转义破坏脚本。

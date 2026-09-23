@@ -1069,33 +1069,49 @@
     });
     return set;
   }
-  // 从 regionData（country/province/count）按国家聚合；中英名归一化后仅保留地图可匹配的行
-  // 国内（中國）省市单独返回，不归入"无法归入地图"
+  // 从 regionData（country/province/count）按国家聚合；中英名归一化后仅保留地图可匹配的行。
+  // 国内及港澳台归入 China，但省份/地区明细保留到 provinces 供 tooltip 展开。
   function countryMapData(featureNames) {
     var map = {};
     var zh = {};
-    var domestic = [];  // 国内省市数据
-    var domesticSet = { '中国': true, '中國': true };
+    var details = {};
+    var domesticSet = {
+      '中国': true, '中國': true, '中国台湾': true, '中国香港': true, '中国澳门': true,
+      '台湾': true, '香港': true, '澳门': true
+    };
+    function domesticProvince(raw, province) {
+      if (raw === '中国台湾' || raw === '台湾') return '台湾';
+      if (raw === '中国香港' || raw === '香港') return '香港';
+      if (raw === '中国澳门' || raw === '澳门') return '澳门';
+      return province || '—';
+    }
     (window.regionData || []).forEach(function (r) {
       var raw = String(r.country || '').trim();
-      if (!raw || raw === '本地' || raw === '未知') return;
-      // 国内数据单独收集
-      if (domesticSet[raw]) {
-        domestic.push({ province: r.province || '—', count: r.count || 0 });
-        return;
-      }
-      var name = COUNTRY_ALIAS[raw] || raw;
+      if (!raw || raw === '未知') return;
+      var name = domesticSet[raw] ? 'China' : (COUNTRY_ALIAS[raw] || raw);
       if (!featureNames[name]) return;
-      map[name] = (map[name] || 0) + (r.count || 0);
-      if (!zh[name]) zh[name] = raw;
+      var count = r.count || 0;
+      map[name] = (map[name] || 0) + count;
+      if (!zh[name]) zh[name] = domesticSet[raw] ? '中国' : raw;
+      if (!details[name]) details[name] = [];
+      var province = domesticSet[raw] ? domesticProvince(raw, r.province) : (r.province || '—');
+      var found = details[name].find(function (d) { return d.province === province; });
+      if (found) found.count += count;
+      else details[name].push({ province: province, count: count });
     });
     var data = Object.keys(map)
       .sort(function (a, b) { return map[b] - map[a]; })
-      .map(function (name) { return { name: name, value: map[name], zh: zh[name] }; });
+      .map(function (name) {
+        return {
+          name: name,
+          value: map[name],
+          zh: zh[name],
+          provinces: (details[name] || []).sort(function (a, b) { return b.count - a.count; })
+        };
+      });
     return {
       data: data,
-      max: data.reduce(function (m, d) { return d.value > m ? d.value : m; }, 1),
-      domestic: domestic
+      max: data.reduce(function (m, d) { return d.value > m ? d.value : m; }, 1)
     };
   }
   function mapTheme() {
@@ -1265,8 +1281,8 @@
     if (mapEl && window.echarts && window.HANCIC_WORLD_GEO) {
       var names = worldFeatureNames();
       var ctx = countryMapData(names);
-      // 有国内数据时显示地图（国内省市在 tooltip/明细表展示）
-      if (!ctx.data.length && !ctx.domestic.length) {
+      // 无匹配国家数据时隐藏地图容器，国家明细表仍保留。
+      if (!ctx.data.length) {
         mapEl.hidden = true;
         return;
       }
@@ -1274,23 +1290,6 @@
       var map = window.echarts.init(mapEl);
       window._worldMapCtx = ctx;
       window._adminMap = map;
-      // 国内数据加到地图 tooltip：悬停中国时显示各省市分布
-      if (ctx.domestic.length) {
-        var total = ctx.domestic.reduce(function (s, d) { return s + d.count; }, 0);
-        var domesticTooltip = ctx.domestic
-          .sort(function (a, b) { return b.count - a.count; })
-          .map(function (d) { return d.province + '：' + d.count; })
-          .join('<br>');
-        // 为中国数据添加省份分布信息
-        ctx.data.push({
-          name: 'China',
-          value: total,
-          zh: '中国',
-          provinces: ctx.domestic
-        });
-        // 扩展最大值为中国数据
-        if (total > ctx.max) ctx.max = total;
-      }
       map.setOption(buildMapOption(ctx, mapTheme()));
       window.addEventListener('resize', function () { map.resize(); });
     }
