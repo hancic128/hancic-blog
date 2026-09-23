@@ -828,7 +828,7 @@ html[data-mode="dark"] .md-body .hljs-bullet { color: #d2a8ff; }
   }
 
   .site-nav.open { display: flex; }
-  .nav-toggle { display: flex; }
+  .nav-toggle { display: flex; margin-left: auto; }
   .site-main { padding: 1.25rem 1rem 3rem; font-size: 16.5px; }
   .post-adjacent { flex-direction: column; }
 }

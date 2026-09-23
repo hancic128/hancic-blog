@@ -673,7 +673,7 @@ button, a, [role="button"], label { cursor: pointer; }
   }
   .site-nav.open { transform: translateX(0); }
   .site-nav a { padding: .7rem 1rem; font-size: 1rem; border-radius: 10px; }
-  .nav-toggle { display: inline-flex; }
+  .nav-toggle { display: inline-flex; margin-left: auto; }
   /* 移动端下拉改手风琴：默认收起，点父项展开 */
   .nav-dropdown > a {
     display: flex;

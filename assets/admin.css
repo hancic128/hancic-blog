@@ -276,12 +276,28 @@ a:hover { text-decoration: underline; }
   outline-offset: 2px;
 }
 
-/* 折叠按钮（位于右下悬浮组内，外观由 .fab-btn 提供；此处仅图标双态切换，
-   规范 7.17：ChevronsLeft/Right，折叠时切换方向） */
-.side-collapse svg { display: block; }
+/* 侧栏折叠按钮（位于侧栏底部，规范 7.17：ChevronsLeft/Right，折叠时切换方向） */
+.side-collapse svg { display: block; flex: none; }
 .side-collapse .icon-collapse-right { display: none; }
 .admin-shell.side-collapsed .side-collapse .icon-collapse-left { display: none; }
 .admin-shell.side-collapsed .side-collapse .icon-collapse-right { display: block; }
+.admin-side-collapse {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 10px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--side-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--side-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.admin-side-collapse:hover { background: var(--row-hover-bg); color: var(--logo-color); }
+.admin-shell.side-collapsed .admin-side-collapse { justify-content: center; margin: 8px 6px 14px; padding: 11px 0; }
 
 .admin-nav { flex: 1; padding: 12px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .admin-nav-item {
@@ -2126,17 +2142,29 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .panel-section > .stat-grid { margin-bottom: 0; }
 
 /* API 帮助页：目录导航 + 说明排版 */
-/* 目录固定悬浮：粘在滚动容器顶部，滚动帮助页时保持可见（帮助页面板很长） */
+/* 目录固定在视口右侧，不进入正文流；帮助页正文预留右侧空间，避免遮挡。 */
+.admin-content:has(.api-toc) {
+  max-width: 860px;
+  margin-right: 230px;
+}
 .api-toc {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: 88px;
+  right: 24px;
+  width: 190px;
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
   z-index: 5;
-  margin: 0 0 4px;
-  padding: 12px 16px;
+  margin: 0;
+  padding: 12px 14px;
   border-radius: 12px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
+}
+@media (max-width: 1100px) {
+  .admin-content:has(.api-toc) { max-width: 1120px; margin-right: auto; }
+  .api-toc { position: static; width: auto; max-height: none; margin: 0 0 4px; overflow: visible; }
 }
 .api-toc h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
 .api-toc ul { list-style: none; margin: 0; padding: 0; }
@@ -2158,6 +2186,18 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
   line-height: 1.6;
 }
 .panel pre code { background: none; padding: 0; color: var(--text); }
+
+/* 仪表盘排行指标切换 */
+.ranking-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.ranking-head h2 { margin-bottom: 0; }
+.ranking-metric { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel-2); }
+.ranking-metric-btn { padding: 5px 11px; border-radius: 6px; color: var(--muted); font-size: 13px; text-decoration: none; }
+.ranking-metric-btn.active { background: var(--accent); color: #fff; }
+.ranking-table th.active, .ranking-table td.active { color: var(--accent); font-weight: 600; }
+
+/* 仪表盘地区国家行：详情展开不改变表格列宽 */
+.region-detail-popover summary { color: var(--accent); cursor: pointer; font-size: 13px; }
+.region-detail-list { display: grid; gap: 2px 18px; margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
 
 /* 编辑页专栏选择（原生 select，与分类选择器同宽） */
 .cat-field .col-select {
