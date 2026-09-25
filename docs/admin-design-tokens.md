@@ -15,7 +15,7 @@
 | 语义色 | `--rose-*` `--amber-*`（危险/警告）+ emerald 复用 brand | 状态/危险操作专用 |
 | 间距 | `--space-1/2/3/4/6/8/12/16` | 4px 网格（4/8/12/16/24/32/48/64） |
 | 圆角 | `--radius-sm/md/lg/xl` | 4/6/8/12px |
-| 字号 | `--text-xs/sm/base/lg/xl` | 12/14/16/18/20px |
+| 字号 | `--text-xs/sm/base/lg/xl` + `--text-display` | 12/14/16/18/20px；`display`=27px 仅用于仪表盘统计大数字（2026-09-25 新增，唯一允许超出 5 级体系的场景） |
 | 阴影 | `--shadow-sm/md/lg` | 3 档；禁彩色阴影（`--shadow-accent` 为 legacy，将删） |
 
 ## 主题驱动链
@@ -49,6 +49,7 @@ html[data-accent=indigo|emerald|rose|amber|slate] 覆盖 --brand-*（6 级）
 ## 使用规则（禁止清单节选，防回潮）
 
 - 新增样式一律引用令牌；禁止裸 hex、裸 px 间距/字号、`!important`、emoji 图标
+- 2026-09-25：`assets/admin.css` 裸 px 字号已清零（120 处 → 全部 `var(--text-*)`；仅编辑器标题/代码保留 `1.7/1.45/1.25/1.1/0.92em` 相对值）。改字号只动令牌，勿新增裸值
 - 按钮只用 4 变体语义（primary/secondary/ghost/danger），主按钮**禁渐变**（见 06-7.1）
 - 语义色只用于状态标签/危险操作，不用于导航/链接主色
 - 明暗由 `data-mode` 变量驱动，暗色适配不要用 `.dark` 独立样式文件
