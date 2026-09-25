@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.3] - 2026-09-25
+
+### 变更
+
+- **后台字号全量令牌化（规范 02/10 收口）**：`assets/admin.css` 裸 px 字号清零。原 120 处 `font-size` 中仅 19 处引用令牌，现 114 处使用 `var(--text-xs/sm/base/lg/xl)`、6 处保留 em 相对值（编辑器标题与代码，相对排版）。其中 49 处为同值无损替换（12/14/16/18px）；45 处非标准值（13 / 13.5 / 12.5 / 11 / 15 / 17px）对齐最近令牌，单处视觉差 ≤ 1px。
+- **新增 `--text-display: 27px`**：仅供仪表盘统计大数字（`.stat-num`）使用，是唯一允许超出 5 级字号体系（12/14/16/18/20px）的字号；令牌注释与 `docs/admin-design-tokens.md` 已标注该例外与防回潮约定。
+
+### 测试
+
+- `assets/admin.css` 字号全部走令牌，无裸 px 值；括号配平与改动前一致。
+- `cargo test` 全绿、`cargo clippy --all-targets -- -D warnings` 通过、Playwright E2E 15/15（desktop + 375px）。
+
 ## [1.1.2] - 2026-09-23
 
 ### 新增
