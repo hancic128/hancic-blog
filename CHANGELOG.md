@@ -2,6 +2,33 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.5] - 2026-09-26
+
+### 新增
+
+- **后台侧栏底部版本徽章 + 部署时间**：侧栏折叠按钮上方新增 `.admin-meta` 区，pill 样式 `.admin-version-tag` 显示 `v0.1.0`（`env!("CARGO_PKG_VERSION")` 注入），下方一行小字显示「最近部署 YYYY-MM-DD 部署」（按 `settings.timezone` 换算、去时分秒以适配窄列）；折叠态整组隐藏。版本与发版 tag 不同源——Cargo 版本号是二进制版本，发版 tag（v1.1.x）是发布标记，后续若要跟随 release tag 可走 build arg。
+- **后台切换菜单 page-load 加载动画**：body 首插 `.admin-loading-bar`（顶栏 3px 进度条，`@keyframes admin-loading-slide` 1.1s 循环）；`.admin.js` 拦截同源 nav `<a>` 点击（跳过 `target=_blank / href=# / 下载`）给 bar 加 `.is-loading`，`pageshow` + `DOMContentLoaded` 清除；`prefers-reduced-motion` 直接禁用动画。整页 SSR 跳转期间不再出现「点了没反应」。
+
+### 变更
+
+- **journal 左侧侧边菜单栏 hover/active 竖向 accent line**：`.nav-item > a::before` hover 半高（60%），加 `.nav-item.is-active > a::before` / `.nav-dropdown.is-active > a::before` 显示满高（100%）竖线 + 软底强调；`.main.js` 新增 `initNavActive()` 按当前 pathname 前缀匹配最长 href 自动打 `.is-active`（`/` 与 `/admin` 精确匹配，其余路径按 `path === p || path.startsWith(p + '/')` 边界匹配）。
+- **journal 内容区右侧导航栏竖向边线样式**：`.side-toc a / .side-months a / .side-tags a` 加 `::before` 竖线 + `position: relative; padding-left`；hover 半高（60%）、`.is-active` 满高（100%）+ accent 文字 + 600 字重；`.side-month-active / .side-column-active` 沿用旧类兼容现有模板同款竖线。
+- **journal 说说列表按容器宽度裁剪 + 仅溢出项显示折叠按钮**：`moment_item.html` 预览去掉固定 `truncate(length=40)`，由 CSS `text-overflow: ellipsis` 单行截断；`.main.js` 的 `initMomentToggle()` 改用 `scrollWidth > clientWidth + 1` 检测溢出（`requestAnimationFrame` 等首屏 layout 完成、`resize` 后重测）——短文本自动加 `.moment-short` 展开并隐藏折叠按钮，长文本按容器宽度截断后显示折叠按钮。双栏 / 单栏切换、字号变化都能正确响应。
+- **后台品牌区 hover 不显示下划线**：`.admin-brand:hover` 显式 `text-decoration: none`，覆盖全局 `a:hover { text-decoration: underline }`。
+- **后台内容区宽屏自适应**：`.admin-content` 由固定 `max-width: 1120px` 改为 `clamp(1120px, 70vw, 1600px)`——1920px 视口下从 ~1044 拉到 ~1344；侧栏（236px）+ 内容 padding 仍受父容器限宽时不撑出。
+- **后台帮助文档页水平居中**：`.panel:has(.api-toc)` 由单列流式布局改为 grid（`minmax(220px, 280px) minmax(0, 1fr) gap: 32px`）；`.api-toc` 由 `position: fixed` 改为 sticky（与左侧常驻侧栏同款）；`.admin-content:has(.panel > .api-toc)` 用 `clamp(960px, 80vw, 1320px)` 水平居中；≤1100px 堆叠为单列（toc 在内容上方）。
+
+### 测试
+
+- `cargo test` 30 lib + 全部集成测试通过；`cargo clippy --all-targets -- -D warnings` 干净。
+- `tests/admin_flow.rs`：部署时间断言改用 `NaiveDate::parse_from_str` + ±1 天漂移容差（应对跨午夜边界），并新增 `admin-version-tag` + `v0.1.0` 断言；`admin_brand_deploy_time_follows_site_timezone` 同步更新。
+- `e2e/tests/admin-ui.spec.ts`：品牌区用例改为断言侧栏底部 admin-meta + 版本徽章 + 部署时间 + hover 不下划线；帮助页用例改为「水平居中 + toc 在左 / 内容在右」语义；新增 page-loading 用例（进度条元素 + keyframes 定义 + 未加载时 opacity=0）；新增内容区响应式用例（1280 ≤ 视口-侧栏、1920 比 1280 宽 ≥100px 且 ≤1600）。
+- `e2e/tests/journal-ui.spec.ts`（新）：3 用例——左侧 nav 自动 active 满高竖线、右侧 toc 链接 hover 显示竖线、说说短文本自动展开 + 长文本窄屏折叠按钮显示。
+
+### 部署
+
+- 镜像 `…/hancic128/hancic-blog:v1.1.5`，自动部署到 sh 主机（hancic.site / blog.hancic.site）。
+
 ## [1.1.4] - 2026-09-26
 
 ### 新增
