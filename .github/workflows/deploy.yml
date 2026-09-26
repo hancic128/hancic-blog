@@ -126,6 +126,11 @@ jobs:
           file: Dockerfile
           push: true
           tags: ghcr.io/hancic128/hancic-blog:${{ github.ref_name }}
+          # 把 release tag（如 v1.1.6，带 v 前缀）作为 build-arg 传给 Dockerfile，
+          # 二进制启动时读 ENV APP_VERSION 注入后台 context（src/admin/mod.rs
+          # resolve_app_version 负责去掉 v 前缀），admin 侧栏底部版本徽章就能
+          # 显示真实 release tag，而不是 Cargo 包版本（0.1.0）。
+          build-args: APP_VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

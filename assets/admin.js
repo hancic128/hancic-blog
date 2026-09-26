@@ -429,24 +429,42 @@
   }
 
   // ---- 切换菜单加载动画：避免 SSR 整页跳转期间出现「点了没反应」 ----
-  // 策略：nav-item 点击 → 给 .admin-loading-bar 加 .is-loading（CSS 顶栏进度条开跑）；
-  // pageshow（首屏 / 浏览器前进后退 bfcache 恢复）→ 移除。
-  // 仅拦截同源 <a> 跳转；外部 / target=_blank / data-confirm / 下载 链接不拦截。
+  // 策略：nav-item 点击 → 记下起始时间 + 给 .admin-loading-bar 加 .is-loading
+  // （CSS：顶栏进度条 + 居中 spinner + 半透明遮罩）；新文档由 layout.html 的
+  // 内联脚本「续接」加载态并补足最短可见时长（400ms），内网 SSR 再快也看得见。
+  // 仅拦截同源 <a> 跳转；target=_blank / href=# / data-confirm 链接不拦截。
   var loadingBar = document.querySelector('.admin-loading-bar');
+  var LOADING_START_KEY = 'admin-nav-loading-at';
   if (loadingBar) {
     var navRoot = document.querySelector('.admin-nav');
     if (navRoot) {
+      var navFailsafe = null;
       navRoot.addEventListener('click', function (e) {
         var a = e.target instanceof Element ? e.target.closest('a.admin-nav-item') : null;
         if (!a) return;
         if (a.target === '_blank') return;
         var href = a.getAttribute('href') || '';
         if (!href || href.startsWith('#')) return;
+        // 同源 <a> 才会全页跳转；data-confirm 由另一拦截器接管（这里不去拦截）
+        if (a.hasAttribute('data-confirm')) return;
+        try { sessionStorage.setItem(LOADING_START_KEY, String(Date.now())); } catch (err) { /* 隐私模式忽略 */ }
         loadingBar.classList.add('is-loading');
+        // 兜底：浏览器取消/吞掉这次跳转（如触发下载）时自动收起，别一直蒙着遮罩
+        if (navFailsafe) clearTimeout(navFailsafe);
+        navFailsafe = setTimeout(function () {
+          loadingBar.classList.remove('is-loading');
+          try { sessionStorage.removeItem(LOADING_START_KEY); } catch (err) { /* 忽略 */ }
+        }, 8000);
       });
     }
-    function clearLoading() { loadingBar.classList.remove('is-loading'); }
-    // 首屏 / bfcache 恢复时清掉加载态
+    // 首屏 / bfcache 恢复时清掉加载态；若带着跨页续接标记（新文档的内联脚本
+    // 正在计时并负责收尾），这里不插手，否则动画刚亮起就被抹掉。
+    function clearLoading() {
+      var resuming = false;
+      try { resuming = !!sessionStorage.getItem(LOADING_START_KEY); } catch (err) { /* 忽略 */ }
+      if (resuming) return;
+      loadingBar.classList.remove('is-loading');
+    }
     window.addEventListener('pageshow', clearLoading);
     // 兜底：DOMContentLoaded 之后立刻清一次（覆盖 pageshow 错过的情况）
     if (document.readyState !== 'loading') {

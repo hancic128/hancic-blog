@@ -181,20 +181,21 @@ pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) ->
         .unwrap_or("");
     // 最近部署时间：容器重建即部署（app-deploy 走 compose pull/up -d），故进程
     // 启动时刻就是最近一次部署时刻；按「系统设置 / 时区」换算后展示。
-    // 格式形如「2026-09-26 部署」，渲染为单独一段，去掉时分秒以适配侧栏底部窄列。
+    // 格式「YYYY-MM-DD HH:MM:SS 部署」（含秒）；侧栏底部该值独占一行
+    // （layout.html 的 .admin-deploy-label + .admin-deploy-time 两行结构），
+    // 不再被窄列 ellipsis 截断。
     let tz = crate::services::timezone::site_timezone(&state.db).await;
     let deploy_time = state
         .started_at
         .with_timezone(&tz)
-        .format("%Y-%m-%d 部署")
+        .format("%Y-%m-%d %H:%M:%S 部署")
         .to_string();
-    // 版本：编译期固化（CARGO_PKG_VERSION），版本徽章直接读这个值。
-    let app_version = env!("CARGO_PKG_VERSION");
+    let app_version = resolve_app_version(std::env::var("APP_VERSION").ok());
     let mut ctx = Context::new();
     ctx.insert("site_name", site_name);
     ctx.insert("site_logo", site_logo);
     ctx.insert("deploy_time", &deploy_time);
-    ctx.insert("app_version", app_version);
+    ctx.insert("app_version", &app_version);
     ctx.insert("base_path", &state.config.base_path);
     ctx.insert("csrf", &csrf);
     ctx.insert("admin_nav", &nav_value(&admin_nav(path)));
@@ -621,9 +622,32 @@ pub(crate) fn format_local(dt: DateTime<Utc>) -> String {
     dt.with_timezone(&tz).format("%Y-%m-%d %H:%M").to_string()
 }
 
+/// 后台侧栏显示的版本号：优先取运行时环境变量 `APP_VERSION`
+/// （CI 用 Docker `--build-arg APP_VERSION=$GITHUB_REF_NAME` 注入，值形如 `v1.1.6`），
+/// 归一化成不带 `v` 前缀的 `1.1.6`（模板统一补 `v`）；未注入（本地 cargo run）
+/// 或显式为 `dev` 时回退编译期 `CARGO_PKG_VERSION`。
+/// 这样徽章显示的是真实 release tag，而不是 Cargo 包版本 0.1.0。
+fn resolve_app_version(raw: Option<String>) -> String {
+    raw.map(|v| v.trim().trim_start_matches(['v', 'V']).to_string())
+        .filter(|v| !v.is_empty() && v != "dev")
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn app_version_prefers_injected_release_tag() {
+        // CI 注入 v 前缀 tag → 去掉 v，模板再补 v
+        assert_eq!(resolve_app_version(Some("v1.1.6".into())), "1.1.6");
+        assert_eq!(resolve_app_version(Some("2.0.1".into())), "2.0.1");
+        assert_eq!(resolve_app_version(Some(" v1.1.6 ".into())), "1.1.6");
+        // 未注入 / dev / 空串 → 回退 Cargo 包版本
+        assert_eq!(resolve_app_version(None), env!("CARGO_PKG_VERSION"));
+        assert_eq!(resolve_app_version(Some("dev".into())), env!("CARGO_PKG_VERSION"));
+        assert_eq!(resolve_app_version(Some("  ".into())), env!("CARGO_PKG_VERSION"));
+    }
 
     #[test]
     fn nav_active_matches_by_path() {

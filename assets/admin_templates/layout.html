@@ -11,6 +11,30 @@
 </head>
 <body>
 <div class="admin-loading-bar" aria-hidden="true"></div>
+<script>/* 整页跳转的加载动画「续接」：来源页面点击导航时把起始时间写进 sessionStorage，
+   新文档解析到这里就立刻恢复加载态（spinner + 遮罩），并补足最短可见时长——
+   否则内网/本机 SSR 太快，动画在跳转瞬间就没了，用户根本看不到。
+   收尾由这里的定时器负责（admin.js 的 clearLoading 遇到续接标记不插手）。 */
+(function () {
+  var MIN_MS = 400;
+  var KEY = 'admin-nav-loading-at';
+  var at;
+  try { at = Number(sessionStorage.getItem(KEY)); } catch (e) { return; }
+  if (!at) return;
+  var left = MIN_MS - (Date.now() - at);
+  // 超过 10s 视为上一次跳转的残留（如长按返回），直接作废
+  if (left <= 0 || Date.now() - at > 10000) {
+    try { sessionStorage.removeItem(KEY); } catch (e) { /* 忽略 */ }
+    return;
+  }
+  var bar = document.querySelector('.admin-loading-bar');
+  if (!bar) return;
+  bar.classList.add('is-loading');
+  setTimeout(function () {
+    bar.classList.remove('is-loading');
+    try { sessionStorage.removeItem(KEY); } catch (e) { /* 忽略 */ }
+  }, left);
+})()</script>
 <div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
     {# 品牌区：点击（logo + 站名）在新标签页打开博客首页；站名下方小字显示
@@ -33,10 +57,12 @@
       </a>
       {% endfor %}
     </nav>
-    {# 侧栏底部：版本徽章 + 部署时间（位于折叠按钮上方；折叠态整组隐藏） #}
+    {# 侧栏底部：版本徽章 + 部署时间（位于折叠按钮上方；折叠态整组隐藏）。
+       部署时间拆成「标签 + 值」两行：窄列放不下「最近部署 2026-09-26 20:07:03 部署」
+       一整行，单行会被 ellipsis 截掉秒/后缀，拆行后任何宽度都完整可见。 #}
     <div class="admin-meta" aria-label="版本与部署信息">
       <span class="admin-version-tag" title="当前版本">v{{ app_version }}</span>
-      <span class="admin-deploy" title="最近部署时间">最近部署 {{ deploy_time }}</span>
+      <span class="admin-deploy" title="最近部署时间"><span class="admin-deploy-label">最近部署</span> <span class="admin-deploy-time">{{ deploy_time }}</span></span>
     </div>
     <button class="admin-side-collapse side-collapse" id="side-collapse" type="button" aria-label="折叠菜单" title="折叠/展开菜单">
       <svg class="icon-collapse-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>

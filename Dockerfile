@@ -37,6 +37,11 @@ RUN find src -name '*.rs' -exec touch {} + \
     && cargo build --release --locked
 
 FROM alpine:3.20
+# 版本号由 CI 通过 build-arg 传入 release tag（带 v 前缀，默认 dev 方便本地
+# 构建不传参也能跑）；运行时通过 ENV 暴露给 hancic 二进制读取，admin 后台
+# 侧栏展示当前 release tag（v 前缀由 src/admin/mod.rs 归一化时去掉，模板再补）
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 RUN apk add --no-cache ca-certificates \
     && adduser -D hancic \
     && mkdir -p /data \
