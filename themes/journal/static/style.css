@@ -173,7 +173,7 @@ button, a, [role="button"], label { cursor: pointer; }
 /* 侧栏导航（桌面常驻；≤768px 变抽屉） */
 .site-nav { flex: 1 1 auto; }
 .nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .12rem; }
-/* 导航项：hover 时显示左侧竖向 accent line（::before 高度从 0 → 60%） */
+/* 导航项：hover 显示半高（60%）左侧竖向 accent line；is-active 类标注的当前页显示满高（100%）并加 accent 软底——JS 按 pathname 自动打 is-active */
 .nav-item > a, .nav-dropdown > a {
   display: flex; align-items: center; gap: .65rem;
   padding: .55rem .7rem .55rem calc(.7rem + 6px);
@@ -194,6 +194,20 @@ button, a, [role="button"], label { cursor: pointer; }
   color: var(--sidebar-active);
 }
 .nav-item > a:hover::before, .nav-dropdown > a:hover::before { height: 60%; }
+/* 当前页（JS 自动加 .is-active）：满高竖向 accent line + 软底强调；含子菜单的 dropdown 也按匹配项高亮 */
+.nav-item.is-active > a,
+.nav-dropdown.is-active > a {
+  color: var(--sidebar-active);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 8px;
+}
+.nav-item.is-active > a::before,
+.nav-dropdown.is-active > a::before { height: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-item > a::before, .nav-dropdown > a::before,
+  .nav-item.is-active > a::before, .nav-dropdown.is-active > a::before { transition: none; }
+}
 .nav-dropdown { position: relative; }
 .nav-dropdown > a::after { content: "▾"; margin-left: auto; font-size: .68em; opacity: .65; }
 .nav-dropdown .dropdown-menu { display: none; flex-direction: column; padding: .15rem 0 .25rem 2.1rem; }
@@ -283,11 +297,51 @@ button, a, [role="button"], label { cursor: pointer; }
 .side-title { margin: 0 0 .55rem; font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .side-toc, .side-months { list-style: none; margin: 0; padding: 0; }
 .side-toc li, .side-months li { margin: .22rem 0; }
-.side-toc a, .side-months a { color: var(--muted); text-decoration: none; font-size: .86rem; line-height: 1.5; }
-.side-toc a:hover, .side-months a:hover { color: var(--accent); }
+/* 右侧 toc / 月历 / 标签：与左侧 nav 同款左侧竖向 accent line；hover 半高、active 满高 */
+.side-toc a, .side-months a, .side-tags a {
+  position: relative;
+  display: inline-block;
+  padding-left: calc(.55rem + 6px);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .86rem;
+  line-height: 1.5;
+}
+.side-toc a::before, .side-months a::before, .side-tags a::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 2px; height: 0; transform: translateY(-50%);
+  background: var(--accent);
+  transition: height .2s ease;
+}
+.side-toc a:hover, .side-months a:hover, .side-tags a:hover { color: var(--accent); }
+.side-toc a:hover::before, .side-months a:hover::before, .side-tags a:hover::before { height: 60%; }
+.side-toc a.is-active, .side-months a.is-active, .side-tags a.is-active {
+  color: var(--accent); font-weight: 600;
+}
+.side-toc a.is-active::before, .side-months a.is-active::before, .side-tags a.is-active::before { height: 100%; }
 .side-toc .toc-l2 { padding-left: .8rem; }
 .side-toc .toc-l3 { padding-left: 1.6rem; }
-.side-month-active { color: var(--accent) !important; font-weight: 600; }
+.side-month-active {
+  color: var(--accent) !important; font-weight: 600;
+  position: relative; padding-left: calc(.55rem + 6px);
+}
+.side-month-active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 2px; height: 100%; transform: translateY(-50%);
+  background: var(--accent);
+}
+/* 与左侧 nav 同款竖向 accent line——右侧 sidebar 各类 active 状态统一处理 */
+.side-column-active > a {
+  color: var(--accent) !important; font-weight: 600;
+  position: relative; padding-left: calc(.55rem + 6px);
+}
+.side-column-active > a::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 2px; height: 100%; transform: translateY(-50%);
+  background: var(--accent);
+}
+.side-columns { list-style: none; margin: 0; padding: 0; }
+.side-columns li { margin: .22rem 0; }
 .side-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
 .archive-more { margin-top: .5rem; border: none; background: none; color: var(--muted); font-size: .82rem; cursor: pointer; }
 .archive-more:hover { color: var(--accent); }

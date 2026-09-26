@@ -411,21 +411,36 @@
 
 // 最近说说折叠/展开：点击切换 .expanded（不依赖 details 原生行为）。
 // 首页与说说页同款：默认折叠（箭头 ▸），点击展开全文（箭头 ▾）。
-// 内容短的说说（预览未截断，即全文 ≤40 字）不需要折叠：直接显示全文、隐藏 toggle。
+// 是否需要折叠按钮 = 预览是否被 CSS 截断（scrollWidth > clientWidth）。
+// 预览渲染全文但用 text-overflow:ellipsis 单行截断，因此长度判断不靠谱——
+// 容器宽度变了（双栏 / 单栏切换、字号变更）也能正确响应。
+// 用 rAF 等首屏 layout 完成后再检测，避免读出未渲染时的 0。
 (function initMomentToggle() {
-  document.querySelectorAll(".moment-item").forEach((item) => {
+  const items = document.querySelectorAll(".moment-item");
+  if (!items.length) return;
+
+  function evaluate(item) {
     const preview = item.querySelector(".moment-preview");
-    const full = item.querySelector(".moment-full");
     const toggle = item.querySelector(".moment-toggle");
-    if (preview && full && toggle) {
-      const short = preview.textContent.trim() === full.textContent.trim();
-      item.classList.toggle("moment-short", short);
-      if (short) {
-        toggle.style.display = "none";
-        item.querySelector(".moment-body")?.classList.add("expanded");
-        return;
-      }
+    if (!preview || !toggle) return;
+    // scrollWidth > clientWidth ⇒ 文本被截断 ⇒ 需要折叠按钮
+    const truncated = preview.scrollWidth > preview.clientWidth + 1;
+    item.classList.toggle("moment-short", !truncated);
+    toggle.style.display = truncated ? "" : "none";
+    if (!truncated) {
+      const body = item.querySelector(".moment-body");
+      if (body) body.classList.add("expanded");
     }
+  }
+
+  // 首屏 + resize（侧栏宽度变化也会触发）后重测
+  requestAnimationFrame(() => items.forEach(evaluate));
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(() => items.forEach(evaluate));
+  });
+
+  items.forEach((item) => {
+    const toggle = item.querySelector(".moment-toggle");
     if (!toggle) return;
     toggle.addEventListener("click", () => {
       const body = toggle.closest(".moment-body");
@@ -435,6 +450,42 @@
       if (arrow) arrow.textContent = expanded ? "▾" : "▸";
     });
   });
+})();
+
+// 左侧常驻侧栏导航 active 状态：按当前路径前缀匹配最长的导航链接，
+// 命中项加 .is-active（CSS 显示满高 accent line + 软底）。
+// 路径前缀规则：
+//   - "/" 仅精确匹配
+//   - "/admin" 仅精确匹配（避免误中其他 /admin/*）
+//   - 其他路径取 pathname 第一段（如 /archives → 找 [href$="/archives"] 的项）
+(function initNavActive() {
+  const list = document.querySelector(".nav-list");
+  if (!list) return;
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  let activeItem = null;
+  let bestLen = -1;
+  list.querySelectorAll(".nav-item, .nav-dropdown").forEach((el) => {
+    const link = el.querySelector(":scope > a");
+    if (!link) return;
+    const href = link.getAttribute("href") || "";
+    // href 形如 /base/path/archives——取 pathname 部分再掐尾斜杠
+    let url;
+    try { url = new URL(href, window.location.origin); } catch (e) { return; }
+    const p = url.pathname.replace(/\/$/, "") || "/";
+    let match;
+    if (p === "/") {
+      match = path === "/";
+    } else if (p === "/admin") {
+      match = path === "/admin" || path === "/admin/";
+    } else {
+      match = path === p || path.startsWith(p + "/");
+    }
+    if (match && p.length > bestLen) {
+      bestLen = p.length;
+      activeItem = el;
+    }
+  });
+  if (activeItem) activeItem.classList.add("is-active");
 })();
 
 // 归档页侧栏月份筛选：默认显示最近半年（6 个月份），点击"显示更多月份"展开其余
