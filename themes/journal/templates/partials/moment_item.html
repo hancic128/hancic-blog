@@ -1,0 +1,60 @@
+{# 说说条目：首页最近说说与 /moments 页共用。
+   结构：折叠态显示预览文字 + 附件缩略图行；展开态显示全文 + 完整宫格。 #}
+{% for item in moments %}
+<article class="moment-item">
+  <span class="moment-dot"></span>
+  <div class="moment-body">
+    <div class="moment-head">
+      <span class="moment-time">{{ item.moment.created_at | date(fmt=site.date_format) }}</span>
+      <button class="moment-like-toggle" type="button" data-like-toggle data-content-type="moment" data-content-id="{{ item.moment.id }}" aria-pressed="{{ item.moment.liked }}" aria-label="点赞这条说说">
+        <svg class="like-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z" fill="currentColor"/></svg>
+        <span class="like-count">{{ item.moment.like_count }}</span>
+      </button>
+      <button class="moment-toggle" type="button" aria-expanded="false">
+        <span class="moment-preview">{{ item.moment.content | truncate(length=40) }}</span>
+        <span class="moment-arrow">▸</span>
+      </button>
+    </div>
+    {% if item.attachments %}
+    <div class="moment-thumbs" aria-hidden="true">
+      {% set total = item.attachments | length %}
+      {% for att in item.attachments %}
+        {% if loop.index0 < 4 %}
+          {% if att.kind == "image" %}
+          <img class="moment-thumb" src="{{ att.url }}" alt="" loading="lazy">
+          {% elif att.kind == "video" %}
+          <span class="moment-thumb moment-thumb-video" title="{{ att.orig_name }}" aria-label="视频">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </span>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {% if total > 4 %}<span class="moment-thumb-more">+{{ total - 4 }}</span>{% endif %}
+    </div>
+    {% endif %}
+    <div class="moment-full">
+      <div class="moment-content">{{ item.moment.content | markdown_breaks | safe }}</div>
+      {% if item.attachments %}
+      <div class="moment-grid{% if item.attachments | length == 1 %} single{% elif item.attachments | length >= 5 %} many{% endif %}">
+        {% for att in item.attachments %}
+          {% if att.kind == "image" %}
+          <a class="moment-media" href="{{ att.url }}" target="_blank">
+            <img src="{{ att.url }}" alt="{{ att.orig_name }}" loading="lazy">
+          </a>
+          {% elif att.kind == "video" %}
+          <video class="moment-media" src="{{ att.url }}" controls preload="metadata"></video>
+          {% else %}
+          <a class="moment-file" href="{{ att.url }}" target="_blank" download>
+            <span class="moment-file-name">{{ att.orig_name }}</span>
+            <span class="moment-file-size">{{ att.size }} 字节</span>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{% else %}
+<p class="empty">暂无说说</p>
+{% endfor %}

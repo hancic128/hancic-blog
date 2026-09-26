@@ -1613,22 +1613,32 @@ async fn column_of(db: &Db, id: Option<i64>) -> AppResult<Option<crate::models::
 
 // ---------- 渲染 ----------
 
+/// 解析本次请求使用的主题名：preview > settings.active_theme > config.active_theme。
+/// 统一供 render / render_error / 任何需要 `site.active_theme` 与 tera 的位置使用，
+/// 保证「切主题/预览」两条路径走同一套主题选择逻辑。
+async fn resolve_theme_name(state: &AppState, preview: Option<&str>) -> String {
+    if let Some(name) = preview {
+        return name.to_string();
+    }
+    match settings::get(&state.db, "active_theme").await {
+        Ok(Some(s)) if !s.is_empty() => s,
+        _ => state.config.active_theme.clone(),
+    }
+}
+
 /// 渲染模板；模板缺失/出错时回退 500 错误页。
-/// `preview` 为预览主题名时，用该主题的 tera 临时渲染（每次请求构建：仅预览
-/// 场景、流量极低；`AppState.tera` 启动时固定为默认主题无法覆盖），构建失败
-/// 回退默认渲染，避免预览参数拖垮页面。
+/// 主题 tera 走 `state.theme_cache`：按主题名缓存，重复访问零成本；
+/// 后台切换主题（写 settings.active_theme）后，下一次请求按新主题名取缓存、
+/// 未命中则构建并替换——切换主题无需重启服务。
 async fn render(state: &AppState, template: &str, ctx: &Context, preview: Option<&str>) -> Response {
-    let preview_tera = match preview {
-        Some(name) => match themes::build_tera(&state.config.data_dir.join("themes"), name) {
-            Ok(t) => Some(t),
-            Err(e) => {
-                tracing::warn!("预览主题 {name} 模板加载失败，回退默认渲染: {e}");
-                None
-            }
-        },
-        None => None,
+    let name = resolve_theme_name(state, preview).await;
+    let tera = match state.theme_cache.get_or_build(&state.themes_dir, &name).await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("主题 {name} 模板加载失败: {e}");
+            return render_error(state, AppError::Internal("页面渲染失败".into())).await;
+        }
     };
-    let tera = preview_tera.as_ref().unwrap_or(&state.tera);
     match tera.render(template, ctx) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
@@ -1653,7 +1663,17 @@ async fn render_error(state: &AppState, err: AppError) -> Response {
         "error",
         &json!({ "code": status.as_u16(), "message": message }),
     );
-    match state.tera.render("error.html", &ctx) {
+    // 错误页主题与正常渲染保持一致：按 settings.active_theme 取缓存，
+    // 这样新主题刚切完即生效、错误页风格与正文同步。
+    let err_theme = resolve_theme_name(state, None).await;
+    let tera = match state.theme_cache.get_or_build(&state.themes_dir, &err_theme).await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("错误页主题 {err_theme} 模板加载失败: {e}");
+            return fallback_error_page(status, &message);
+        }
+    };
+    match tera.render("error.html", &ctx) {
         Ok(html) => (status, Html(html)).into_response(),
         Err(e) => {
             tracing::error!("渲染 error.html 失败: {e}");

@@ -5,8 +5,9 @@
 //! preview 302 到 `/?theme_preview=`，前台按预览主题渲染（模板与静态资源
 //! 路径均切换）且 **不落库**（预览在 activate 之前进行：此时
 //! active_theme=default、预览 test-theme，若预览写库断言即失败）；
-//! activate 写 settings.active_theme 且列表「当前」标记随之迁移（前台模板
-//! 渲染器启动时固定，切换需重启完全生效，故只断言 CSS 路径切换）。
+//! activate 写 settings.active_theme 且列表「当前」标记随之迁移；
+//! 主题渲染走 `theme_cache`，activate 后下一次前台请求即渲染新主题模板
+//! 与样式（热生效，无须重启）。
 
 mod common;
 use common::{extract_csrf, login_admin, start_server_with_cfg, test_config};
@@ -130,14 +131,18 @@ async fn theme_admin_flow() {
         "激活后 test-theme 应标记为当前主题: {html}"
     );
 
-    // 6. 激活后未重启：前台 tera 仍为启动时默认主题模板，但 site.active_theme
-    //    已切换（CSS 路径指向新主题；模板/布局需重启才完全生效——提示行为）
+    // 6. 激活后未重启：theme_cache 按主题名缓存，activate 后下一次前台请求
+    //    即按 test-theme 重建并替换——模板与样式同步热生效。
     let res = client.get(format!("{base}/")).send().await.unwrap();
     assert_eq!(res.status(), 200, "前台首页应可访问");
     let html = res.text().await.unwrap();
     assert!(
         html.contains(r#"/theme/test-theme/static/style.css"#),
         "激活后前台静态资源路径应指向 test-theme: {html}"
+    );
+    assert!(
+        html.contains("Test Theme"),
+        "激活后前台应立即渲染 test-theme 的 index.html（热生效）: {html}"
     );
 
     // 7. 模拟重启（C2 修复）：重新 hancic::app()——启动读 settings.active_theme

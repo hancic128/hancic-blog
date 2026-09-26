@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="{{ site.mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/x-icon" href="{{ base_path }}/theme/{{ site.active_theme }}/static/favicon.ico">
+<title>{% block title %}{{ site.name }}{% endblock title %}</title>
+<meta name="description" content="{{ site.desc }}">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/style.css">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/github.min.css">
+{% if share %}
+{# 分享卡片元数据：canonical + Open Graph + Twitter Card（share 对象由 Rust 注入，可选字段缺省不输出） #}
+{% if share.canonical_url %}<link rel="canonical" href="{{ share.canonical_url }}">{% endif %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ share.title }}">
+<meta property="og:description" content="{{ share.description }}">
+{% if share.og_url %}<meta property="og:url" content="{{ share.og_url }}">{% endif %}
+<meta property="og:site_name" content="{{ share.site_name }}">
+{% if share.og_image %}<meta property="og:image" content="{{ share.og_image }}">{% endif %}
+<meta name="twitter:card" content="{{ share.twitter_card }}">
+<meta name="twitter:title" content="{{ share.title }}">
+<meta name="twitter:description" content="{{ share.description }}">
+{% if share.og_image %}<meta name="twitter:image" content="{{ share.og_image }}">{% endif %}
+{% endif %}
+</head>
+<body>
+<div class="site-shell">
+
+  {# ===== 左侧常驻侧栏：头像/站名/副标题、搜索、导航、社交 ===== #}
+  <aside class="site-sidebar" id="site-sidebar">
+    <div class="sidebar-scroll">
+      <a class="sidebar-brand" href="{{ base_path }}/">
+        {% if site.logo %}
+        <img class="sidebar-avatar" src="{{ site.logo }}" alt="{{ site.name }}">
+        {% else %}
+        <span class="sidebar-avatar sidebar-avatar-fallback" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </span>
+        {% endif %}
+        <span class="sidebar-meta">
+          <span class="sidebar-name">{{ site.name }}</span>
+          {% if site.desc %}<span class="sidebar-tagline">{{ site.desc }}</span>{% endif %}
+        </span>
+      </a>
+
+      <form class="sidebar-search" method="get" action="{{ base_path }}/search" role="search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" name="q" placeholder="搜索文章 / 说说…" aria-label="搜索文章/说说">
+      </form>
+
+      <nav class="site-nav" id="site-nav" aria-label="站点导航">
+        <ul class="nav-list">
+          {% for item in site.nav %}
+          <li class="nav-item">
+            {% if item.type == "pages" and item.url %}
+            <a href="{{ base_path }}{{ item.url }}">
+              {% if item.label == "项目" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+              {% elif item.label == "收藏" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              {% elif item.label == "关于" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8.01"/></svg>
+              {% else %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {% endif %}
+              <span>{{ item.label }}</span>
+            </a>
+            {% elif item.type == "pages" %}
+            <div class="nav-dropdown">
+              <a href="{{ base_path }}/page/{% if site.pages %}{{ site.pages[0].slug }}{% endif %}">
+                {% if item.label == "项目" %}
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+                {% elif item.label == "收藏" %}
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                {% elif item.label == "关于" %}
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8.01"/></svg>
+                {% else %}
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {% endif %}
+                <span>{{ item.label }}</span>
+              </a>
+              {% if site.pages %}
+              <div class="dropdown-menu">
+                {% for p in site.pages %}<a href="{{ base_path }}/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            {% elif item.type == "articles" %}
+            <div class="nav-dropdown">
+              <a href="{{ base_path }}{{ item.url }}">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>{{ item.label }}</span>
+              </a>
+              {% if site.categories %}
+              <div class="dropdown-menu">
+                {% for c in site.categories %}<a href="{{ base_path }}/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            {% elif item.type == "home" %}
+            <a href="{{ base_path }}{{ item.url }}">
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V9.5z"/></svg>
+              <span>{{ item.label }}</span>
+            </a>
+            {% elif item.type == "column" %}
+            <a href="{{ base_path }}{% if item.url %}{{ item.url }}{% else %}/columns{% endif %}">
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              <span>{{ item.label }}</span>
+            </a>
+            {% elif item.type == "moments" %}
+            <a href="{{ base_path }}{{ item.url }}">
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              <span>{{ item.label }}</span>
+            </a>
+            {% elif item.type == "trails" or item.type == "trail" %}
+            <a href="{{ base_path }}{{ item.url }}">
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20 3 17V4l6 3 6-3 6 3v13l-6-3-6 3z"/><line x1="9" y1="7" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="17"/></svg>
+              <span>{{ item.label }}</span>
+            </a>
+            {% else %}
+            <a href="{{ base_path }}{{ item.url }}">
+              {% if item.label == "项目" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+              {% elif item.label == "收藏" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              {% elif item.label == "关于" %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8.01"/></svg>
+              {% else %}
+              <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              {% endif %}
+              <span>{{ item.label }}</span>
+            </a>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      {% if site.social_links %}
+      <div class="sidebar-socials" aria-label="社交链接">
+        {% for s in site.social_links %}
+        <a href="{{ s.url }}" target="_blank" rel="noopener nofollow" title="{{ s.key }}" aria-label="{{ s.key }}">
+        {% include "partials/_social_icon.html" %}
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  {# ===== 右侧主体：移动端顶栏 + 内容 ===== #}
+  <div class="site-body">
+    <div class="site-topbar">
+      <a class="topbar-brand" href="{{ base_path }}/">{{ site.name }}</a>
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-label="菜单" aria-controls="site-nav" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </button>
+    </div>
+    <main class="site-main">

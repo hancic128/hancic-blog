@@ -1,0 +1,293 @@
+{# 徒步轨迹总览：轨迹列表（固定高滚动）+ 地图（纯色/瓦片切换/全屏）+ 右侧标准侧栏数字卡片 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <h1 class="archive-title">徒步轨迹{% if trail_count %}<span class="archive-count">（{{ trail_count }} 条）</span>{% endif %}</h1>
+    {% if trails %}
+    <div class="trail-list-panel">
+      <div class="trail-filter-row">
+        <input class="trail-search" id="trail-search" type="search" placeholder="搜索轨迹名称/描述…" aria-label="搜索轨迹">
+        <div class="trail-sort-bar" role="group" aria-label="轨迹排序">
+          <span class="sort-label">排序：</span>
+          <button class="trail-sort-btn active" type="button" data-sort="recent">最近</button>
+          <button class="trail-sort-btn" type="button" data-sort="earliest">最早</button>
+          <button class="trail-sort-btn" type="button" data-sort="distance">里程</button>
+          <button class="trail-sort-btn" type="button" data-sort="gain">爬升</button>
+          <button class="trail-sort-btn" type="button" data-sort="moving">时长</button>
+        </div>
+      </div>
+      <div class="trail-card-list" id="trail-list">
+        {% for t in trails %}
+        <a class="trail-card" href="{{ base_path }}{{ t.url }}" data-id="{{ t.id }}">
+          <span class="trail-card-head">
+            <span class="trail-card-name">{{ t.name }}</span>
+            <span class="trail-card-meta">
+              {% if t.distance_km_str %}<span class="trail-badge">{{ t.distance_km_str }} km</span>{% endif %}
+              {% if t.elevation_gain_str %}<span class="trail-badge">爬升 {{ t.elevation_gain_str }} m</span>{% endif %}
+              {% if t.started_at %}<span class="trail-badge">{{ t.started_at | date(fmt=site.date_format) }}</span>{% endif %}
+              {% if t.moving %}<span class="trail-badge">{{ t.moving }}</span>{% endif %}
+            </span>
+          </span>
+          {% if t.description %}<span class="trail-card-desc">{{ t.description }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="trails-map-wrap">
+      <div id="trails-map" class="trails-map" role="application" aria-label="徒步轨迹地图"></div>
+    </div>
+    {% else %}
+    <p class="empty">暂无轨迹</p>
+    {% endif %}
+  </main>
+  <aside class="layout-side">
+    <div class="trail-detail-card" id="trail-detail" hidden>
+      <div class="trail-detail-head">
+        <div class="trail-detail-title">
+          <h3 class="trail-detail-name" id="trail-detail-name"></h3>
+          <span class="trail-detail-date" id="trail-detail-date"></span>
+        </div>
+        <button class="trail-detail-close" id="trail-detail-close" type="button" title="返回全部轨迹" aria-label="返回全部轨迹">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="trail-stats" id="trail-detail-stats"></div>
+      <p class="trail-detail-desc" id="trail-detail-desc" hidden></p>
+    </div>
+  </aside>
+</div>
+<link rel="stylesheet" href="{{ base_path }}/static/vendor/leaflet/leaflet.css">
+<script src="{{ base_path }}/static/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  var mapEl = document.getElementById('trails-map');
+  if (!mapEl || typeof L === 'undefined') return;
+  var trails = {{ trails_json }};
+  var baseLayers = {
+    '高德卫星': L.tileLayer('https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', { maxZoom: 18, attribution: '&copy; 高德地图', referrerPolicy: 'no-referrer' }),
+    '腾讯街道': L.tileLayer('https://rt0.map.gtimg.com/tile?z={z}&x={x}&y={y}&styleid=1', { maxZoom: 18, attribution: '&copy; 腾讯地图', referrerPolicy: 'no-referrer' }),
+    'Carto': L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap &copy; CARTO', referrerPolicy: 'no-referrer' }),
+    'OSM': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap', referrerPolicy: 'no-referrer' })
+  };
+  var map = L.map(mapEl, { layers: [baseLayers['高德卫星']] });
+  var allBounds = L.latLngBounds([]);
+  var trailLayers = [];
+
+  // 纯色渲染：每条轨迹一条 polyline（coords 兼容 [lat,lon] 与 [lat,lon,speed]）
+  trails.forEach(function (t, idx) {
+    if (!t.coords || !t.coords.length) return;
+    var latlngs = t.coords.map(function (c) { return [c[0], c[1]]; });
+    var layer = L.polyline(latlngs, { color: t.color, weight: 3, opacity: 0.85, noClip: true })
+      .addTo(map)
+      .bindTooltip(t.name, { sticky: true });
+    trailLayers.push({ idx: idx, data: t, layer: layer, bounds: L.latLngBounds(latlngs), selected: false });
+    allBounds.extend(trailLayers[trailLayers.length - 1].bounds);
+  });
+  if (allBounds.isValid()) {
+    map.fitBounds(allBounds, { padding: [24, 24] });
+  } else {
+    map.setView([35, 105], 4);
+  }
+  L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+
+  // 全屏控件
+  var fsBtn = L.control({ position: 'topright' });
+  fsBtn.onAdd = function () {
+    var btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control leaflet-control-fullscreen');
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+    btn.title = '全屏';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '全屏');
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, 'click', function () {
+      var container = map.getContainer();
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+      setTimeout(function () { map.invalidateSize(); }, 250);
+    });
+    return btn;
+  };
+  fsBtn.addTo(map);
+
+  // ---- 详情卡片 ----
+  var detailCard = document.getElementById('trail-detail');
+  var detailName = document.getElementById('trail-detail-name');
+  var detailDate = document.getElementById('trail-detail-date');
+  var detailStats = document.getElementById('trail-detail-stats');
+  var detailDesc = document.getElementById('trail-detail-desc');
+  function fillDetail(t) {
+    detailName.textContent = t.name;
+    detailDate.textContent = t.started_at ? t.started_at.slice(0, 10) : '';
+    var items = [
+      { v: t.distance_km_str, l: '里程 (km)' },
+      { v: t.elevation_gain_str, l: '累计爬升 (m)' },
+      { v: t.elevation_loss_str, l: '累计下降 (m)' },
+      { v: t.moving, l: '运动时长' },
+      { v: t.avg_speed_str, l: '均速 (km/h)' },
+      { v: t.max_ele_str, l: '最高海拔 (m)' },
+      { v: t.min_ele_str, l: '最低海拔 (m)' },
+      { v: t.point_count != null ? String(t.point_count) : null, l: '轨迹点数' }
+    ];
+    detailStats.innerHTML = items.filter(function (it) { return it.v != null && it.v !== ''; })
+      .map(function (it) {
+        return '<div class="trail-stat"><span class="trail-stat-value">' + it.v + '</span><span class="trail-stat-label">' + it.l + '</span></div>';
+      }).join('');
+    detailDesc.textContent = t.description || '';
+    detailDesc.hidden = !t.description;
+    detailCard.hidden = false;
+  }
+
+  // ---- 选择 / 取消 ----
+  function findTrailLayer(id) {
+    for (var i = 0; i < trailLayers.length; i++) {
+      if (trailLayers[i].data.id === id) return trailLayers[i];
+    }
+    return null;
+  }
+  function selectTrail(id, focus) {
+    trailLayers.forEach(function (tr) {
+      var sel = tr.data.id === id;
+      tr.selected = sel;
+      tr.layer.setStyle({ opacity: sel ? 1 : 0.15, weight: sel ? 4 : 3 });
+    });
+    var tr = findTrailLayer(id);
+    fillDetail(tr.data);
+    if (focus !== false) map.fitBounds(tr.bounds, { padding: [24, 24] });
+    document.querySelectorAll('.trail-card').forEach(function (c) {
+      c.classList.toggle('selected', parseInt(c.dataset.id, 10) === id);
+    });
+  }
+  function clearSelection() {
+    detailCard.hidden = true;
+    trailLayers.forEach(function (tr) {
+      tr.selected = false;
+      tr.layer.setStyle({ opacity: 0.85, weight: 3 });
+    });
+    if (allBounds.isValid()) map.fitBounds(allBounds, { padding: [24, 24] });
+    document.querySelectorAll('.trail-card.selected').forEach(function (c) { c.classList.remove('selected'); });
+  }
+  function toggleSelect(id) {
+    var tr = findTrailLayer(id);
+    if (!tr) return;
+    if (tr.selected) { clearSelection(); return; }
+    selectTrail(id);
+  }
+
+  // ---- 列表渲染（排序/搜索用，安全创建元素） ----
+  function renderList(sorted) {
+    var list = document.getElementById('trail-list');
+    list.innerHTML = '';
+    sorted.forEach(function (t) {
+      var a = document.createElement('a');
+      a.className = 'trail-card';
+      a.href = t.url;
+      a.dataset.id = t.id;
+      var head = document.createElement('span');
+      head.className = 'trail-card-head';
+      var name = document.createElement('span');
+      name.className = 'trail-card-name';
+      name.textContent = t.name;
+      var meta = document.createElement('span');
+      meta.className = 'trail-card-meta';
+      if (t.distance_km_str) {
+        var b1 = document.createElement('span');
+        b1.className = 'trail-badge';
+        b1.textContent = t.distance_km_str + ' km';
+        meta.appendChild(b1);
+      }
+      if (t.elevation_gain_str) {
+        var b2 = document.createElement('span');
+        b2.className = 'trail-badge';
+        b2.textContent = '爬升 ' + t.elevation_gain_str + ' m';
+        meta.appendChild(b2);
+      }
+      if (t.started_at) {
+        var b3 = document.createElement('span');
+        b3.className = 'trail-badge';
+        b3.textContent = t.started_at.slice(0, 10);
+        meta.appendChild(b3);
+      }
+      if (t.moving) {
+        var b4 = document.createElement('span');
+        b4.className = 'trail-badge';
+        b4.textContent = t.moving;
+        meta.appendChild(b4);
+      }
+      head.appendChild(name);
+      head.appendChild(meta);
+      a.appendChild(head);
+      if (t.description) {
+        var d = document.createElement('span');
+        d.className = 'trail-card-desc';
+        d.textContent = t.description;
+        a.appendChild(d);
+      }
+      a.addEventListener('click', function (e) { e.preventDefault(); toggleSelect(t.id); });
+      list.appendChild(a);
+    });
+  }
+
+  // ---- 排序 + 搜索 ----
+  function sortTrails(arr, key) {
+    var copy = arr.slice();
+    copy.sort(function (a, b) {
+      switch (key) {
+        case 'earliest':
+          return (a.started_at || '').localeCompare(b.started_at || '');
+        case 'distance':
+          return (b.distance_m || 0) - (a.distance_m || 0);
+        case 'gain':
+          return (b.elevation_gain_m || 0) - (a.elevation_gain_m || 0);
+        case 'moving':
+          return (b.moving_seconds || 0) - (a.moving_seconds || 0);
+        default: // recent
+          return (b.started_at || '').localeCompare(a.started_at || '');
+      }
+    });
+    return copy;
+  }
+  var searchQuery = '';
+  var sortState = 'recent';
+  function applyFilterAndSort() {
+    var filtered = trails.filter(function (t) {
+      if (!searchQuery) return true;
+      var q = searchQuery.toLowerCase();
+      return (t.name || '').toLowerCase().indexOf(q) !== -1 ||
+             (t.description || '').toLowerCase().indexOf(q) !== -1;
+    });
+    renderList(sortTrails(filtered, sortState));
+  }
+  document.querySelectorAll('.trail-sort-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      sortState = btn.dataset.sort;
+      document.querySelectorAll('.trail-sort-btn').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      applyFilterAndSort();
+    });
+  });
+  document.getElementById('trail-search').addEventListener('input', function (e) {
+    searchQuery = e.target.value.trim();
+    applyFilterAndSort();
+  });
+
+  // 初始列表绑定（Tera 渲染的卡片）
+  document.querySelectorAll('.trail-card').forEach(function (card) {
+    card.addEventListener('click', function (e) {
+      e.preventDefault();
+      toggleSelect(parseInt(card.dataset.id, 10));
+    });
+  });
+  document.getElementById('trail-detail-close').addEventListener('click', clearSelection);
+
+  // 默认选中最近一条轨迹并聚焦（高 zoom 完整渲染；noClip 保留其他轨迹线）
+  if (trailLayers.length) {
+    selectTrail(trailLayers[0].data.id);
+  }
+})();
+</script>
+{% include "partials/footer.html" %}

@@ -1,0 +1,53 @@
+{# 搜索页：全局关键词搜索（文章 FTS5 + 说说 LIKE） #}
+{% include "partials/header.html" %}
+<section class="search-page">
+  <form class="search-form" method="get" action="{{ base_path }}/search">
+    <input type="search" name="q" value="{{ search_query }}" placeholder="搜索文章 / 说说…" aria-label="搜索">
+    <button type="submit">搜索</button>
+  </form>
+  {% if search_query %}
+  <p class="search-result-info">「{{ search_query }}」的结果：{% if posts %}{{ posts | length }} 篇文章{% endif %}{% if posts and moments %}+{% endif %}{% if moments %}{{ moments | length }} 条说说{% endif %}</p>
+  {% if posts %}
+  <section class="post-list">
+    <h2 class="search-section-title">文章</h2>
+    {% for hit in posts %}
+    <article class="post-list-item">
+      <h2><a href="{{ hit.url }}">{{ hit.title }}</a></h2>
+      <div class="meta">
+        {% if hit.published_at %}<time datetime="{{ hit.published_at }}">{{ hit.published_at | date(fmt=site.date_format) }}</time>{% endif %}
+        <span>{{ hit.views }} 阅读</span>
+      </div>
+      {% if hit.snippet %}<p class="excerpt">{{ hit.snippet | safe }}</p>{% endif %}
+    </article>
+    {% endfor %}
+  </section>
+  {% if pagination.total_pages > 1 %}
+  <nav class="pagination">
+    {% if pagination.prev_url %}<a class="page-prev" href="{{ pagination.prev_url }}">← 上一页</a>{% endif %}
+    <span class="page-info">第 {{ pagination.current }} / {{ pagination.total_pages }} 页</span>
+    {% if pagination.next_url %}<a class="page-next" href="{{ pagination.next_url }}">下一页 →</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% endif %}
+  {% if moments %}
+  <section class="search-moments">
+    <h2 class="search-section-title">说说</h2>
+    <ul class="search-moment-list">
+      {% for m in moments %}
+      <li class="search-moment-item">
+        <p class="search-moment-content">{{ m.snippet }}</p>
+        <div class="meta"><time datetime="{{ m.date }}">{{ m.date }}</time></div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="more-link"><a href="{{ base_path }}/moments">在说说页查看更多 →</a></p>
+  </section>
+  {% endif %}
+  {% if not posts and not moments %}
+  <p class="empty">未找到与「{{ search_query }}」相关的内容</p>
+  {% endif %}
+  {% else %}
+  <p class="empty">输入关键词搜索文章或说说</p>
+  {% endif %}
+</section>
+{% include "partials/footer.html" %}

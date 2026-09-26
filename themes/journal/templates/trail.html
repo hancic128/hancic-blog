@@ -1,0 +1,77 @@
+{# 徒步轨迹详情：完整轨迹地图 + 数据卡片 + 描述 #}
+{% include "partials/header.html" %}
+<h1 class="archive-title">{{ trail.name }}</h1>
+{% if trail.started_at %}<p class="trail-date">{{ trail.started_at | date(fmt=site.date_format) }}</p>{% endif %}
+{% if trail.description %}<div class="trail-desc">{{ trail.description }}</div>{% endif %}
+<div class="trails-map-wrap">
+  <div id="trail-map" class="trails-map" role="application" aria-label="轨迹地图"></div>
+</div>
+<div class="trail-stats">
+  {% if trail.distance_km_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.distance_km_str }}</span><span class="trail-stat-label">里程 (km)</span></div>{% endif %}
+  {% if trail.elevation_gain_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.elevation_gain_str }}</span><span class="trail-stat-label">累计爬升 (m)</span></div>{% endif %}
+  {% if trail.elevation_loss_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.elevation_loss_str }}</span><span class="trail-stat-label">累计下降 (m)</span></div>{% endif %}
+  <div class="trail-stat"><span class="trail-stat-value">{{ trail.moving }}</span><span class="trail-stat-label">运动时长</span></div>
+  {% if trail.avg_speed_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.avg_speed_str }}</span><span class="trail-stat-label">均速 (km/h)</span></div>{% endif %}
+  {% if trail.max_elevation_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.max_elevation_str }}</span><span class="trail-stat-label">最高海拔 (m)</span></div>{% endif %}
+  {% if trail.min_elevation_str %}<div class="trail-stat"><span class="trail-stat-value">{{ trail.min_elevation_str }}</span><span class="trail-stat-label">最低海拔 (m)</span></div>{% endif %}
+  <div class="trail-stat"><span class="trail-stat-value">{{ trail.point_count }}</span><span class="trail-stat-label">轨迹点数</span></div>
+</div>
+<link rel="stylesheet" href="{{ base_path }}/static/vendor/leaflet/leaflet.css">
+<script src="{{ base_path }}/static/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  var mapEl = document.getElementById('trail-map');
+  if (!mapEl || typeof L === 'undefined') return;
+  var coords = {{ trail_coords_json }};
+  var baseLayers = {
+    '高德卫星': L.tileLayer('https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', { maxZoom: 18, attribution: '&copy; 高德地图', referrerPolicy: 'no-referrer' }),
+    '腾讯街道': L.tileLayer('https://rt0.map.gtimg.com/tile?z={z}&x={x}&y={y}&styleid=1', { maxZoom: 18, attribution: '&copy; 腾讯地图', referrerPolicy: 'no-referrer' }),
+    'Carto': L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap &copy; CARTO', referrerPolicy: 'no-referrer' }),
+    'OSM': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap', referrerPolicy: 'no-referrer' })
+  };
+  if (!coords || !coords.length) {
+    var el = document.createElement('p');
+    el.className = 'empty';
+    el.textContent = '轨迹坐标缺失';
+    mapEl.parentNode.insertBefore(el, mapEl.nextSibling);
+    return;
+  }
+  var map = L.map(mapEl, { layers: [baseLayers['高德卫星']] });
+  var latlngs = coords.map(function (c) { return [c[0], c[1]]; });
+  L.polyline(latlngs, { color: '#d4442a', weight: 3, opacity: 0.9 }).addTo(map);
+  var first = coords[0];
+  var last = coords[coords.length - 1];
+  L.circleMarker(first, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#1a9d4f', fillOpacity: 1 })
+    .addTo(map).bindTooltip('起点');
+  if (coords.length > 1) {
+    L.circleMarker(last, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#d4442a', fillOpacity: 1 })
+      .addTo(map).bindTooltip('终点');
+  }
+  map.fitBounds(coords, { padding: [24, 24] });
+  L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+
+  // 全屏控件
+  var fsBtn = L.control({ position: 'topright' });
+  fsBtn.onAdd = function () {
+    var btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control leaflet-control-fullscreen');
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+    btn.title = '全屏';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '全屏');
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, 'click', function () {
+      var container = map.getContainer();
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+      setTimeout(function () { map.invalidateSize(); }, 250);
+    });
+    return btn;
+  };
+  fsBtn.addTo(map);
+})();
+</script>
+{% include "partials/footer.html" %}

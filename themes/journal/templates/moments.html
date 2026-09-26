@@ -1,0 +1,13 @@
+{# 说说页：与首页最近说说同款时间线折叠（默认单行，点击展开全文与附件；右侧按月份筛选） #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    {% if current_month %}<p class="month-filter-note">「{{ current_month }}」的说说 <a class="archive-clear" href="{{ base_path }}/moments">清除筛选</a></p>{% endif %}
+    <div class="moment-timeline">
+      {% include "partials/moment_item.html" %}
+    </div>
+    {% include "partials/pagination.html" %}
+  </main>
+  {% include "partials/month_sidebar.html" %}
+</div>
+{% include "partials/footer.html" %}

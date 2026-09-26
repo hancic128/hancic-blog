@@ -1,0 +1,15 @@
+{# 专栏归档页：该专栏下文章分页列表（含排序条）；右侧：专栏列表导航 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <h1 class="archive-title">专栏：<span class="archive-cat">{{ column.name }}</span>{% if post_total %}<span class="archive-count">（{{ post_total }} 篇）</span>{% endif %}</h1>
+    <section class="post-list">
+    {% include "partials/post_list.html" %}
+    </section>
+    {% include "partials/pagination.html" %}
+  </main>
+  <aside class="layout-side">
+    {% include "partials/side_columns.html" %}
+  </aside>
+</div>
+{% include "partials/footer.html" %}

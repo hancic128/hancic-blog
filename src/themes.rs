@@ -1,8 +1,11 @@
 //! 主题系统：主题发现、元信息加载与 tera 模板构建。
 
 use chrono::FixedOffset;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tera::{Error as TeraError, Kwargs, State, Tera, TeraResult, Value};
+use tokio::sync::RwLock;
 
 /// 主题元信息（来自主题目录下的 theme.toml，缺省字段为空串）。
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -73,6 +76,114 @@ pub fn is_valid_name(name: &str) -> bool {
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// 主题缓存条目：`Arc<Tera>` + 模板目录 mtime（用于「文件被改」自动失效）。
+struct CacheEntry {
+    tera: Arc<Tera>,
+    /// 模板目录及其子文件的最大 mtime；用于检测文件被改后自动重建。
+    templates_mtime: Option<std::time::SystemTime>,
+}
+
+/// 主题 Tera 缓存：按主题名缓存已构建的 `Tera` 实例，避免每次请求重建。
+/// 触发重建的时机：
+/// - 后台切换主题（修改 `settings.active_theme`）：目标主题名未命中→重建；
+/// - 重新导入主题（admin `import`）：调用 `invalidate` 显式清掉；
+/// - 模板文件被改（mtime 变化）：下次请求 mtime 校验失败→重建。
+///
+/// 并发安全：`get_or_build` 采用读锁快路径 + 写锁双检模式；
+/// 磁盘 I/O（构建 Tera、mtime 扫描）发生在锁外，避免长时间持锁。
+#[derive(Default)]
+pub struct ThemeTeraCache {
+    inner: RwLock<HashMap<String, CacheEntry>>,
+}
+
+impl ThemeTeraCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 删除指定主题的缓存（uninstall / 重新导入后强制重建用）。
+    pub async fn invalidate(&self, name: &str) {
+        self.inner.write().await.remove(name);
+    }
+
+    /// 取缓存；命中且 mtime 未变则复用，否则重建。主题名非法或模板加载失败时返回错误。
+    ///
+    /// 流程：① 锁外算当前 mtime；② 读锁快路径（mtime 一致即返回 Arc）；
+    /// ③ 锁外构建新 Tera；④ 写锁双检并插入。
+    pub async fn get_or_build(
+        &self,
+        themes_dir: &Path,
+        name: &str,
+    ) -> Result<Arc<Tera>, String> {
+        let tpl_dir = themes_dir.join(name).join("templates");
+        let current_mtime = templates_max_mtime(&tpl_dir);
+
+        // ① 读锁快路径
+        {
+            let guard = self.inner.read().await;
+            if let Some(entry) = guard.get(name) {
+                if entry.templates_mtime == current_mtime {
+                    return Ok(entry.tera.clone());
+                }
+                // mtime 变了，落到下面重建
+            }
+        }
+
+        // ② 锁外构建
+        let tera = build_tera(themes_dir, name)?;
+
+        // ③ 写锁双检 + 写入
+        let mut guard = self.inner.write().await;
+        if let Some(entry) = guard.get(name) {
+            if entry.templates_mtime == current_mtime {
+                return Ok(entry.tera.clone());
+            }
+        }
+        let arc = Arc::new(tera);
+        guard.insert(
+            name.to_string(),
+            CacheEntry {
+                tera: arc.clone(),
+                templates_mtime: current_mtime,
+            },
+        );
+        Ok(arc)
+    }
+}
+
+/// 递归扫描 templates 目录，计算所有文件的最大 mtime。
+/// 目录不存在 / 权限错误时返回 `None`（让调用方走「无 mtime」路径，
+/// 即不命中任何缓存，每次重建——主题真的不存在时 `build_tera` 会失败并报错）。
+fn templates_max_mtime(dir: &Path) -> Option<std::time::SystemTime> {
+    use std::time::SystemTime;
+    fn walk(d: &Path, cur: &mut SystemTime) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(d)? {
+            let entry = entry?;
+            let path = entry.path();
+            let mt = if path.is_dir() {
+                walk(&path, cur)?;
+                entry.metadata()?.modified().ok()
+            } else {
+                entry.metadata()?.modified().ok()
+            };
+            if let Some(mt) = mt {
+                if mt > *cur {
+                    *cur = mt;
+                }
+            }
+        }
+        Ok(())
+    }
+    let mut max = SystemTime::UNIX_EPOCH;
+    if walk(dir, &mut max).is_err() {
+        return None;
+    }
+    if max == SystemTime::UNIX_EPOCH {
+        return None;
+    }
+    Some(max)
 }
 
 /// 安装主题：解压 zip 到临时目录 → 校验 theme.toml/目录名/模板可构建 →

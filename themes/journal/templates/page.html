@@ -1,0 +1,27 @@
+{# 独立页（post_type=page）：不显示页面标题，右侧目录导航（内容长时便于跳转） #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <article class="page">
+      {{ content_html | safe }}
+    </article>
+  </main>
+
+  <aside class="layout-side">
+    {% if toc %}
+    <div class="side-card">
+      <h4 class="side-title">目录</h4>
+      <ul class="side-toc toc-list">
+        {% for item in toc %}
+        <li class="toc-l{{ item.level }}"><a href="#{{ item.id }}">{{ item.text }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+<button class="reading-float" type="button" data-reading-toggle aria-pressed="false" title="阅读模式" aria-label="切换阅读模式">
+  <svg class="reading-float-icon icon-reading-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+  <svg class="reading-float-icon icon-reading-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+</button>
+{% include "partials/footer.html" %}

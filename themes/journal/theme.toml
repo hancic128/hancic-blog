@@ -1,0 +1,4 @@
+name = "journal"
+author = "hancic"
+version = "0.1.0"
+description = "侧栏日志主题：左侧常驻侧栏（头像/站点信息/导航/搜索/社交）+ 宽行距正文与右侧目录，浅深双色，排版参考 Chirpy 的中性灰蓝调"

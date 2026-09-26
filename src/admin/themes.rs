@@ -2,11 +2,10 @@
 //!
 //! 鉴权约定同其他后台模块：GET 未登录 302 跳登录；POST 先 `require_admin`
 //! 再过 CSRF。activate 写 settings.active_theme——前台 `site_context` 每次
-//! 请求重读该键，站点信息层即时生效；前台模板渲染器 `AppState.tera` 在
-//! 启动时按 `settings.active_theme`（优先于 `config.active_theme`）构建
-//! （见 lib.rs），故切主题=写 DB，重启后模板/样式完全切换。
-//! preview 302 到 `/?theme_preview=`，前台按预览主题名临时构建 tera 渲染
-//! （只读覆盖，不落库，见 front.rs）。
+//! 请求重读该键，模板渲染走 `AppState.theme_cache` 按主题名缓存，
+//! 下一次前台请求按新主题名取缓存，未命中则构建并替换（见 themes.rs /
+//! lib.rs），切主题无需重启服务。preview 302 到 `/?theme_preview=`，
+//! 前台按预览主题名走同一缓存渲染（只读覆盖，不落库，见 front.rs）。
 
 use crate::services::settings;
 use crate::themes;
@@ -98,9 +97,9 @@ pub async fn activate(
         tracing::error!("切换主题 {name} 失败: {e:?}");
         return redirect_msg(&state.config.base_path, "切换失败，请重试");
     }
-    // 前台模板渲染器在启动时按 DB 的 active_theme 构建：模板/样式需重启才切换，
-    // 重启后以 DB 为准（C2），故提示重启生效
-    redirect_msg(&state.config.base_path, &format!("已切换到 {name}，重启服务后完全生效"))
+    // 前台模板渲染走 theme_cache（按主题名缓存），写完 settings 后下一次请求
+    // 即按新主题名重建并替换——切换无需重启。
+    redirect_msg(&state.config.base_path, &format!("已切换到 {name}"))
 }
 
 // ---------- 预览 ----------
@@ -162,9 +161,11 @@ pub async fn import(
     match themes::install(&themes_dir, &bytes) {
         Ok(meta) => {
             tracing::info!("主题导入成功: {} v{}", meta.name, meta.version);
+            // 失效缓存：重新导入同名主题后，下次前台请求按新模板重建。
+            state.theme_cache.invalidate(&meta.name).await;
             redirect_msg(
                 &state.config.base_path,
-                &format!("主题「{}」导入成功，重启服务后完全生效", meta.name),
+                &format!("主题「{}」导入成功", meta.name),
             )
         }
         Err(e) => redirect_msg(&state.config.base_path, &format!("导入失败: {e}")),
@@ -206,6 +207,8 @@ pub async fn uninstall(
     match std::fs::remove_dir_all(&dir) {
         Ok(()) => {
             tracing::info!("主题卸载: {name}");
+            // 清理缓存：避免 preview 等路径继续指向已删除的主题目录。
+            state.theme_cache.invalidate(&name).await;
             redirect_msg(&state.config.base_path, &format!("主题「{name}」已卸载"))
         }
         Err(e) => {

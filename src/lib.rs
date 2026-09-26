@@ -19,6 +19,7 @@ use crate::services::likes::LikeRateLimiter;
 use crate::services::tokens::PlainStore;
 use crate::session::LoginLimiter;
 use axum::Router;
+use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tera::Tera;
@@ -42,18 +43,20 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
     }
     // config 构造 AppState 时被 move，先备份数据目录供 ip 搜索器初始化使用。
     let db_data_dir = config.data_dir.clone();
-    // 主题加载失败（如全新部署尚未安装主题）时回退空 Tera 并告警，渲染侧在 T7 接入。
+    // 主题目录根（前台渲染按 settings.active_theme 从这里选主题）。
     let themes_dir = config.data_dir.join("themes");
-    let (tera, theme_dir) = match themes::build_tera(&themes_dir, &config.active_theme) {
-        Ok(tera) => (tera, themes_dir.join(&config.active_theme)),
-        Err(err) => {
-            tracing::warn!(
-                "主题 {} 加载失败，回退空 Tera: {err}",
-                config.active_theme
-            );
-            (Tera::default(), themes_dir.join(&config.active_theme))
-        }
-    };
+    // 主题 Tera 缓存：按主题名缓存已构建的 Tera 实例。
+    // 后台切换主题（写 settings.active_theme）或重新导入主题后，下一次前台
+    // 请求按 settings.active_theme 取缓存，未命中则构建并替换——无需重启。
+    let theme_cache = Arc::new(themes::ThemeTeraCache::new());
+    // 启动时预热默认主题：首次请求不再承担构建延迟；主题不存在/模板无效时
+    // 仅 warn，仍可在切换到正确主题时按需构建。
+    if let Err(err) = theme_cache.get_or_build(&themes_dir, &config.active_theme).await {
+        tracing::warn!(
+            "主题 {} 预热失败，首次请求将按需重建: {err}",
+            config.active_theme
+        );
+    }
     // /api 上传接受最大文件上限（100MB 视频）+ multipart 边界/字段头开销余量。
     let max_upload = config
         .upload_max_video
@@ -65,9 +68,10 @@ pub async fn app(config: Config) -> Result<Router, AppError> {
         db: db.clone(),
         login_limiter: Arc::new(LoginLimiter::new()),
         like_rate_limiter: Arc::new(LikeRateLimiter::new()),
-        tera,
         tera_admin: admin::build_tera(),
-        theme_dir,
+        started_at: chrono::Utc::now(),
+        theme_cache,
+        themes_dir,
         ip_searcher: Arc::new(init_ip_searcher(&db_data_dir)?),
         token_plain: PlainStore::default(),
     };
@@ -212,9 +216,12 @@ pub struct AppState {
     pub db: db::Db,
     pub login_limiter: Arc<LoginLimiter>,
     pub like_rate_limiter: Arc<LikeRateLimiter>,
-    pub tera: Tera,
     pub tera_admin: Tera,
-    pub theme_dir: PathBuf,
+    /// 进程启动时刻（UTC）：后台左上角「最近部署」显示用——部署即容器重启，
+    /// 故进程启动时间即最近一次部署时间。
+    pub started_at: DateTime<Utc>,
+    pub theme_cache: Arc<themes::ThemeTeraCache>,
+    pub themes_dir: PathBuf,
     pub ip_searcher: Arc<ipregion::Searcher>,
     pub token_plain: PlainStore,
 }
