@@ -2,6 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.6] - 2026-09-26
+
+### 修复
+
+- **后台版本徽章显示真实 release tag（不再是 v0.1.0）**：v1.1.5 的徽章取编译期 `env!("CARGO_PKG_VERSION")`，Cargo 包版本是 0.1.0，与发版 tag 不同源。现改为优先读运行时环境变量 `APP_VERSION`（CI 用 `--build-arg APP_VERSION=${{ github.ref_name }}` 把 tag 烘进镜像），新增 `resolve_app_version()` 归一化去掉 `v` 前缀（模板统一补 `v`），未注入或显式为 `dev`（本地 `cargo run` / 本地构建）时回退 Cargo 版本。单测覆盖 `v1.1.6` / `2.0.1` / `" v1.1.6 "` / `dev` / 空串 / `None`。
+- **后台侧栏部署时间含时分秒且不再被截断**：恢复含秒格式后「最近部署 2026-09-26 20:07:03 部署」单行 206px > 侧栏可用 191px，秒与后缀被 `text-overflow: ellipsis` 吃掉。改为「标签 + 值」两行结构（`.admin-deploy-label` / `.admin-deploy-time`），任何宽度都完整可见；e2e 增加 `scrollWidth ≤ clientWidth` 防回归断言。
+- **后台整页跳转加载动画看不到**：v1.1.5 只有 3px 顶栏细线，且动画随旧文档卸载立即消失，用户基本无感。现为「顶栏 4px 进度条 + 页面居中 40px spinner + 全屏半透明遮罩 rgba(0,0,0,0.32)」；新增跨页「续接」——点击导航把起始时间写进 `sessionStorage`，新文档解析到这里立即恢复加载态并补足 400ms 最短可见时长（内网 SSR 再快也看得见），`admin.js` 的 `clearLoading` 在续接期间不插手，另加 8s 兜底避免遮罩一直蒙着；`prefers-reduced-motion` 下停动画保留静态 spinner。
+- **后台帮助页网格布局错乱**：v1.1.5 用 grid 把「目录」与正文分成两列，但 `.api-toc` 与 `.panel-section` 是兄弟节点，每个 section 被排成独立一行、行高互相撑开——目录块右侧留下大片空白、正文段落被拉开。改回单列文档流：目录作为正文顶部一整块、条目多列平铺（>1100px 三列 / ≤1100px 两列 / ≤720px 单列），正文依次向下排，页面整体保持水平居中。
+
+### 测试
+
+- `cargo test` 全绿（31 lib + 全部集成测试）、`cargo clippy --all-targets -- -D warnings` 干净。
+- `tests/admin_flow.rs`：新增 `extract_admin_deploy_time()` 取 `.admin-deploy-time` 元素文本；部署时间断言改为 `NaiveDateTime::parse_from_str("%Y-%m-%d %H:%M:%S 部署")` + ±1 天容差，时区用例（UTC）同步跟随。
+- `e2e/tests/admin-ui.spec.ts`：帮助页用例由「左右两列并排」改为「单列 + 目录在正文上方 + 不出现网格」；侧栏用例新增版本徽章 `vX.Y.Z`、部署时间含秒、且不截断断言；loading 用例重写为「点击导航立刻出 spinner + 遮罩（等 0.15s 过渡到位再断言）→ 新文档续接加载态 → 最短时长后自动收起并清掉标记」。Playwright 22/22（desktop + 375px），admin-ui 连跑 3 次无 flake。
+- 排障记录：新增的模板注释里出现「上一页」三字，命中 `tests/admin_stats.rs` 中「排行不应分页」的全局文本断言，已改写注释措辞。
+
+### 部署
+
+- 镜像 `…/hancic128/hancic-blog:v1.1.6`（`APP_VERSION=v1.1.6` build-arg 注入），自动部署到 sh 主机（hancic.site / blog.hancic.site）。
+
 ## [1.1.5] - 2026-09-26
 
 ### 新增
