@@ -2,6 +2,27 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.4] - 2026-09-26
+
+### 新增
+
+- **journal 主题源码入库**（`themes/journal/`）：此前该主题只以 zip 形式导入线上数据卷，仓库里没有源码——既无法在 CI/本地 E2E 回归，也无法随镜像内置。现与 default/medium/modern 同构入库，`entrypoint.sh` 启动时自动同步进数据卷（容器重建即到位，无需手动重导）。
+- **后台品牌区最近部署时间**：站名下方新增小字「最近部署 YYYY-MM-DD HH:MM」。部署即容器重建即进程启动，故取 `AppState.started_at`，按「系统设置 / 时区」换算后展示；时区改动即时跟随。
+
+### 变更
+
+- **模板热重载**：`themes::ThemeTeraCache` 按主题名缓存 `Arc<Tera>`（读锁快路径 + 双重检查写锁），递归模板最大 mtime 判定失效；切主题、重新导入同名主题、卸载主题均即时生效，不再需要重启服务（后台提示语同步由「重启服务后完全生效」改为免重启）。
+- **journal 双栏铺满**：≥1280px 两列由固定 `820px + 245px` 居中改为 `minmax(0, 1fr) 245px` 铺满 `.layout-two-col`，与分类/标签页版式一致，左右不再多留白；侧栏无内容时自动回退居中单列。正文列宽覆盖用 `:where()` 包裹保持 0-1-0 特异性，避免盖掉阅读模式的 46rem 限宽。
+- **journal 右侧栏竖线样式**：右侧悬浮侧栏加 `border-left` 与左内边距，卡片背景/边框/圆角/阴影抹平，与左侧常驻侧栏同款；`.heatmap` 限宽 860px，`.site-footer` 不再限宽。
+- **后台品牌区改为链接**：整块（logo + 站名）可点击，新标签页打开博客首页；hover/focus 只提亮文字不铺底色，focus-visible 加内描边；侧栏折叠时站名与部署时间一起隐藏。
+
+### 测试
+
+- `cargo test` 33/33 二进制全绿；`cargo clippy --all-targets -- -D warnings` 通过；Playwright E2E 17/17（desktop + 375px）。
+- 新增 `tests/admin_flow.rs::admin_brand_deploy_time_follows_site_timezone`：系统时区改 UTC 后品牌区小字必须跟变，防写死 UTC+8。
+- 新增 `e2e/tests/journal-layout.spec.ts`：双栏占满容器（左右贴边、列间距 <48px）、侧栏 `border-left: 1px`、阅读模式仍回 46rem 居中。
+- 新增 `tests/admin_themes.rs` 断言：激活主题后下一次前台请求即渲染新主题模板（热生效，无须重启）。
+
 ## [1.1.3] - 2026-09-25
 
 ### 变更
