@@ -2,6 +2,23 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.7] - 2026-09-26
+
+### 修复
+
+- **帮助页目录改为右侧固定悬浮导航（journal 同款竖向边线）**：此前目录是正文顶部的一整块，滚动正文就看不到、也无法定位当前段落。现改为 `position: fixed` 悬浮在右侧栏位，与左侧常驻侧栏左右对称；条目样式对齐 journal 主题导航——左侧 2px 竖向 accent line，hover 长到 60%、当前阅读区块满高（`.is-active`），滚动监听按「视口上方 120px 内最靠下的标题」打标。目录限高 `calc(100vh - 120px)`（底部留 94px 给右下角悬浮按钮组，折叠 FAB 不再压住目录末段）；≤1100px 无悬浮空间，退回正文顶部的静态目录块（两列 / 单列平铺）。同时修掉目录里长条目的拆词换行：`word-break: normal` + `overflow-wrap: break-word`，`/api/attachments` 这类长路径整体换行，不再把「统计」拆成两行。
+- **仪表盘「省份明细」由行内折叠改为分页对话框**：原来的行内 `<details><summary>展开</summary>` 一展开就把表格行撑高、宽屏下列宽被拉长、内容溢出。现改为「查看明细」按钮（`.region-detail-trigger`，带 `data-country` / `data-region-count` / `aria-haspopup="dialog"`）打开分页对话框：标题「省份明细 · 国家」，meta 行给出「共 N 个地区（按阅读量降序，每页 8 条）」，列表每页 8 条（8 × 38px ≈ 304px，桌面与 375px 都能整行放下，不出现半截行），「上一页 / 页码 / 下一页」翻页、末页自动禁用；弹窗限宽 480px、列表区 `max-height: min(52vh, 340px)` 内部滚动，任何视口都不溢出、不留大片空白；Esc / 点击遮罩 / 「关闭」均可关闭并回焦触发按钮。省份数据仍留在行内 `hidden` 的 `.region-detail-list` 里，无 JS 时数据仍在文档中。
+
+### 测试
+
+- `cargo test` 全绿（31 lib + 全部集成测试）、`cargo clippy --all-targets -- -D warnings` 干净。
+- `tests/admin_stats.rs`：`dashboard_region_detail_groups_by_country` 去掉对 `<details>` 的依赖，改为断言页面不再出现 `<details>`、美国行含 `region-detail-trigger` + `data-country="美国"`、行内 hidden 列表仍含「加利福尼亚：2 / 纽约：3」。
+- `e2e/tests/admin-ui.spec.ts`：帮助页用例重写为「目录 `position: fixed` + `.panel` 仍是单列文档流 + 目录在正文右侧 + 正文水平居中 + 滚动 900px 后目录仍在原位 + 滚到底 `#mcp` 项取满高竖线 + 1280×620 短视口下目录底边不压 `.fab-main`」；新增地区分布用例（页面无 `details`、注入 34 个省份行、断言标题 / `1 / 5` / 每页 8 条、弹窗宽 ≤520 且完全落在视口内、列表高 ≤60vh 且无被裁切的半截行、翻到 `5 / 5` 剩 2 条且「下一页」禁用、Esc 关闭）。Playwright 23/23（desktop + 375px），连跑无 flake。
+
+### 部署
+
+- 镜像 `…/hancic128/hancic-blog:v1.1.7`（`APP_VERSION=v1.1.7` build-arg 注入），自动部署到 sh 主机（hancic.site / blog.hancic.site）。
+
 ## [1.1.6] - 2026-09-26
 
 ### 修复
