@@ -154,12 +154,16 @@
         <td>{{ r.region_count }}</td>
         <td class="muted">{{ r.count }}</td>
         <td>
-          <details class="region-detail-popover">
-            <summary>展开</summary>
-            <ul class="region-detail-list">
+          {# 省份明细：行内不放折叠面板（展开会把表格行撑高、宽屏下列宽被拉长），
+             改为按钮打开分页对话框；列表本身留在文档里（hidden，无 JS 也能读到数据） #}
+          <button type="button" class="btn btn-sm btn-ghost region-detail-trigger"
+                  data-country="{{ r.country if r.country else '未知地区' }}"
+                  data-region-count="{{ r.region_count }}"
+                  aria-haspopup="dialog"
+                  aria-label="查看 {{ r.country if r.country else '未知地区' }} 的省份明细（{{ r.region_count }} 个地区）">查看明细</button>
+          <ul class="region-detail-list" hidden>
               {% for p in r.regions %}<li>{{ p.province if p.province else "—" }}：{{ p.count }}</li>{% endfor %}
-            </ul>
-          </details>
+          </ul>
         </td>
       </tr>
       {% endfor %}

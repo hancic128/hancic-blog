@@ -2259,44 +2259,91 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 /* panel-section 内 stat-grid：去掉多余下边距（分隔线已有间距） */
 .panel-section > .stat-grid { margin-bottom: 0; }
 
-/* API 帮助页：目录 + 说明排版（单列文档流，页面整体水平居中） */
-/* 这里一度用 grid 把「目录」和正文分成两列：.api-toc 与 .panel-section 是兄弟
-   节点，每个 section 被排成独立一行，行高互相撑开——目录块右侧留下大片空白、
-   正文段落之间被拉开，观感像错乱的网格。改回单列：目录作为正文顶部的一整块
-   （条目多列平铺压缩高度），正文依次向下排。 */
+/* API 帮助页：目录固定在右侧悬浮（不进入正文流，与左侧常驻侧栏左右对称）；
+   条目样式对齐 journal 主题导航——左侧 2px 竖向 accent line，hover 半高、
+   当前阅读区块满高（is-active 由 admin.js 的滚动监听打标）。
+   ≤1100px 无悬浮空间，退回正文顶部的静态目录块（多列平铺）。 */
 .api-toc {
-  margin: 0 0 20px;
-  padding: 14px 18px;
+  position: fixed;
+  top: 26px;
+  right: 24px;
+  z-index: 5;
+  width: 224px;
+  /* 底部留 94px：不压到右下角悬浮按钮组（24px 边距 + 48px 主钮 + 余量）；
+     顶部 26px，故上限 = 100vh - 120px */
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 12px 14px;
   border-radius: 12px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
-/* 目录条目平铺多列（200px 为列宽下限，容器变窄自动减列） */
-.api-toc ul { columns: 3 200px; column-gap: 28px; }
-.api-toc li { break-inside: avoid; }
-/* 帮助页容器整体水平居中 */
+/* 帮助页容器整体水平居中；≥1101px 用 padding-right 给右侧悬浮目录让位 */
 .admin-content:has(.panel > .api-toc) {
   max-width: clamp(960px, 80vw, 1320px);
   margin: 0 auto;
+}
+@media (min-width: 1101px) {
+  .admin-content:has(.panel > .api-toc) {
+    max-width: clamp(880px, 78vw, 1180px);
+    padding-right: 284px;
+  }
 }
 @media (max-width: 1100px) {
   .admin-content:has(.panel > .api-toc) {
     max-width: clamp(720px, 92vw, 1120px);
   }
-  .api-toc ul { columns: 2 180px; }
+  .api-toc {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    margin: 0 0 20px;
+    padding: 14px 18px;
+  }
+  .api-toc ul { columns: 2 180px; column-gap: 28px; }
 }
 @media (max-width: 720px) {
   .api-toc ul { columns: 1; }
 }
 .api-toc h3 { margin: 0 0 8px; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
 .api-toc ul { list-style: none; margin: 0; padding: 0; }
-.api-toc li { display: block; padding: 3px 0; line-height: 1.5; white-space: normal; word-break: break-word; }
+.api-toc li {
+  display: block;
+  line-height: 1.5;
+  white-space: normal;
+  /* 只在词间断行（长路径如 /api/attachments 整体换行），避免「统计」被拆成两行 */
+  word-break: normal;
+  overflow-wrap: break-word;
+  break-inside: avoid;
+}
 .api-toc li > ul { padding-left: 1.25rem; margin-top: 3px; }
 .api-toc li > ul > li { position: relative; padding-left: 0.75rem; }
 .api-toc li > ul > li::before { content: "├ "; position: absolute; left: 0; color: var(--muted); font-size: var(--text-xs); }
-.api-toc a { color: var(--accent); text-decoration: none; font-size: var(--text-sm); }
-.api-toc a:hover { text-decoration: underline; }
+.api-toc a {
+  position: relative;
+  display: block;
+  padding: 4px 0 4px calc(.55rem + 6px);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.api-toc a::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 2px; height: 0;
+  transform: translateY(-50%);
+  background: var(--accent);
+  transition: height .2s ease;
+}
+.api-toc a:hover { color: var(--accent); }
+.api-toc a:hover::before { height: 60%; }
+.api-toc a.is-active { color: var(--accent); font-weight: 600; }
+.api-toc a.is-active::before { height: 100%; }
+@media (prefers-reduced-motion: reduce) { .api-toc a::before { transition: none; } }
 .panel-section > h2 { scroll-margin-top: 24px; }
 .panel pre {
   margin: 8px 0;
@@ -2319,8 +2366,54 @@ html[data-mode="dark"] .date-field input[type="date"] { color-scheme: dark; }
 .ranking-table th.active, .ranking-table td.active { color: var(--accent); font-weight: 600; }
 
 /* 仪表盘地区国家行：详情展开不改变表格列宽 */
-.region-detail-popover summary { color: var(--accent); cursor: pointer; font-size: var(--text-sm); }
-.region-detail-list { display: grid; gap: 2px 18px; margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: var(--text-xs); }
+/* 地区分布：省份明细细弹窗（行内「查看明细」按钮打开，分页展示）。
+   限宽 480px + 列表区 max-height 52vh/360px，任何视口都不溢出、不留大片空白。 */
+.region-box { max-width: 480px; }
+.region-modal-meta {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--ink-400);
+}
+.region-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* 每页 8 条 ×38px ≈ 304px：340px 留一点余量，再高才内部滚动 */
+  max-height: min(52vh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.region-modal-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 2px;
+  border-bottom: 1px dashed var(--surface-3);
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+  word-break: break-word;
+}
+.region-modal-list li:last-child { border-bottom: 0; }
+.region-modal-list .region-count {
+  flex: none;
+  color: var(--ink-900);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.region-modal-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.region-modal-pager[hidden] { display: none; }
+.region-modal-pager .pager-info {
+  font-size: var(--text-xs);
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
 
 /* 编辑页专栏选择（原生 select，与分类选择器同宽） */
 .cat-field .col-select {

@@ -2232,3 +2232,169 @@
     if (!text) return;
     setTimeout(function () { window.hancicToast(text, type); }, 0);
   })();
+
+  // ---- 帮助页目录（右侧悬浮）：滚动时高亮当前区块 ----
+  // .api-toc 条目样式对齐 journal 主题导航：左侧竖向 accent line，hover 半高、
+  // 当前区块满高。这里按「视口上方 120px 内最靠下的标题」判定当前区块。
+  (function () {
+    'use strict';
+    var toc = document.querySelector('.api-toc');
+    if (!toc) return;
+    var links = Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]'));
+    if (!links.length) return;
+    var targets = links.map(function (a) {
+      return document.getElementById(a.getAttribute('href').slice(1));
+    });
+    var scroller = document.querySelector('.admin-main') || document.scrollingElement || document.documentElement;
+    var OFFSET = 120;
+    function markActive() {
+      var current = -1;
+      for (var i = 0; i < targets.length; i++) {
+        var el = targets[i];
+        if (el && el.getBoundingClientRect().top <= OFFSET) current = i;
+      }
+      for (var j = 0; j < links.length; j++) {
+        links[j].classList.toggle('is-active', j === current);
+      }
+    }
+    scroller.addEventListener('scroll', markActive, { passive: true });
+    window.addEventListener('resize', markActive);
+    markActive();
+  })();
+
+  // ---- 地区分布：省份明细分页弹窗 ----
+  // 表格行内不再用 <details> 展开（会把行撑高、宽屏下列宽被拉长），改为按钮打开
+  // 分页对话框：列表限高 52vh/360px 内部滚动，弹窗限宽 480px，不溢出屏幕。
+  // 数据取自行内 hidden 的 .region-detail-list（无 JS 时数据仍在文档里）。
+  (function () {
+    'use strict';
+    // 每页 8 条：8 × 38px = 304px，桌面/375px 一屏都能完整放下（不出现半截行），
+    // 超出部分仍走列表内部滚动
+    var PAGE_SIZE = 8;
+    var SVG_X = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    function readItems(btn) {
+      var cell = btn.closest('td');
+      var listEl = cell ? cell.querySelector('.region-detail-list') : null;
+      if (!listEl) return [];
+      return Array.prototype.map.call(listEl.children, function (li) {
+        var text = li.textContent || '';
+        var idx = text.lastIndexOf('：');
+        return idx > 0
+          ? { name: text.slice(0, idx), count: text.slice(idx + 1) }
+          : { name: text, count: '' };
+      });
+    }
+
+    function openDialog(btn) {
+      var items = readItems(btn);
+      var country = btn.getAttribute('data-country') || '地区';
+      var pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+      var page = 1;
+
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      var box = document.createElement('div');
+      box.className = 'modal-box region-box';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      box.setAttribute('aria-labelledby', 'region-modal-title');
+
+      var head = document.createElement('div');
+      head.className = 'modal-head';
+      var title = document.createElement('h3');
+      title.className = 'modal-title';
+      title.id = 'region-modal-title';
+      title.textContent = '省份明细 · ' + country;
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'modal-close';
+      closeBtn.setAttribute('aria-label', '关闭');
+      closeBtn.title = '关闭';
+      closeBtn.innerHTML = SVG_X;
+      head.appendChild(title);
+      head.appendChild(closeBtn);
+
+      var body = document.createElement('div');
+      body.className = 'modal-body';
+      var meta = document.createElement('p');
+      meta.className = 'region-modal-meta';
+      meta.textContent = '共 ' + items.length + ' 个地区（按阅读量降序，每页 ' + PAGE_SIZE + ' 条）';
+      var list = document.createElement('ul');
+      list.className = 'region-modal-list';
+      var pager = document.createElement('div');
+      pager.className = 'region-modal-pager';
+      var prev = document.createElement('button');
+      prev.type = 'button';
+      prev.className = 'btn btn-sm';
+      prev.textContent = '上一页';
+      var info = document.createElement('span');
+      info.className = 'pager-info';
+      var next = document.createElement('button');
+      next.type = 'button';
+      next.className = 'btn btn-sm';
+      next.textContent = '下一页';
+      pager.appendChild(prev);
+      pager.appendChild(info);
+      pager.appendChild(next);
+      body.appendChild(meta);
+      body.appendChild(list);
+      body.appendChild(pager);
+
+      var actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      var ok = document.createElement('button');
+      ok.type = 'button';
+      ok.className = 'btn';
+      ok.textContent = '关闭';
+      actions.appendChild(ok);
+
+      box.appendChild(head);
+      box.appendChild(body);
+      box.appendChild(actions);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      function render() {
+        list.innerHTML = '';
+        var from = (page - 1) * PAGE_SIZE;
+        items.slice(from, from + PAGE_SIZE).forEach(function (it) {
+          var li = document.createElement('li');
+          var name = document.createElement('span');
+          name.textContent = it.name;
+          var count = document.createElement('span');
+          count.className = 'region-count';
+          count.textContent = it.count;
+          li.appendChild(name);
+          li.appendChild(count);
+          list.appendChild(li);
+        });
+        info.textContent = page + ' / ' + pages;
+        prev.disabled = page <= 1;
+        next.disabled = page >= pages;
+        pager.hidden = pages <= 1;
+        list.scrollTop = 0;
+      }
+      prev.addEventListener('click', function () { if (page > 1) { page -= 1; render(); } });
+      next.addEventListener('click', function () { if (page < pages) { page += 1; render(); } });
+
+      function onKey(e) { if (e.key === 'Escape') close(); }
+      function close() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        if (btn.isConnected) btn.focus();
+      }
+      closeBtn.addEventListener('click', close);
+      ok.addEventListener('click', close);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', onKey);
+      render();
+      closeBtn.focus();
+    }
+
+    // 事件委托：行是服务端渲染的，但委托写法对动态插入的行同样有效
+    document.addEventListener('click', function (e) {
+      var btn = e.target instanceof Element ? e.target.closest('.region-detail-trigger') : null;
+      if (btn) openDialog(btn);
+    });
+  })();

@@ -417,6 +417,18 @@ async fn dashboard_region_detail_groups_by_country() {
     assert!(cn_row.contains("<td>2</td>") && cn_row.contains("9</td>"), "中国行应含 2 个地区和 9 次阅读: {cn_row}");
     assert!(!html.contains("<td>加利福尼亚</td>"), "省份不应单独成为明细行: {html}");
     assert!(html.contains("加利福尼亚") && html.contains("纽约"), "省份明细应保留在地图数据中: {html}");
+    // 省份明细改为「按钮 + 分页对话框」：行内不再用 <details>（展开会撑高行高），
+    // 数据仍留在行内 hidden 的列表里供对话框读取
+    assert!(!html.contains("<details"), "省份明细不应再用行内折叠面板: {html}");
+    let trigger = us_row.find("region-detail-trigger").expect("美国行应有「查看明细」按钮");
+    assert!(
+        us_row[trigger..].contains("data-country=\"美国\""),
+        "触发按钮应带国家名（对话框标题用）: {us_row}"
+    );
+    assert!(
+        us_row.contains("region-detail-list") && us_row.contains("加利福尼亚：2") && us_row.contains("纽约：3"),
+        "行内 hidden 列表应保留省份明细（含计数）: {us_row}"
+    );
 }
 
 /// 跳转来源审计：饼图分类合计必须等于阅读日志总数，空来源归直接访问。
