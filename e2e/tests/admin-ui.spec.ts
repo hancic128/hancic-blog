@@ -39,3 +39,21 @@ test("帮助页目录固定在右侧且不遮挡正文", async ({ page }) => {
     expect(overlaps).toBe(false);
   }
 });
+
+test("品牌区点击新标签页打开博客首页，站名下显示最近部署时间", async ({ page, context }) => {
+  await loginAsAdmin(page);
+  await page.goto("/admin");
+
+  // 站名下小字：最近部署时间（YYYY-MM-DD HH:MM，按系统设置时区）
+  const deploy = page.locator(".admin-brand .brand-deploy");
+  await expect(deploy).toBeVisible();
+  await expect(deploy).toHaveText(/^最近部署 \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+
+  // 品牌区为新标签页链接：点击后在新增的 page 上落到博客首页
+  const brand = page.locator("a.admin-brand");
+  await expect(brand).toHaveAttribute("href", "/");
+  await expect(brand).toHaveAttribute("target", "_blank");
+  const [opened] = await Promise.all([context.waitForEvent("page"), brand.click()]);
+  await opened.waitForLoadState("domcontentloaded");
+  expect(new URL(opened.url()).pathname).toBe("/");
+});

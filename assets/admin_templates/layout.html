@@ -12,14 +12,19 @@
 <body>
 <div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
-    <div class="admin-brand">
+    {# 品牌区：点击（logo + 站名）在新标签页打开博客首页；站名下方小字显示
+       最近部署时间（按系统设置/时区换算） #}
+    <a class="admin-brand" href="{{ base_path }}/" target="_blank" rel="noopener" title="打开博客首页">
       {% if site_logo %}
       <img class="brand-logo" src="{{ site_logo }}" alt="{{ site_name }} 标志">
       {% else %}
       <span class="brand-dot" aria-hidden="true"></span>
       {% endif %}
-      <span class="brand-name">{{ site_name }}</span>
-    </div>
+      <span class="brand-text">
+        <span class="brand-name">{{ site_name }}</span>
+        <span class="brand-deploy">最近部署 {{ deploy_time }}</span>
+      </span>
+    </a>
     <nav class="admin-nav">
       {% for item in admin_nav %}
       <a href="{{ base_path }}{{ item.url }}" class="admin-nav-item{% if item.active %} active{% endif %}" title="{{ item.label }}" data-group="{{ item.group }}">

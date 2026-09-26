@@ -158,7 +158,8 @@ pub(crate) fn redirect(base_path: &str, location: &str) -> Response {
     (StatusCode::FOUND, [(header::LOCATION, loc)]).into_response()
 }
 
-/// 后台页基础上下文：site_name / site_logo / csrf / admin_nav（layout.html 消费）。
+/// 后台页基础上下文：site_name / site_logo / deploy_time / csrf / admin_nav
+/// （layout.html 消费）。
 pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) -> (Context, String) {
     let csrf = session::csrf_token(session).await.unwrap_or_default();
     let settings = settings_service::get_many(
@@ -178,9 +179,18 @@ pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) ->
         .map(String::as_str)
         .filter(|s| !s.is_empty())
         .unwrap_or("");
+    // 最近部署时间：容器重建即部署（app-deploy 走 compose pull/up -d），故进程
+    // 启动时刻就是最近一次部署时刻；按「系统设置 / 时区」换算后展示。
+    let tz = crate::services::timezone::site_timezone(&state.db).await;
+    let deploy_time = state
+        .started_at
+        .with_timezone(&tz)
+        .format("%Y-%m-%d %H:%M")
+        .to_string();
     let mut ctx = Context::new();
     ctx.insert("site_name", site_name);
     ctx.insert("site_logo", site_logo);
+    ctx.insert("deploy_time", &deploy_time);
     ctx.insert("base_path", &state.config.base_path);
     ctx.insert("csrf", &csrf);
     ctx.insert("admin_nav", &nav_value(&admin_nav(path)));
@@ -640,6 +650,7 @@ mod tests {
         let mut ctx = Context::new();
         ctx.insert("site_name", "寒蝉 Hancic");
         ctx.insert("site_logo", "");
+        ctx.insert("deploy_time", "2026-09-25 21:45");
         ctx.insert("base_path", "");
         ctx.insert("csrf", "token");
         ctx.insert("admin_nav", &nav_value(&admin_nav("/admin")));

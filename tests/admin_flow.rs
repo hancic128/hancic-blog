@@ -31,6 +31,27 @@ async fn dashboard_requires_login_and_shows_counts() {
     );
     assert!(html.contains("查看站点"), "侧边栏应含「查看站点」");
     assert!(html.contains("退出登录"), "侧边栏应含「退出登录」");
+    // 品牌区：点击 logo/站名在新标签页打开博客首页（target=_blank + rel=noopener）
+    assert!(
+        html.contains(r#"class="admin-brand" href="/" target="_blank" rel="noopener""#),
+        "品牌区应为指向博客首页的新标签页链接"
+    );
+    // 站名下方小字：按系统设置/时区（默认 Asia/Shanghai）换算的最近部署时间。
+    // 部署即进程启动，故该时间应贴近当前时刻（用 5 分钟容差抵消跨分钟取整）
+    use chrono::TimeZone as _;
+    let marker = "最近部署 ";
+    let at = html.find(marker).expect("brand 区应含「最近部署」小字");
+    let raw = &html[at + marker.len()..];
+    let raw = raw
+        .chars()
+        .take(16) // YYYY-MM-DD HH:MM
+        .collect::<String>();
+    let naive = chrono::NaiveDateTime::parse_from_str(&raw, "%Y-%m-%d %H:%M")
+        .unwrap_or_else(|e| panic!("部署时间应形如 YYYY-MM-DD HH:MM（实际 {raw:?}）: {e}"));
+    let tz = chrono_tz::Asia::Shanghai;
+    let shown = tz.from_local_datetime(&naive).single().expect("本地时刻应唯一");
+    let drift = (chrono::Utc::now().with_timezone(&tz) - shown).num_minutes().abs();
+    assert!(drift <= 5, "部署时间应贴近当前时刻（相差 {drift} 分钟）: {raw}");
     assert!(
         html.contains("admin-nav-item active"),
         "仪表盘导航项应高亮"
@@ -59,6 +80,40 @@ async fn dashboard_requires_login_and_shows_counts() {
         let res = client.get(format!("{base}{path}")).send().await.unwrap();
         assert_eq!(res.status(), 200, "{path} 应可访问");
     }
+}
+
+#[tokio::test]
+async fn admin_brand_deploy_time_follows_site_timezone() {
+    let cfg = test_config("admin-brand-tz");
+    let pool = hancic::db::init(&cfg.data_dir).await.unwrap();
+    auth::set_password(&pool, common::TEST_PASSWORD).await.unwrap();
+    // 系统设置里把时区改成 UTC：品牌区小字必须跟着变（而不是固定 UTC+8）
+    sqlx::query("INSERT OR REPLACE INTO settings (key, value) VALUES ('timezone', 'UTC')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (addr, client) = start_server_with_cfg(cfg).await;
+    let base = format!("http://{addr}");
+    assert!(login_admin(&client, &addr).await);
+    let html = client
+        .get(format!("{base}/admin"))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+
+    let marker = "最近部署 ";
+    let at = html.find(marker).expect("brand 区应含「最近部署」小字");
+    let raw = html[at + marker.len()..].chars().take(16).collect::<String>();
+    let naive = chrono::NaiveDateTime::parse_from_str(&raw, "%Y-%m-%d %H:%M")
+        .unwrap_or_else(|e| panic!("部署时间应形如 YYYY-MM-DD HH:MM（实际 {raw:?}）: {e}"));
+    // 按 UTC 解析后应贴近当前 UTC（若误用 UTC+8，会差 8 小时）
+    use chrono::TimeZone as _;
+    let shown = chrono::Utc.from_utc_datetime(&naive);
+    let drift = (chrono::Utc::now() - shown).num_minutes().abs();
+    assert!(drift <= 5, "时区设为 UTC 后部署时间应为 UTC 时刻（相差 {drift} 分钟）: {raw}");
 }
 
 #[tokio::test]
