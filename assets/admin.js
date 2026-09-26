@@ -428,6 +428,34 @@
     });
   }
 
+  // ---- 切换菜单加载动画：避免 SSR 整页跳转期间出现「点了没反应」 ----
+  // 策略：nav-item 点击 → 给 .admin-loading-bar 加 .is-loading（CSS 顶栏进度条开跑）；
+  // pageshow（首屏 / 浏览器前进后退 bfcache 恢复）→ 移除。
+  // 仅拦截同源 <a> 跳转；外部 / target=_blank / data-confirm / 下载 链接不拦截。
+  var loadingBar = document.querySelector('.admin-loading-bar');
+  if (loadingBar) {
+    var navRoot = document.querySelector('.admin-nav');
+    if (navRoot) {
+      navRoot.addEventListener('click', function (e) {
+        var a = e.target instanceof Element ? e.target.closest('a.admin-nav-item') : null;
+        if (!a) return;
+        if (a.target === '_blank') return;
+        var href = a.getAttribute('href') || '';
+        if (!href || href.startsWith('#')) return;
+        loadingBar.classList.add('is-loading');
+      });
+    }
+    function clearLoading() { loadingBar.classList.remove('is-loading'); }
+    // 首屏 / bfcache 恢复时清掉加载态
+    window.addEventListener('pageshow', clearLoading);
+    // 兜底：DOMContentLoaded 之后立刻清一次（覆盖 pageshow 错过的情况）
+    if (document.readyState !== 'loading') {
+      clearLoading();
+    } else {
+      document.addEventListener('DOMContentLoaded', clearLoading);
+    }
+  }
+
   // ---- 侧栏导航分组标题（按 data-group 变化插入）----
   var GROUP_LABELS = { 'content': '内容管理', 'system': '系统', 'dashboard': null, 'link': null };
   var navEl = document.querySelector('.admin-nav');

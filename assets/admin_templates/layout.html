@@ -10,6 +10,7 @@
 <script>/* 主题色默认 emerald（用户未手动选择时显式标注，避免依赖 CSS 回退）*/(function(){if(!localStorage.getItem('admin-accent')){document.documentElement.setAttribute('data-accent','emerald')}})()</script>
 </head>
 <body>
+<div class="admin-loading-bar" aria-hidden="true"></div>
 <div class="admin-shell" id="admin-shell">
   <aside class="admin-side" id="admin-side">
     {# 品牌区：点击（logo + 站名）在新标签页打开博客首页；站名下方小字显示
@@ -22,7 +23,6 @@
       {% endif %}
       <span class="brand-text">
         <span class="brand-name">{{ site_name }}</span>
-        <span class="brand-deploy">最近部署 {{ deploy_time }}</span>
       </span>
     </a>
     <nav class="admin-nav">
@@ -33,6 +33,11 @@
       </a>
       {% endfor %}
     </nav>
+    {# 侧栏底部：版本徽章 + 部署时间（位于折叠按钮上方；折叠态整组隐藏） #}
+    <div class="admin-meta" aria-label="版本与部署信息">
+      <span class="admin-version-tag" title="当前版本">v{{ app_version }}</span>
+      <span class="admin-deploy" title="最近部署时间">最近部署 {{ deploy_time }}</span>
+    </div>
     <button class="admin-side-collapse side-collapse" id="side-collapse" type="button" aria-label="折叠菜单" title="折叠/展开菜单">
       <svg class="icon-collapse-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
       <svg class="icon-collapse-right" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>

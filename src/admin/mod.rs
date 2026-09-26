@@ -181,16 +181,20 @@ pub(crate) async fn base_ctx(state: &AppState, session: &Session, path: &str) ->
         .unwrap_or("");
     // 最近部署时间：容器重建即部署（app-deploy 走 compose pull/up -d），故进程
     // 启动时刻就是最近一次部署时刻；按「系统设置 / 时区」换算后展示。
+    // 格式形如「2026-09-26 部署」，渲染为单独一段，去掉时分秒以适配侧栏底部窄列。
     let tz = crate::services::timezone::site_timezone(&state.db).await;
     let deploy_time = state
         .started_at
         .with_timezone(&tz)
-        .format("%Y-%m-%d %H:%M")
+        .format("%Y-%m-%d 部署")
         .to_string();
+    // 版本：编译期固化（CARGO_PKG_VERSION），版本徽章直接读这个值。
+    let app_version = env!("CARGO_PKG_VERSION");
     let mut ctx = Context::new();
     ctx.insert("site_name", site_name);
     ctx.insert("site_logo", site_logo);
     ctx.insert("deploy_time", &deploy_time);
+    ctx.insert("app_version", app_version);
     ctx.insert("base_path", &state.config.base_path);
     ctx.insert("csrf", &csrf);
     ctx.insert("admin_nav", &nav_value(&admin_nav(path)));
@@ -650,7 +654,8 @@ mod tests {
         let mut ctx = Context::new();
         ctx.insert("site_name", "寒蝉 Hancic");
         ctx.insert("site_logo", "");
-        ctx.insert("deploy_time", "2026-09-25 21:45");
+        ctx.insert("deploy_time", "2026-09-25 部署");
+        ctx.insert("app_version", "0.1.0");
         ctx.insert("base_path", "");
         ctx.insert("csrf", "token");
         ctx.insert("admin_nav", &nav_value(&admin_nav("/admin")));

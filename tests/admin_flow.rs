@@ -36,22 +36,24 @@ async fn dashboard_requires_login_and_shows_counts() {
         html.contains(r#"class="admin-brand" href="/" target="_blank" rel="noopener""#),
         "品牌区应为指向博客首页的新标签页链接"
     );
-    // 站名下方小字：按系统设置/时区（默认 Asia/Shanghai）换算的最近部署时间。
-    // 部署即进程启动，故该时间应贴近当前时刻（用 5 分钟容差抵消跨分钟取整）
-    use chrono::TimeZone as _;
+    // 侧栏底部小字：按系统设置/时区（默认 Asia/Shanghai）换算的最近部署时间；
+    // 格式「YYYY-MM-DD 部署」（去掉了时分秒以适配侧栏底部窄列）。
     let marker = "最近部署 ";
-    let at = html.find(marker).expect("brand 区应含「最近部署」小字");
+    let at = html.find(marker).expect("admin-meta 应含「最近部署」小字");
     let raw = &html[at + marker.len()..];
-    let raw = raw
-        .chars()
-        .take(16) // YYYY-MM-DD HH:MM
-        .collect::<String>();
-    let naive = chrono::NaiveDateTime::parse_from_str(&raw, "%Y-%m-%d %H:%M")
-        .unwrap_or_else(|e| panic!("部署时间应形如 YYYY-MM-DD HH:MM（实际 {raw:?}）: {e}"));
+    let raw = raw.chars().take(10).collect::<String>(); // YYYY-MM-DD
+    let naive_date = chrono::NaiveDate::parse_from_str(&raw, "%Y-%m-%d")
+        .unwrap_or_else(|e| panic!("部署日期应形如 YYYY-MM-DD（实际 {raw:?}）: {e}"));
     let tz = chrono_tz::Asia::Shanghai;
-    let shown = tz.from_local_datetime(&naive).single().expect("本地时刻应唯一");
-    let drift = (chrono::Utc::now().with_timezone(&tz) - shown).num_minutes().abs();
-    assert!(drift <= 5, "部署时间应贴近当前时刻（相差 {drift} 分钟）: {raw}");
+    let today = chrono::Utc::now().with_timezone(&tz).date_naive();
+    let drift_days = (today - naive_date).num_days().abs();
+    assert!(drift_days <= 1, "部署日期应贴近当天（相差 {drift_days} 天）: {raw}");
+    // 版本徽章：编译期固化（CARGO_PKG_VERSION），前缀 v
+    let ver_marker = "admin-version-tag";
+    assert!(
+        html.contains(ver_marker) && html.contains("v0.1.0"),
+        "侧栏底部应含版本徽章 v0.1.0"
+    );
     assert!(
         html.contains("admin-nav-item active"),
         "仪表盘导航项应高亮"
@@ -104,16 +106,20 @@ async fn admin_brand_deploy_time_follows_site_timezone() {
         .await
         .unwrap();
 
+    // 部署时间已移至侧栏底部（admin-meta），格式「YYYY-MM-DD 部署」
     let marker = "最近部署 ";
-    let at = html.find(marker).expect("brand 区应含「最近部署」小字");
-    let raw = html[at + marker.len()..].chars().take(16).collect::<String>();
-    let naive = chrono::NaiveDateTime::parse_from_str(&raw, "%Y-%m-%d %H:%M")
-        .unwrap_or_else(|e| panic!("部署时间应形如 YYYY-MM-DD HH:MM（实际 {raw:?}）: {e}"));
-    // 按 UTC 解析后应贴近当前 UTC（若误用 UTC+8，会差 8 小时）
+    let at = html.find(marker).expect("admin-meta 应含「最近部署」小字");
+    // 跳过「最近部署 」+ 「YYYY-MM-DD 」+ 「部署」前缀，取剩下的纯日期字符串
+    let after = &html[at + marker.len()..];
+    let date_str: String = after.chars().take(10).collect();
+    let naive = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+        .unwrap_or_else(|e| panic!("部署时间应形如 YYYY-MM-DD（实际 {date_str:?}）: {e}"));
+    // 用当天 00:00:00 当作时间锚：允许 ±1 天的漂移（时区跨午夜边界）
     use chrono::TimeZone as _;
-    let shown = chrono::Utc.from_utc_datetime(&naive);
-    let drift = (chrono::Utc::now() - shown).num_minutes().abs();
-    assert!(drift <= 5, "时区设为 UTC 后部署时间应为 UTC 时刻（相差 {drift} 分钟）: {raw}");
+    let now_utc = chrono::Utc::now();
+    let shown = chrono::Utc.from_utc_datetime(&naive.and_hms_opt(0, 0, 0).unwrap());
+    let drift_days = (now_utc.date_naive() - shown.date_naive()).num_days().abs();
+    assert!(drift_days <= 1, "时区设为 UTC 后部署日期应贴近 UTC 当天（相差 {drift_days} 天）: {date_str}");
 }
 
 #[tokio::test]
