@@ -26,8 +26,7 @@ pub fn render(md: &str) -> String {
 /// （0.13 无 `ENABLE_SOFT_BREAKS` 选项）。
 pub fn render_breaks(md: &str) -> String {
     let opts = markdown_options();
-    let md = fix_bold_boundaries(md);
-    let parser = Parser::new_ext(&md, opts);
+    let parser = Parser::new_ext(md, opts);
     let events = parser.map(|ev| match ev {
         Event::SoftBreak => Event::HardBreak,
         other => other,
@@ -41,12 +40,11 @@ pub fn render_breaks(md: &str) -> String {
 /// （标题文本经 HTML 转义，防止目录注入）。
 pub fn render_with_toc(md: &str) -> (String, Vec<TocItem>) {
     let opts = markdown_options();
-    let md = fix_bold_boundaries(md);
 
     // 第一遍：按出现顺序收集 1~3 级标题
     let mut toc: Vec<TocItem> = Vec::new();
     {
-        let parser = Parser::new_ext(&md, opts);
+        let parser = Parser::new_ext(md, opts);
         let mut cur: Option<(u8, String)> = None;
         for ev in parser {
             match ev {
@@ -78,7 +76,7 @@ pub fn render_with_toc(md: &str) -> (String, Vec<TocItem>) {
     }
 
     // 第二遍：渲染，并在每个 1~3 级标题前插入锚点 span（序号与 toc 一一对应）
-    let parser = Parser::new_ext(&md, opts);
+    let parser = Parser::new_ext(md, opts);
     let mut heading_seq = 0usize;
     let events = parser.flat_map(|ev| match ev {
         Event::Start(Tag::Heading { level, .. }) if (1..=3).contains(&heading_level(level)) => {
@@ -115,120 +113,6 @@ fn heading_level(l: HeadingLevel) -> u8 {
         HeadingLevel::H5 => 5,
         HeadingLevel::H6 => 6,
     }
-}
-
-/// 修复强调标记的边界问题：CommonMark 规定 `**` 前后若直接贴着字母/数字/汉字
-/// （非空白、非标点），该 `**` 不构成合法的强调分隔符，会原样输出为源码
-/// （如 `中文**加粗**结尾` 显示为字面 `**加粗**`）。中文写作习惯常不加空格，
-/// 这里在渲染前给这类 `**` 两侧补空格，让强调正常渲染。
-///
-/// 安全边界：围栏代码块与行内代码整段跳过，不改动其中的 `*`。
-/// 非代码区所有星号 run（含单星号斜体）按出现顺序编号配对：
-/// 奇数 run 视为 opener、偶数 run 视为 closer；opener 前面紧贴文字且后面
-/// 非空白 → 前面补空格；closer 后面紧贴文字且前面非空白 → 后面补空格。
-/// 已有的合法写法（`**加粗**`、`，**加粗**`、`[**x**](url)`、`- **x**` 等）
-/// 两侧本就合法，不受影响。
-fn fix_bold_boundaries(md: &str) -> String {
-    let mut out = String::with_capacity(md.len() + 32);
-    let mut in_fence = false;
-    let mut fence_char = '\0';
-    let mut star_seq = 0usize;
-
-    for line in md.split_inclusive('\n') {
-        let body = line.strip_suffix('\n').unwrap_or(line);
-        let trimmed = body.trim_start();
-        // 围栏开启/关闭：行首（允许缩进）至少 3 个 ` 或 ~
-        let (is_fence, fc) =
-            if trimmed.len() >= 3 && (trimmed.starts_with('`') || trimmed.starts_with('~')) {
-                let c0 = trimmed.chars().next().unwrap();
-                let len = trimmed.chars().take_while(|&c| c == c0).count();
-                (len >= 3, c0)
-            } else {
-                (false, '\0')
-            };
-        if is_fence {
-            if !in_fence {
-                // 开启围栏
-                in_fence = true;
-                fence_char = fc;
-                out.push_str(line);
-                continue;
-            } else if fc == fence_char {
-                // 关闭围栏（同字符且 >=3）
-                in_fence = false;
-                out.push_str(line);
-                continue;
-            }
-        }
-        if in_fence {
-            out.push_str(line);
-            continue;
-        }
-        // 普通行：逐字符处理行内代码与星号 run
-        let chars: Vec<char> = body.chars().collect();
-        let n = chars.len();
-        let mut i = 0;
-        while i < n {
-            let c = chars[i];
-            // 行内代码（CommonMark 行内代码不跨行，本行内原样输出）
-            if c == '`' {
-                out.push(c);
-                i += 1;
-                while i < n && chars[i] != '`' {
-                    out.push(chars[i]);
-                    i += 1;
-                }
-                if i < n {
-                    out.push('`');
-                    i += 1;
-                }
-                continue;
-            }
-            if c == '*' {
-                let mut cnt = 0;
-                while i + cnt < n && chars[i + cnt] == '*' {
-                    cnt += 1;
-                }
-                star_seq += 1;
-                let prev = if i > 0 { chars[i - 1] } else { '\0' };
-                let next = if i + cnt < n { chars[i + cnt] } else { '\0' };
-                let prev_has_text = prev != '\0' && prev.is_alphanumeric();
-                let next_has_text = next != '\0' && next.is_alphanumeric();
-                let prev_not_ws = prev != '\0' && !prev.is_whitespace();
-                let next_not_ws = next != '\0' && !next.is_whitespace();
-                if cnt >= 2 {
-                    if star_seq % 2 == 1 {
-                        // opener：前面紧贴文字且后面非空白 → 前面补空格（使其可作 opener）
-                        if prev_has_text && next_not_ws {
-                            out.push(' ');
-                        }
-                        for _ in 0..cnt {
-                            out.push('*');
-                        }
-                    } else {
-                        // closer：后面紧贴文字且前面非空白 → 后面补空格（使其可作 closer）
-                        for _ in 0..cnt {
-                            out.push('*');
-                        }
-                        if next_has_text && prev_not_ws {
-                            out.push(' ');
-                        }
-                    }
-                } else {
-                    // 单星号 run 只参与配对计数（决定后续 `**` 的奇偶），不改动内容
-                    out.push(c);
-                }
-                i += cnt;
-                continue;
-            }
-            out.push(c);
-            i += 1;
-        }
-        if line.ends_with('\n') {
-            out.push('\n');
-        }
-    }
-    out
 }
 
 #[cfg(test)]
@@ -293,7 +177,8 @@ mod tests {
 
     #[test]
     fn bold_next_to_chinese_renders_not_as_source() {
-        // 左边界紧贴汉字（最常见的中文写作习惯）：修复前显示字面 **加粗**
+        // CJK 汉字既非空白也非标点，在 pulldown 的 `*` 分隔符规则里被视为词内字符，
+        // 因此 `**` 紧贴汉字仍构成合法强调（无需预处理）
         let html = render("中文**加粗**结尾");
         assert!(!html.contains("**"), "不应残留 ** 源码");
         assert!(html.contains("<strong>加粗</strong>"), "应渲染为 <strong>");
@@ -316,7 +201,7 @@ mod tests {
 
     #[test]
     fn bold_standard_writing_unchanged() {
-        // 独立成词、标点边界、链接内、列表内：原本就能渲染，不误伤
+        // 独立成词、标点边界、链接内、列表内：应正常渲染
         for md in [
             "**加粗**",
             "，**加粗**。",
@@ -331,8 +216,32 @@ mod tests {
     }
 
     #[test]
-    fn bold_fix_skips_code() {
-        // 围栏代码块与行内代码内的 * 不得改动
+    fn bold_renders_even_with_earlier_lone_asterisk() {
+        // 回归：之前的「补空格」预处理用全局星号奇偶配对判定 opener/closer，
+        // 一旦文档中出现先于加粗的单个 `*`（乘法、脚注星号、单星号斜体），
+        // 配对错位会把空格插到 `**加粗**` 内侧，导致加粗显示为字面源码。
+        for md in [
+            "3 * 4 和 **加粗**",
+            "注 * 见下\n**加粗**内容",
+            "价格 3 * 4 元\n\n中文**加粗**结尾",
+        ] {
+            let html = render(md);
+            assert!(html.contains("<strong>加粗</strong>"), "case: {md}");
+            assert!(!html.contains("**"), "case: {md}");
+        }
+    }
+
+    #[test]
+    fn italic_and_bold_mixed_render_independently() {
+        // 单星号斜体不再干扰后续 `**加粗**` 的解析
+        let html = render("中文*斜体*与**加粗**混排");
+        assert!(html.contains("<em>斜体</em>"), "斜体应渲染");
+        assert!(html.contains("<strong>加粗</strong>"), "加粗应渲染");
+    }
+
+    #[test]
+    fn bold_inside_code_kept_literal() {
+        // 围栏代码块与行内代码内的 * 原样保留（本就由 parser 处理，无需额外逻辑）
         let md = "```rust\nlet x = a**b**c;\n```\n\n正文 **加粗** `a**b**c` 结束。";
         let html = render(md);
         assert!(html.contains("a**b**c"), "代码内 ** 应原样保留");
@@ -345,8 +254,8 @@ mod tests {
     }
 
     #[test]
-    fn bold_fix_after_code_block_still_works() {
-        // 围栏代码块之后的正文强调同样修复（围栏关闭后配对序号连续）
+    fn bold_after_code_block_renders() {
+        // 围栏代码块之后的正文强调正常渲染
         let md = "```\ncode **here**\n```\n后续**加粗**文";
         let html = render(md);
         assert!(html.contains("code **here**"), "代码内 ** 应原样保留");

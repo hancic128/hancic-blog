@@ -3,8 +3,9 @@
  * 打包为 IIFE，暴露 window.HancicEditor.create(opts)，供 admin.js（经典脚本）使用。
  * 构建（产物 milkdown.min.js 已提交入库）：
  *   cd /tmp/milkdown-build && npm i @milkdown/core@7.22.0 @milkdown/preset-commonmark@7.22.0 \
- *     @milkdown/plugin-history@7.22.0 @milkdown/plugin-clipboard@7.22.0 \
- *     @milkdown/plugin-listener@7.22.0 esbuild
+ *     @milkdown/preset-gfm@7.22.0 @milkdown/plugin-history@7.22.0 \
+ *     @milkdown/plugin-clipboard@7.22.0 @milkdown/plugin-listener@7.22.0 \
+ *     @milkdown/plugin-prism@7.22.0 @milkdown/prose@7.22.0 refractor esbuild
  *   cp 本文件为 src.js 后：npx esbuild src.js --bundle --minify --format=iife \
  *     --outfile=milkdown.js && cp milkdown.js <repo>/assets/vendor/milkdown/milkdown.min.js
  * 说明：editor.action 内用 ProseMirror schema 节点（editorViewCtx）插入内容，
@@ -34,16 +35,20 @@ import json from "refractor/json";
 import rust from "refractor/rust";
 import toml from "refractor/toml";
 import ini from "refractor/ini";
-import { $prose, $useKeymap } from "@milkdown/utils";
+import { $prose, $useKeymap, $inputRule } from "@milkdown/utils";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { setBlockType, toggleMark, wrapIn, lift } from "@milkdown/prose/commands";
 import { Fragment } from "@milkdown/prose/model";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
+import { InputRule } from "@milkdown/prose/inputrules";
 
 // ---- Typora 式源码提示：光标所在段落高亮 + 段首/行内浅色显示未渲染的 markdown 标记 ----
 // widget 不占文档位置（ProseMirror 限制），光标无法真正进入标记内部；
 // 近似实现：点击标记把光标定位到对应内容边界；光标位于块首时标记显示激活态。
 var activeEditor = null;
+// 组合输入（中文/日文 IME）进行中标志：组合期间冻结装饰重建，避免在组合文本旁
+// 重建 widget DOM 干扰光标/选区（按空格确认候选时光标跳位的根因）。
+var composing = false;
 function setCursorTo(pos) {
   if (!activeEditor) return;
   activeEditor.action(function (ctx) {
@@ -198,6 +203,12 @@ var mdHint = $prose(function () {
     state: {
       init: function () { return DecorationSet.empty; },
       apply: function (tr, old, _oldState, _newState) {
+        // 组合输入进行中：冻结装饰，避免重建 widget DOM 扰动 IME 组合文本/光标
+        if (composing) return old;
+        // 文档与选区都没变（如主动 setMeta 的事务）→ 复用旧装饰，不做无谓重建
+        if (!tr.docChanged && _oldState && tr.selection && tr.selection.eq(_oldState.selection)) {
+          return old;
+        }
         var sel = tr.selection;
         if (!sel || sel.$from === undefined) return old;
         var doc = tr.doc;
@@ -273,6 +284,34 @@ var mdHint = $prose(function () {
         return DecorationSet.create(doc, decos);
       }
     }
+  });
+});
+
+// ---- Typora 式输入规则：输入完成的 markdown 语法即时转成样式 ----
+// 内置 commonmark/gfm 已覆盖 #/引用/代码块/列表/分割线/单星号斜体/图片，
+// strong 也有内置规则（但要求两侧为非单词字符，`中文**加粗**` 这类词内中文不匹配）；
+// 这里补两条（用 milkdown 的 $inputRule 注册，与内置规则同机制）：
+//   1. 加粗 **加粗**：lookbehind 放宽到词内，与单星号斜体 `(?:^|[^*])\*([^*]+)\*$` 互斥。
+//   2. 链接 [文字](url)：内置完全没有链接输入规则，逐字手打 [文字](url) 不会转成链接。
+// 末尾 `$`：仅当光标前刚输入完整片段时触发（ProseMirror InputRule 约定）。
+// 转换后恢复 storedMarks（同 milkdown 内置 markRule）：否则新加的 link/strong
+// 会作为「待输入标记」留在光标处，后续输入的文字被并入链接/加粗。
+var strongInputRule = $inputRule(function () {
+  return new InputRule(/(?<!\*)\*\*([^*]+)\*\*$/, function (state, match, start, end) {
+    var tr = state.tr;
+    var stored = tr.storedMarks || [];
+    tr.replaceWith(start, end, state.schema.text(match[1], [state.schema.marks.strong.create()]));
+    tr.setStoredMarks(stored);
+    return tr;
+  });
+});
+var linkInputRule = $inputRule(function () {
+  return new InputRule(/\[([^\[\]]+)\]\(([^()\s]+)\)$/, function (state, match, start, end) {
+    var tr = state.tr;
+    var stored = tr.storedMarks || [];
+    tr.replaceWith(start, end, state.schema.text(match[1], [state.schema.marks.link.create({ href: match[2] })]));
+    tr.setStoredMarks(stored);
+    return tr;
   });
 });
 
@@ -360,6 +399,8 @@ window.HancicEditor = {
       .use(commonmark)
       .use(gfm)
       .use(mdHint)
+      .use(strongInputRule)
+      .use(linkInputRule)
       .use(exitCodeBlock)
       .use(delBlockMarker)
       .use(mermaidPreview)
@@ -369,6 +410,17 @@ window.HancicEditor = {
       .use(listener)
       .create();
     activeEditor = editor;
+
+    // 组合输入（IME）期间冻结 mdHint 装饰重建，避免拼音/日文候选旁重建 widget DOM
+    // 导致按空格确认时光标跳位。捕获阶段监听页面组合事件（编辑器 DOM 内触发）。
+    // 额外在失焦时复位：个别浏览器组合中被打断可能不派发 compositionend，
+    // 残留 true 会让装饰永久冻结（提示不再更新）。
+    function onCompositionStart() { composing = true; }
+    function onCompositionEnd() { composing = false; }
+    function onEditorBlur() { composing = false; }
+    el.addEventListener("compositionstart", onCompositionStart, true);
+    el.addEventListener("compositionend", onCompositionEnd, true);
+    el.addEventListener("blur", onEditorBlur, true);
 
     // ---- 插入助手（全部通过 editor.action 拿到 ProseMirror view）----
     function insertImage(att) {
@@ -575,6 +627,9 @@ window.HancicEditor = {
       destroy: function () {
         el.removeEventListener("paste", onPaste, true);
         el.removeEventListener("drop", onDrop, true);
+        el.removeEventListener("compositionstart", onCompositionStart, true);
+        el.removeEventListener("compositionend", onCompositionEnd, true);
+        el.removeEventListener("blur", onEditorBlur, true);
         editor.destroy();
       }
     };

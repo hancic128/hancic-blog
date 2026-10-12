@@ -83,6 +83,43 @@ async fn post_page_renders_markdown() {
 }
 
 #[tokio::test]
+async fn post_page_renders_cjk_bold_with_earlier_asterisk() {
+    // 回归：正文里先出现单个 `*`（乘法），随后的 `**加粗**` 仍应渲染为 <strong>，
+    // 而不是因预处理配对错位退化成字面源码。
+    let (app, pool) = test_app("front-post-bold").await;
+    let id = posts::create_post(
+        &pool,
+        NewPost {
+            title: "加粗回归".into(),
+            content_md: "价格 3 * 4 元。\n\n中文**加粗**结尾。".into(),
+            excerpt: None,
+            slug: None,
+            status: PostStatus::Published,
+            post_type: PostType::Post,
+            category_id: None,
+            column_id: None,
+            tags: vec![],
+        },
+    )
+    .await
+    .unwrap()
+    .id;
+    let uuid = post_id_uuid(&pool, id).await;
+
+    let (status, html) = get_html(&app, &format!("/post/{uuid}")).await;
+    assert_eq!(status, StatusCode::OK);
+    // 正文应渲染成 <strong>，而非退化成字面 `** 加粗 **`
+    assert!(
+        html.contains("<strong>加粗</strong>"),
+        "加粗应渲染为 <strong>"
+    );
+    assert!(
+        html.contains("中文<strong>加粗</strong>结尾"),
+        "应是紧贴中文的加粗渲染"
+    );
+}
+
+#[tokio::test]
 async fn post_page_renders_share_meta_tags() {
     let (app, pool) = test_app("front-post-share-meta").await;
     let id = create_published_post(&pool, "分享文章", None, vec![]).await;
