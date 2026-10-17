@@ -274,6 +274,57 @@
       });
     };
 
+    // 链接对话框：hancicLinkDialog({href, canUnset}) →
+    //   Promise<{action:'set', href} | {action:'unset'} | null>
+    // 统一「插入 / 编辑 / 取消链接」交互：一个地址输入框 +（编辑时）取消链接按钮。
+    window.hancicLinkDialog = function (opts) {
+      opts = opts || {};
+      ensure();
+      if (state) state.resolve(null);
+      return new Promise(function (resolve) {
+        state = { resolve: resolve, done: false, triggerEl: null, kind: 'linkdialog' };
+        var els = resetBox();
+        els.titleEl.textContent = opts.canUnset ? '编辑链接' : '插入链接';
+        var input = document.createElement('input');
+        input.type = 'url';
+        input.className = 'modal-input';
+        input.placeholder = 'https://';
+        input.value = opts.href || 'https://';
+        els.msgEl.appendChild(input);
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn';
+        cancel.textContent = '取消';
+        var ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'btn btn-primary';
+        ok.textContent = '确定';
+        if (opts.canUnset) {
+          var unset = document.createElement('button');
+          unset.type = 'button';
+          unset.className = 'btn btn-danger';
+          unset.textContent = '取消链接';
+          unset.addEventListener('click', function () { settle({ action: 'unset' }); });
+          els.actionsEl.appendChild(unset);
+        }
+        els.actionsEl.appendChild(cancel);
+        els.actionsEl.appendChild(ok);
+        function finish() {
+          var url = input.value.trim();
+          if (!url || url === 'https://') { input.focus(); return; }
+          settle({ action: 'set', href: url });
+        }
+        ok.addEventListener('click', finish);
+        cancel.addEventListener('click', function () { settle(null); });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); finish(); }
+        });
+        overlay.hidden = false;
+        input.focus();
+        input.select();
+      });
+    };
+
     // ---- Toast（规范 7.11：4 级，顶部居中堆叠）----
     var toastBox = null;
     var TOAST_ICONS = {
@@ -1571,17 +1622,33 @@
         // 工具栏按钮 mousedown 默认会把焦点移出编辑器、丢掉选区；先阻止默认行为。
         linkBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
         linkBtn.addEventListener('click', function () {
-          window.hancicPrompt('链接地址（http/https）', 'https://').then(function (url) {
-            if (!url) return;
-            var selected = editor && editor.hasSelection && editor.hasSelection();
-            if (selected) {
-              editor.insertLink(null, url);
+          if (!editor) return;
+          var existing = editor.linkAt && editor.linkAt();
+          if (existing) {
+            // 光标在链接内 / 选中了链接：编辑地址或取消链接
+            window.hancicLinkDialog({ href: existing.href, canUnset: true }).then(function (res) {
+              if (!res) return;
+              if (res.action === 'unset') editor.unsetLink();
+              else editor.setLinkHref(res.href);
               editorEl.focus();
-              return;
-            }
+            });
+            return;
+          }
+          var selected = editor.hasSelection && editor.hasSelection();
+          if (selected) {
+            // 选中文字套链接：只要地址（文字沿用选区）
+            window.hancicLinkDialog({ href: 'https://' }).then(function (res) {
+              if (res && res.action === 'set') editor.insertLink(null, res.href);
+              editorEl.focus();
+            });
+            return;
+          }
+          // 无选区：插入新链接，需地址 + 显示文字
+          window.hancicLinkDialog({ href: 'https://' }).then(function (res) {
+            if (!res || res.action !== 'set') return;
             window.hancicPrompt('链接显示文字', '').then(function (text) {
               if (!text) return;
-              if (editor) editor.insertLink(text, url);
+              editor.insertLink(text, res.href);
               editorEl.focus();
             });
           });

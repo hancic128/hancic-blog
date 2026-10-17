@@ -18,7 +18,8 @@
  *   onUpdate: (md) => void,     // 文档变化回调（自动保存/本地草稿）
  *   onUpload: (files) => Promise<[{path, orig_name}]>  // 图片上传回调
  * }
- * 返回：{ getMarkdown, insertImage, insertVideo, insertLink, setContent, destroy }
+ * 返回：{ getMarkdown, insertImage, insertVideo, insertLink, linkAt, setLinkHref, unsetLink,
+ *         setContent, destroy }
  */
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx, parserCtx, serializerCtx } from "@milkdown/core";
 import { commonmark } from "@milkdown/preset-commonmark";
@@ -452,6 +453,76 @@ window.HancicEditor = {
       });
     }
 
+    // ---- 链接编辑支持：定位光标所在的连续 link mark 区间 ----
+    // 光标处若带 link mark，返回 {from, to, href}（沿文档扫描相邻同类 mark 合并整段），
+    // 否则返回 null。用于「编辑链接」「取消链接」。
+    function currentLinkRange(state) {
+      var sel = state.selection;
+      if (!sel.$from.parent.isTextblock) return null;
+      // 定位参考字符：空选区取光标左侧字符（nodeBefore）；有选区取选区首字符（nodeAfter）
+      var $from = state.doc.resolve(sel.from);
+      var node = sel.empty ? $from.nodeBefore : $from.nodeAfter;
+      if (!node || !node.isText) return null;
+      var linkMark = null;
+      for (var i = 0; i < node.marks.length; i++) {
+        if (node.marks[i].type.name === "link") linkMark = node.marks[i];
+      }
+      if (!linkMark) return null;
+      var href = linkMark.attrs.href || "";
+      var hasHref = function (n) {
+        return !!n && n.isText && n.marks.some(function (m) {
+          return m.type.name === "link" && m.attrs.href === href;
+        });
+      };
+      // 从参考字符向两侧合并相邻同类 link mark，得到整段链接区间
+      var start = sel.empty ? sel.from - node.nodeSize : sel.from;
+      var end = start + node.nodeSize;
+      while (start > 0) {
+        var nb = state.doc.resolve(start).nodeBefore;
+        if (hasHref(nb)) start -= nb.nodeSize; else break;
+      }
+      while (end < state.doc.content.size) {
+        var na = state.doc.resolve(end).nodeAfter;
+        if (hasHref(na)) end += na.nodeSize; else break;
+      }
+      return { from: start, to: end, href: href };
+    }
+
+    function linkAt() {
+      var result = null;
+      editor.action(function (ctx) {
+        result = currentLinkRange(ctx.get(editorViewCtx).state);
+      });
+      return result;
+    }
+
+    // 改链接地址：光标所在链接区间重新套用新 href
+    function setLinkHref(href) {
+      editor.action(function (ctx) {
+        var view = ctx.get(editorViewCtx);
+        var range = currentLinkRange(view.state);
+        if (!range) return;
+        var schema = view.state.schema;
+        var tr = view.state.tr.removeMark(range.from, range.to, schema.marks.link);
+        tr.addMark(range.from, range.to, schema.marks.link.create({ href: href }));
+        view.dispatch(tr.scrollIntoView());
+      });
+    }
+
+    // 取消链接：去掉光标所在区间的 link mark，保留文字
+    function unsetLink() {
+      editor.action(function (ctx) {
+        var view = ctx.get(editorViewCtx);
+        var range = currentLinkRange(view.state);
+        if (!range) return;
+        view.dispatch(
+          view.state.tr
+            .removeMark(range.from, range.to, view.state.schema.marks.link)
+            .scrollIntoView()
+        );
+      });
+    }
+
     function hasSelection() {
       var selected = false;
       editor.action(function (ctx) {
@@ -622,6 +693,9 @@ window.HancicEditor = {
       command: commandApi,
       insertImage: insertImage,
       insertLink: insertLink,
+      linkAt: linkAt,
+      setLinkHref: setLinkHref,
+      unsetLink: unsetLink,
       hasSelection: hasSelection,
       setContent: setContent,
       destroy: function () {
