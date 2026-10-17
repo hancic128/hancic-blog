@@ -2,6 +2,12 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.1.10] - 2026-10-17
+
+### 新增
+
+- **编辑器链接可编辑 / 取消**：把光标放进链接（或选中链接文字）后点工具栏链接按钮，弹出「编辑链接」对话框——地址框预填当前地址，可改地址，另有「取消链接」按钮（去掉链接样式、保留文字）。此前只能插入链接，无法修改或移除。`assets/vendor/milkdown/src.js` 新增 `linkAt`/`setLinkHref`/`unsetLink`（定位光标所在连续 link mark 区间），`admin.js` 新增 `hancicLinkDialog` 复用现有模态框；按钮提示同步更新。
+
 ## [1.1.9] - 2026-10-12
 
 ### 修复
