@@ -1,0 +1,36 @@
+{# 分类归档页：分类下标签 + 文章密排列表 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <section class="zone">
+      <div class="zone-head">
+        <h2 class="zone-title">分类</h2>
+        <span class="zone-archive-name">{{ category.name }}</span>
+      </div>
+      {% if category_tags %}
+      <div class="tag-cloud">
+        {% for t in category_tags %}
+        <a class="tag-badge" href="{{ base_path }}/tag/{{ t.slug }}">{{ t.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="post-list">
+        {% include "partials/post_list.html" %}
+      </div>
+      {% include "partials/pagination.html" %}
+    </section>
+  </main>
+  <aside class="layout-side">
+    <div class="side-card">
+      <h4 class="side-title">分类</h4>
+      <ul class="side-columns">
+        {% for c in site.categories %}
+        <li class="{% if c.slug == category.slug %}side-column-active{% endif %}">
+          <a href="{{ base_path }}/category/{{ c.slug }}">{{ c.name }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </aside>
+</div>
+{% include "partials/footer.html" %}

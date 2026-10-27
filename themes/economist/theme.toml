@@ -1,0 +1,4 @@
+name = "economist"
+author = "hancic"
+version = "0.1.0"
+description = "《经济学人》式排版主题：报纸密排网格、衬线正文 + 无衬线大标题、单一红色点缀"

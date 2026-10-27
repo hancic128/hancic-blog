@@ -1,0 +1,32 @@
+{# 归档页：标签索引 + 文章密排列表；右栏按月份筛选 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    {% if all_tags %}
+    <section class="zone zone-tags">
+      <div class="zone-head">
+        <h2 class="zone-title">标签</h2>
+        <span class="zone-note">共 {{ all_tags | length }} 个</span>
+      </div>
+      <div class="tag-cloud">
+        {% for tag in all_tags %}
+        <a class="tag-badge" href="{{ base_path }}/tag/{{ tag.slug }}">{{ tag.name }}</a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="zone">
+      <div class="zone-head">
+        <h2 class="zone-title">{% if current_month %}「{{ current_month }}」的文章{% else %}全部文章{% endif %}</h2>
+        {% if current_month %}<a class="archive-clear" href="{{ base_path }}/archives">清除筛选</a>{% endif %}
+      </div>
+      <div class="post-list">
+        {% include "partials/post_list.html" %}
+      </div>
+      {% include "partials/pagination.html" %}
+    </section>
+  </main>
+  {% include "partials/month_sidebar.html" %}
+</div>
+{% include "partials/footer.html" %}
