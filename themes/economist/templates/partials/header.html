@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="{{ site.mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/x-icon" href="{{ base_path }}/theme/{{ site.active_theme }}/static/favicon.ico">
+<title>{{ page_title | default(value=site.name) }}</title>
+<meta name="description" content="{{ site.desc }}">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/style.css">
+<link rel="stylesheet" href="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/github.min.css">
+{% if share %}
+{# 分享卡片元数据：canonical + Open Graph + Twitter Card（share 对象由 Rust 注入，可选字段缺省不输出） #}
+{% if share.canonical_url %}<link rel="canonical" href="{{ share.canonical_url }}">{% endif %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ share.title }}">
+<meta property="og:description" content="{{ share.description }}">
+{% if share.og_url %}<meta property="og:url" content="{{ share.og_url }}">{% endif %}
+<meta property="og:site_name" content="{{ share.site_name }}">
+{% if share.og_image %}<meta property="og:image" content="{{ share.og_image }}">{% endif %}
+<meta name="twitter:card" content="{{ share.twitter_card }}">
+<meta name="twitter:title" content="{{ share.title }}">
+<meta name="twitter:description" content="{{ share.description }}">
+{% if share.og_image %}<meta name="twitter:image" content="{{ share.og_image }}">{% endif %}
+{% endif %}
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+
+{# ===== 报头：黑条工具行 + 红块报头 + 栏目导航 ===== #}
+<header class="masthead" id="top">
+  <div class="masthead-strip">
+    <div class="masthead-strip-inner">
+      <p class="masthead-tagline">{% if site.desc %}{{ site.desc }}{% else %}{{ site.name }}{% endif %}</p>
+      <div class="masthead-tools">
+        <form class="strip-search" method="get" action="{{ base_path }}/search" role="search">
+          <input type="search" name="q" placeholder="搜索文章 / 说说" aria-label="搜索文章/说说" title="搜索文章/说说">
+          <button type="submit" aria-label="搜索" title="搜索">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        </form>
+        <button class="strip-mode" id="theme-toggle" type="button" aria-label="切换明暗模式" title="切换明暗模式">
+          <svg class="mode-icon mode-icon-auto" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>
+          <svg class="mode-icon mode-icon-light" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="mode-icon mode-icon-dark" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="masthead-plate">
+    <a class="masthead-logo" href="{{ base_path }}/">{{ site.name }}</a>
+  </div>
+
+  <div class="masthead-bar">
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="site-nav">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="主导航">
+      {% for item in site.nav %}
+        {% if item.type == "pages" and item.url %}
+        <a class="nav-link" href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+        {% elif item.type == "pages" %}
+        <div class="nav-dropdown">
+          <a class="nav-link" href="{{ base_path }}/page/{% if site.pages %}{{ site.pages[0].slug }}{% endif %}">{{ item.label }}</a>
+          {% if site.pages %}
+          <div class="dropdown-menu">
+            {% for p in site.pages %}<a href="{{ base_path }}/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% elif item.type == "articles" %}
+        <div class="nav-dropdown">
+          <a class="nav-link" href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+          {% if site.categories %}
+          <div class="dropdown-menu">
+            {% for c in site.categories %}<a href="{{ base_path }}/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% elif item.type == "column" %}
+        <a class="nav-link" href="{{ base_path }}{% if item.url %}{{ item.url }}{% else %}/columns{% endif %}">{{ item.label }}</a>
+        {% else %}
+        <a class="nav-link" href="{{ base_path }}{{ item.url }}">{{ item.label }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+</header>
+<main class="site-main" id="main">

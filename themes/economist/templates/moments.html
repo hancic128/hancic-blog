@@ -1,0 +1,19 @@
+{# 说说页：与首页「简报」同款行式时间线；右栏按月份筛选 #}
+{% include "partials/header.html" %}
+<div class="layout-two-col">
+  <main class="layout-main">
+    <section class="zone">
+      <div class="zone-head">
+        <h2 class="zone-title">简报</h2>
+        <span class="zone-note">说说时间线</span>
+      </div>
+      {% if current_month %}<p class="month-filter-note">「{{ current_month }}」的说说 <a class="archive-clear" href="{{ base_path }}/moments">清除筛选</a></p>{% endif %}
+      <div class="moment-timeline">
+        {% include "partials/moment_item.html" %}
+      </div>
+      {% include "partials/pagination.html" %}
+    </section>
+  </main>
+  {% include "partials/month_sidebar.html" %}
+</div>
+{% include "partials/footer.html" %}

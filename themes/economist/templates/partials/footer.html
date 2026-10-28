@@ -1,0 +1,111 @@
+</main>
+
+{# ===== 页脚：黑底白字，报纸版权栏 ===== #}
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">{{ site.name }}</span>
+      {% if site.desc %}<p class="footer-desc">{{ site.desc }}</p>{% endif %}
+    </div>
+
+    <div class="footer-cols">
+      <section class="footer-col">
+        <h4 class="footer-col-title">栏目</h4>
+        <ul class="footer-links">
+          {% for item in site.nav %}<li><a href="{{ base_path }}{{ item.url }}">{{ item.label }}</a></li>{% endfor %}
+          <li><a href="{{ base_path }}/archives">归档</a></li>
+        </ul>
+      </section>
+
+      {% if site.columns %}
+      <section class="footer-col">
+        <h4 class="footer-col-title">专栏</h4>
+        <ul class="footer-links">
+          {% for c in site.columns %}<li><a href="{{ base_path }}/column/{{ c.slug }}">{{ c.name }}</a></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if site.friend_links %}
+      <section class="footer-col">
+        <h4 class="footer-col-title">友情链接</h4>
+        <ul class="footer-links">
+          {% for f in site.friend_links %}<li><a href="{{ f.url }}" target="_blank" rel="noopener nofollow">{{ f.label }}</a></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if site.contact.enabled %}
+      <section class="footer-col">
+        <h4 class="footer-col-title">联系</h4>
+        <ul class="footer-links">
+          {% if site.contact.email %}<li><a href="mailto:{{ site.contact.email }}">{{ site.contact.email }}</a></li>{% endif %}
+          {% for s in site.social_links %}<li><a href="{{ s.url }}" target="_blank" rel="noopener nofollow">{{ s.key }}</a></li>{% endfor %}
+        </ul>
+        {% if site.social_qrs %}
+        <div class="footer-qrs">
+          {% for s in site.social_qrs %}
+          <a class="footer-qr" href="{{ s.url }}" target="_blank" rel="noopener nofollow" title="{{ s.key }}">
+            {% if s.logo %}<img src="{{ s.logo }}" alt="{{ s.key }} 二维码" loading="lazy">{% else %}<span>{{ s.key }}</span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="footer-meta">
+      <span class="footer-copy">© {{ site.name }}{% if site.footer_text %}<span class="footer-dot">·</span>{{ site.footer_text }}{% endif %}</span>
+      <a class="footer-top" href="#top">回到顶部 ↑</a>
+    </div>
+  </div>
+</footer>
+
+<script src="{{ base_path }}/theme/{{ site.active_theme }}/static/hljs/highlight.min.js"></script>
+<script src="{{ base_path }}/theme/{{ site.active_theme }}/static/mermaid/mermaid.min.js"></script>
+<script src="{{ base_path }}/theme/{{ site.active_theme }}/static/main.js"></script>
+<script>
+document.addEventListener('click', async (event) => {
+  const btn = event.target.closest('[data-like-toggle]');
+  if (!btn || btn.dataset.loading === '1') return;
+  btn.dataset.loading = '1';
+  try {
+    const res = await fetch('{{ base_path }}/api/likes/toggle', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        content_type: btn.dataset.contentType,
+        content_id: Number(btn.dataset.contentId),
+      }),
+    });
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return;
+    }
+    if (!res.ok || !json.data) return;
+    btn.setAttribute('aria-pressed', String(json.data.liked));
+    const count = btn.querySelector('.like-count');
+    if (count) count.textContent = String(json.data.like_count);
+  } finally {
+    delete btn.dataset.loading;
+  }
+});
+</script>
+<script>
+// 移动端导航开合：同步 aria-expanded（main.js 只切 class）
+document.addEventListener('DOMContentLoaded', function () {
+  var btn = document.getElementById('nav-toggle');
+  var nav = document.getElementById('site-nav');
+  if (!btn || !nav) return;
+  btn.addEventListener('click', function () {
+    btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+    btn.setAttribute('aria-label', nav.classList.contains('open') ? '收起导航' : '展开导航');
+  });
+});
+</script>
+</body>
+</html>
