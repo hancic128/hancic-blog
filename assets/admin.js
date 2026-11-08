@@ -29,6 +29,7 @@
     try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* 忽略 */ }
     // 联动 Chart.js + 地图：配色随明暗令牌（accent/ink 两套取值）重绘
     paintChartTheme(window._adminChart);
+    paintChartTheme(window._analyticsChart);
     paintMapTheme(window._adminMap);
     // milkdown 编辑器明暗随 CSS 变量（[data-mode]）自动切换，无需 JS 联动
   }
@@ -65,6 +66,7 @@
     markCurrentSwatch();
     // 联动 Chart.js + 地图：主序列/填充随主题色重绘（仅仪表盘有图）
     paintChartTheme(window._adminChart);
+    paintChartTheme(window._analyticsChart);
     paintMapTheme(window._adminMap);
   }
   var savedAccent;
@@ -440,6 +442,7 @@
   // ---- 侧栏导航图标：按 data-icon（url）注入 SVG ----
   var NAV_ICONS = {
     '/admin': '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    '/admin/analytics': '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
     '/admin/posts': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
     '/admin/moments': '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
     '/admin/attachments': '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
@@ -2465,3 +2468,157 @@
       if (btn) openDialog(btn);
     });
   })();
+
+// ---- 访问分析页（/admin/analytics）：趋势折线、设备饼图、时段热力 ----
+// 数据由 analytics.html 注入 window.chartData（labels/views/visitors/devices/
+// browsers/os/heatmap）。与仪表盘图表同源（Chart.js），但配色与语义独立：
+// 本页统计的是「剔除爬虫后的真实阅读」，故趋势线不含爬虫。
+(function () {
+  'use strict';
+
+  var WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+  function readVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+  function isLight() {
+    return (document.documentElement.getAttribute('data-mode') || 'dark') === 'light';
+  }
+  // 分类配色：多分类饼图用固定柔和调色板（不随单 accent 变化）
+  var PALETTE = ['#10B981', '#6366F1', '#F59E0B', '#EC4899', '#06B6D4',
+    '#8B5CF6', '#F43F5E', '#84CC16', '#F97316', '#64748B'];
+
+  // ---- 时段热力：7×24 网格 ----
+  function renderHeatmap(el, cells) {
+    if (!el) return;
+    // 建立 [weekday][hour] → count 索引
+    var grid = [], max = 0;
+    for (var w = 0; w < 7; w++) grid.push(new Array(24).fill(0));
+    (cells || []).forEach(function (c) {
+      var wd = c.weekday, hr = c.hour;
+      if (wd < 0 || wd > 6 || hr < 0 || hr > 23) return;
+      grid[wd][hr] = c.count || 0;
+      if (c.count > max) max = c.count;
+    });
+    el.innerHTML = '';
+    // 表头：小时刻度（每 3 小时一个）
+    var head = document.createElement('div');
+    head.className = 'heatmap-hours';
+    for (var h = 0; h < 24; h++) {
+      var hc = document.createElement('span');
+      hc.textContent = (h % 3 === 0) ? String(h) : '';
+      head.appendChild(hc);
+    }
+    el.appendChild(head);
+    WEEKDAYS.forEach(function (label, wd) {
+      var row = document.createElement('div');
+      row.className = 'heatmap-row';
+      var name = document.createElement('span');
+      name.className = 'heatmap-label';
+      name.textContent = label;
+      row.appendChild(name);
+      for (var hr2 = 0; hr2 < 24; hr2++) {
+        var cell = document.createElement('span');
+        var count = grid[wd][hr2];
+        cell.className = 'heatmap-cell';
+        // 透明度按占最大值的比例，0 计数留空
+        var ratio = max > 0 ? count / max : 0;
+        if (count > 0) {
+          cell.style.background = 'color-mix(in srgb, var(--accent) ' +
+            Math.round(20 + ratio * 80) + '%, transparent)';
+        }
+        cell.title = label + ' ' + hr2 + ':00 · ' + count + ' 次访问';
+        cell.setAttribute('aria-label', label + ' ' + hr2 + ' 点，' + count + ' 次访问');
+        row.appendChild(cell);
+      }
+      el.appendChild(row);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var data = window.chartData;
+    if (!data) return;
+
+    // ---- 访问量 / 独立访客 趋势 ----
+    var trendCanvas = document.getElementById('analytics-trend');
+    if (trendCanvas && window.Chart) {
+      var accent = readVar('--accent', isLight() ? '#059669' : '#10b981');
+      var second = readVar('--ink-500', isLight() ? '#64748B' : '#7E8BA6');
+      window._analyticsChart = new window.Chart(trendCanvas, {
+        type: 'line',
+        data: {
+          labels: data.labels || [],
+          datasets: [{
+            label: '真实阅读',
+            data: data.views || [],
+            fill: true,
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2,
+            borderColor: accent,
+            backgroundColor: readVar('--accent-glow', 'rgba(16,185,129,0.12)'),
+            pointBackgroundColor: accent
+          }, {
+            label: '独立访客',
+            data: data.visitors || [],
+            fill: false,
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2,
+            borderDash: [5, 4],
+            borderColor: second,
+            pointBackgroundColor: second
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { boxWidth: 14, usePointStyle: true, padding: 12 }
+            }
+          },
+          scales: {
+            x: { grid: {}, ticks: {} },
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: {} }
+          }
+        }
+      });
+    }
+
+    // ---- 设备构成饼图 ----
+    var deviceCanvas = document.getElementById('device-chart');
+    var devices = data.devices || [];
+    if (deviceCanvas && window.Chart && devices.length) {
+      window._analyticsDeviceChart = new window.Chart(deviceCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: devices.map(function (d) { return d.label || d.key; }),
+          datasets: [{ data: devices.map(function (d) { return d.count; }), backgroundColor: PALETTE }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true, padding: 10 } },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                  var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                  return ' ' + ctx.label + '：' + ctx.parsed + ' 次（' + pct + '%）';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ---- 时段热力 ----
+    renderHeatmap(document.getElementById('heatmap'), data.heatmap || []);
+  });
+})();

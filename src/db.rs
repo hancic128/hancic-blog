@@ -70,6 +70,7 @@ pub async fn init(data_dir: &Path) -> Result<Db, sqlx::Error> {
     ensure_trail_sha256(&pool).await?;
     ensure_like_schema(&pool).await?;
     ensure_page_view_source(&pool).await?;
+    ensure_analytics_schema(&pool).await?;
     seed_default_settings(&pool).await?;
     Ok(pool)
 }
@@ -251,6 +252,137 @@ async fn ensure_page_view_source(pool: &Db) -> Result<(), sqlx::Error> {
             .await?;
     }
     Ok(())
+}
+
+/// page_views 表加访问分析维度列（幂等：旧库逐列补齐）。
+///
+/// 新增列：
+/// - `device` / `browser` / `os`：UA 解析结果（见 `services::ua`）
+/// - `ref_domain` / `ref_path`：Referer 域名与路径（见 `services::referer`）
+/// - `search_query`：搜索引擎关键词
+/// - `visitor_id`：访客指纹（IP+UA 哈希），用于独立访客数与新老访客判定
+///
+/// 历史数据回填：`page_views` 早已存了 `ua` / `referer` / `ip`，故这些维度
+/// 可从既有列重新解析出来——升级后**旧流量也有完整分析**，而非从升级那一刻
+/// 起才有数据。回填按 id 升序分批处理，避免一次性载入全表占满内存。
+async fn ensure_analytics_schema(pool: &Db) -> Result<(), sqlx::Error> {
+    for (name, ddl) in [
+        (
+            "device",
+            "ALTER TABLE page_views ADD COLUMN device TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "browser",
+            "ALTER TABLE page_views ADD COLUMN browser TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "os",
+            "ALTER TABLE page_views ADD COLUMN os TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "ref_domain",
+            "ALTER TABLE page_views ADD COLUMN ref_domain TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "ref_path",
+            "ALTER TABLE page_views ADD COLUMN ref_path TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "search_query",
+            "ALTER TABLE page_views ADD COLUMN search_query TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "visitor_id",
+            "ALTER TABLE page_views ADD COLUMN visitor_id TEXT NOT NULL DEFAULT ''",
+        ),
+    ] {
+        let has: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM pragma_table_info('page_views') WHERE name = ?")
+                .bind(name)
+                .fetch_one(pool)
+                .await?;
+        if has.0 == 0 {
+            sqlx::raw_sql(ddl).execute(pool).await?;
+        }
+    }
+
+    sqlx::raw_sql(
+        "CREATE INDEX IF NOT EXISTS idx_page_views_device ON page_views(device);
+         CREATE INDEX IF NOT EXISTS idx_page_views_visitor ON page_views(visitor_id);
+         CREATE INDEX IF NOT EXISTS idx_page_views_ref_domain ON page_views(ref_domain);",
+    )
+    .execute(pool)
+    .await?;
+
+    backfill_analytics_rows(pool).await
+}
+
+/// 回填历史 `page_views` 的分析维度。
+///
+/// 只处理「维度仍为空」的行：写入路径已解析过的新行不重复计算。
+/// 爬虫行只记 `device = 'bot'`（浏览器/系统留空），不做进一步解析——
+/// 爬虫的 UA 没有分析价值，省下的是实打实的回填开销。
+async fn backfill_analytics_rows(pool: &Db) -> Result<(), sqlx::Error> {
+    const BATCH: i64 = 500;
+    loop {
+        // 取一批待回填行（device 为空）；LIMIT 内按 id 升序保证推进
+        let rows: Vec<(i64, String, String, String)> = sqlx::query_as(
+            "SELECT id, ua, referer, ip FROM page_views
+             WHERE device = '' ORDER BY id ASC LIMIT ?",
+        )
+        .bind(BATCH)
+        .fetch_all(pool)
+        .await?;
+        if rows.is_empty() {
+            break;
+        }
+        for (id, ua, referer, ip) in &rows {
+            let info = crate::services::ua::parse(ua);
+            if info.device_type == crate::services::ua::DeviceType::Bot {
+                sqlx::query("UPDATE page_views SET device = 'bot' WHERE id = ?")
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+                continue;
+            }
+            let r = crate::services::referer::parse(referer);
+            let visitor = visitor_fingerprint(ip, ua);
+            sqlx::query(
+                "UPDATE page_views
+                 SET device = ?, browser = ?, os = ?, ref_domain = ?, ref_path = ?,
+                     search_query = ?, visitor_id = ?
+                 WHERE id = ?",
+            )
+            .bind(info.device_type.as_str())
+            .bind(&info.browser)
+            .bind(&info.os)
+            .bind(&r.domain)
+            .bind(&r.path)
+            .bind(&r.search_query)
+            .bind(&visitor)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        }
+        // 本批已全部置为非空，下一轮查询条件 `device = ''` 不再命中这批；
+        // 若返回行数小于 BATCH 说明剩余不足一批，下一轮自然返回空并退出。
+    }
+    Ok(())
+}
+
+/// 访客指纹：IP + UA 的 SHA-256 哈希（截取 16 字节十六进制）。
+///
+/// 存哈希而非明文 IP：既能区分访客（算独立访客数），又不把原始 IP
+/// 暴露在分析表里。同一访客换 UA 会被算作两个访客——这是有意的保守选择，
+/// 避免用 UA 拼接做「跨设备合并」带来的误判。
+pub fn visitor_fingerprint(ip: &str, ua: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(ip.trim().as_bytes());
+    hasher.update(b"\n");
+    hasher.update(ua.trim().as_bytes());
+    let digest = hasher.finalize();
+    digest[..16].iter().map(|b| format!("{b:02x}")).collect()
 }
 
 async fn seed_default_settings(pool: &Db) -> Result<(), sqlx::Error> {

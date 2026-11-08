@@ -150,6 +150,16 @@ def get_stats(from_: str = "", to: str = "") -> dict:
     return _request("GET", "/stats/summary", params=params)
 
 
+@mcp.tool(description="访问分析明细（访客/设备/来源/关键词/热力/互链/单篇下钻/实时流）。from_/to 为 YYYY-MM-DD，可选；默认剔除爬虫")
+def get_analytics(from_: str = "", to: str = "") -> dict:
+    params = {}
+    if from_:
+        params["from"] = from_
+    if to:
+        params["to"] = to
+    return _request("GET", "/analytics", params=params)
+
+
 @mcp.tool(description="下载全量备份 zip（数据库+配置+上传+主题），保存到本地并返回路径")
 def get_backup(save_dir: str = "") -> dict:
     headers = {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}

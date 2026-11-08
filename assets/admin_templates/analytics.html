@@ -1,0 +1,326 @@
+{% extends "layout.html" %}
+{% block title %}访问分析{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>访问分析</h1>
+    <p class="page-sub">真实访客 · 设备构成 · 来源明细 · 搜索关键词 · 时段热力</p>
+  </div>
+  <div class="page-head-actions">
+    <a class="btn" href="{{ base_path }}/admin">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      返回仪表盘
+    </a>
+  </div>
+</div>
+
+<div class="panel">
+  <section class="panel-section">
+<div class="stat-grid analytics-stat-grid">
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.unique_visitors }}</div>
+        <div class="stat-label">独立访客</div>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.total_views }}</div>
+        <div class="stat-label">真实阅读（已剔除爬虫）</div>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.new_visitors }}</div>
+        <div class="stat-label">新访客</div>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.returning_visitors }}</div>
+        <div class="stat-label">回访访客</div>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M2 2h4"/><path d="M2 2v4"/><path d="M22 2h-4"/><path d="M22 2v4"/><path d="M2 22h4"/><path d="M2 22v-4"/><path d="M22 22h-4"/><path d="M22 22v-4"/><circle cx="12" cy="12" r="2"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.bot_views }}</div>
+        <div class="stat-label">爬虫访问（占 {{ bot_ratio }}%）</div>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-row">
+      <span class="stat-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </span>
+      <div>
+        <div class="stat-num">{{ summary.views_per_visitor }}</div>
+        <div class="stat-label">人均阅读篇数</div>
+      </div>
+    </div>
+  </div>
+</div>
+  </section>
+
+  <section class="panel-section">
+  <h2>访问量与独立访客 <small class="muted">{% if all %}全部时间{% else %}{{ from }} ~ {{ to }}{% endif %}（站点时区自然日）</small></h2>
+  <form class="filter-bar" method="get" action="{{ base_path }}/admin/analytics">
+    <div class="date-picker">
+      <input type="text" name="from" class="date-input" value="{{ from }}" placeholder="YYYY-MM-DD" aria-label="开始日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择开始日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <span class="date-sep">至</span>
+    <div class="date-picker">
+      <input type="text" name="to" class="date-input" value="{{ to }}" placeholder="YYYY-MM-DD" aria-label="结束日期" autocomplete="off">
+      <button type="button" class="date-cal-btn" aria-label="选择结束日期" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+    <button class="btn" type="submit">查询</button>
+    <span class="filter-sep" aria-hidden="true"></span>
+    <a class="quick-range{% if all %} active{% endif %}" href="?range=all">全部</a>
+    <a class="quick-range" href="?days=7">最近7天</a>
+    <a class="quick-range" href="?days=30">最近30天</a>
+    <a class="quick-range" href="?days=90">最近90天</a>
+  </form>
+  <div class="chart-wrap"><canvas id="analytics-trend" role="img" aria-label="访问量与独立访客趋势折线图"></canvas></div>
+  </section>
+
+  <section class="panel-section">
+  <h2>设备构成 <small class="muted">按 User-Agent 解析，已剔除爬虫</small></h2>
+  {% if devices %}
+  <div class="analytics-split">
+    <div class="chart-wrap chart-doughnut"><canvas id="device-chart" role="img" aria-label="设备构成饼状图"></canvas></div>
+    <table class="data-table">
+      <thead><tr><th>设备</th><th>阅读</th></tr></thead>
+      <tbody>
+        {% for d in devices %}
+        <tr>
+          <td>{{ d.label }}</td>
+          <td class="muted">{{ d.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+    <p class="empty-title">期间无设备数据</p>
+    <p class="empty-desc">所选日期范围内没有可解析的访问记录</p>
+  </div>
+  {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>浏览器与操作系统</h2>
+  <div class="analytics-split">
+    <div>
+      <h3 class="analytics-subtitle">浏览器</h3>
+      {% if browsers %}
+      <table class="data-table">
+        <thead><tr><th>浏览器</th><th>阅读</th></tr></thead>
+        <tbody>
+          {% for b in browsers %}
+          <tr><td>{{ b.key if b.key else "其他" }}</td><td class="muted">{{ b.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">暂无数据</p>
+      {% endif %}
+    </div>
+    <div>
+      <h3 class="analytics-subtitle">操作系统</h3>
+      {% if os_list %}
+      <table class="data-table">
+        <thead><tr><th>系统</th><th>阅读</th></tr></thead>
+        <tbody>
+          {% for o in os_list %}
+          <tr><td>{{ o.key if o.key else "其他" }}</td><td class="muted">{{ o.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">暂无数据</p>
+      {% endif %}
+    </div>
+  </div>
+  </section>
+
+  <section class="panel-section">
+  <h2>来源明细 <small class="muted">完整域名（不做平台归类）</small></h2>
+  {% if domains %}
+  <table class="data-table">
+    <thead><tr><th>#</th><th>来源域名</th><th>阅读</th></tr></thead>
+    <tbody>
+      {% for d in domains %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td>{{ d.key if d.key else "直接访问（无 Referer）" }}</td>
+        <td class="muted">{{ d.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if paths %}
+  <h3 class="analytics-subtitle">来源页面（对方站点的具体路径）</h3>
+  <table class="data-table analytics-path-table">
+    <thead><tr><th>#</th><th>来源路径</th><th>阅读</th></tr></thead>
+    <tbody>
+      {% for p in paths %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td class="analytics-path">{{ p.key if p.key else "—" }}</td>
+        <td class="muted">{{ p.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+    <p class="empty-title">期间无来源数据</p>
+    <p class="empty-desc">所选日期范围内没有可归集的访问来源</p>
+  </div>
+  {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>搜索关键词 <small class="muted">读者在搜什么</small></h2>
+  {% if keywords %}
+  <table class="data-table">
+    <thead><tr><th>#</th><th>关键词</th><th>搜索次数</th><th>命中文章</th></tr></thead>
+    <tbody>
+      {% for k in keywords %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td>{{ k.keyword }}</td>
+        <td class="muted">{{ k.count }}</td>
+        <td class="muted">{{ k.post_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">仅统计搜索引擎来源且带查询参数的访问（Google / 百度 / Bing / 搜狗 / DuckDuckGo 等）</p>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+    <p class="empty-title">期间无搜索关键词</p>
+    <p class="empty-desc">所选日期范围内没有来自搜索引擎的访问</p>
+  </div>
+  {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>时段热力 <small class="muted">星期 × 小时（站点时区）</small></h2>
+  <div class="heatmap" id="heatmap" role="img" aria-label="按星期与小时分布的访问热力图"></div>
+  <p class="muted">颜色越深表示该时段访问越多——可据此判断读者活跃时间，决定什么时候发文效果最好</p>
+  </section>
+
+  {% if has_internal_links %}
+  <section class="panel-section">
+  <h2>站内互链 <small class="muted">哪篇文章引荐了哪篇</small></h2>
+  <table class="data-table">
+    <thead><tr><th>#</th><th>来源页面</th><th>引荐至</th><th>次数</th></tr></thead>
+    <tbody>
+      {% for l in internal_links %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td class="analytics-path">{{ l.from_path if l.from_path else "（首页）" }}</td>
+        <td><a href="{{ base_path }}/admin/posts/{{ l.to_post_id }}/edit">{{ l.to_title }}</a></td>
+        <td class="muted">{{ l.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </section>
+  {% endif %}
+
+  <section class="panel-section">
+  <h2>单篇来源下钻 <small class="muted">每篇文章的流量来自哪里</small></h2>
+  {% if post_sources %}
+  <table class="data-table">
+    <thead><tr><th>文章</th><th>来源</th><th>阅读</th></tr></thead>
+    <tbody>
+      {% for p in post_sources %}
+      <tr>
+        <td><a href="{{ base_path }}/admin/posts/{{ p.post_id }}/edit">{{ p.title }}</a></td>
+        <td>{{ p.label }}</td>
+        <td class="muted">{{ p.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">取区间内阅读最多的 10 篇文章，逐篇列出其来源分类</p>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+    <p class="empty-title">期间无单篇数据</p>
+    <p class="empty-desc">所选日期范围内没有可下钻的文章阅读</p>
+  </div>
+  {% endif %}
+  </section>
+
+  <section class="panel-section">
+  <h2>实时访问流 <small class="muted">最近 {{ recent | length }} 条</small></h2>
+  {% if recent %}
+  <table class="data-table">
+    <thead><tr><th>时间</th><th>文章</th><th>设备</th><th>浏览器</th><th>系统</th><th>来源</th><th>地区</th></tr></thead>
+    <tbody>
+      {% for r in recent %}
+      <tr>
+        <td class="muted" title="{{ r.at }}">{{ r.ago }}</td>
+        <td><a href="{{ base_path }}/admin/posts/{{ r.post_id }}/edit">{{ r.post_title }}</a></td>
+        <td>{{ r.device if r.device else "—" }}</td>
+        <td>{{ r.browser if r.browser else "—" }}</td>
+        <td>{{ r.os if r.os else "—" }}</td>
+        <td>{{ r.source if r.source else "—" }}</td>
+        <td class="muted">{{ r.country }}{% if r.province %} · {{ r.province }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+    <p class="empty-title">暂无访问记录</p>
+    <p class="empty-desc">还没有任何访问日志</p>
+  </div>
+  {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# layout.html 已在 body 末尾加载 admin.js，这里只补图表库（仪表盘同样做法） #}
+<script src="{{ base_path }}/static/vendor/chart.umd.min.js"></script>
+<script>window.chartData = {{ chart_data | safe }};</script>
+{% endblock %}

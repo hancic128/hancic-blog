@@ -9,6 +9,12 @@
 /data-e2e/
 /hancic.log
 
+# 本地运行配置（含 Casdoor client_secret 等真实凭据；仓库只放 config.example.toml）
+/config.toml
+
+# 本地草稿（未发布文章稿，不进公开仓）
+/content/
+
 # Git worktrees (SDD isolated workspaces)
 /.worktrees/
 

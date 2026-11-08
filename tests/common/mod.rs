@@ -9,6 +9,24 @@ use std::path::PathBuf;
 /// 测试用管理员密码（与 setup 流程配合）。
 pub const TEST_PASSWORD: &str = "test-password-123";
 
+/// 初始化 tracing（幂等；测试并行时只有第一次生效）。
+///
+/// 不初始化的话 `tracing::error!` 的输出会被丢弃——后台页渲染失败时
+/// 只能看到 500 而看不到真正原因，排查全靠猜。
+pub fn init_tracing() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("error")),
+            )
+            .with_test_writer()
+            .try_init();
+    });
+}
+
 /// 1x1 透明 PNG（8bit RGBA），用于上传管线测试。
 #[allow(non_upper_case_globals)]
 pub const PNG_1x1: &[u8] = &[
@@ -80,6 +98,7 @@ pub async fn test_app(tag: &str) -> (axum::Router, Db) {
 /// 前台渲染依赖真实主题模板：把仓库 themes/ 复制到数据目录
 /// （与 `test_app` 一致），其余初始化由 `hancic::app` 完成。
 pub async fn start_server_with_cfg(cfg: Config) -> (SocketAddr, reqwest::Client) {
+    init_tracing();
     copy_recursive(
         &format!("{}/themes", env!("CARGO_MANIFEST_DIR")),
         &cfg.data_dir.join("themes"),

@@ -17,6 +17,7 @@
       <li><a href="#likes">点赞：/api/likes</a></li>
       <li><a href="#uploads">附件：/api/uploads + /api/attachments</a></li>
       <li><a href="#stats">统计：/api/stats</a></li>
+      <li><a href="#analytics">访问分析：/api/analytics</a></li>
       <li><a href="#settings">站点设置：/api/settings</a></li>
       <li><a href="#system">系统设置：/api/system</a></li>
       <li><a href="#themes">主题：/api/themes</a></li>
@@ -198,6 +199,19 @@
   </section>
 
   <section class="panel-section">
+  <h2 id="analytics">访问分析：/api/analytics</h2>
+  <p class="muted"><code>GET /api/analytics</code> 返回访问分析各维度：独立访客与
+    新老客、设备/浏览器/系统构成、来源域名与路径明细、搜索关键词、时段热力、
+    站内互链、单篇来源下钻、实时访问流。可选查询参数 <code>from</code>/<code>to</code>
+    （格式 <code>YYYY-MM-DD</code>，站点时区日期边界）。对应后台「访问分析」页。</p>
+  <pre><code>curl "{{ api_base }}/api/analytics?from=2026-08-01&amp;to=2026-08-13" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+  <p class="muted"><strong>口径说明</strong>：本接口所有面向读者的指标<strong>默认剔除爬虫</strong>
+    （<code>device = 'bot'</code>）——搜索引擎爬虫每日抓取会让原始 PV 虚高数倍；
+    爬虫量单独放在 <code>summary.bot_views</code> 里，不混入阅读统计。</p>
+  </section>
+
+  <section class="panel-section">
   <h2 id="settings">站点设置：/api/settings</h2>
   <p class="muted"><code>GET /api/settings</code> 返回全部站点设置键值。
     <code>PATCH /api/settings</code> 局部更新，只接受白名单键：<code>site_name</code>、
@@ -267,7 +281,7 @@
 
   <section class="panel-section">
   <h2 id="mcp">MCP 集成（AI 工具）</h2>
-  <p class="muted">本博客的 REST 接口已包装为 <strong>47 个 MCP 工具</strong>，供
+  <p class="muted">本博客的 REST 接口已包装为 <strong>48 个 MCP 工具</strong>，供
     <strong>Claude Code / Codex / Kimi Code</strong> 等 AI 客户端直接调用——
     让 AI 能查文章、发文章（含独立页面）、写说说、管理分类/标签/专栏、上传附件、
     调站点/系统设置、管理主题与轨迹、下载备份，无需手写 HTTP 请求。</p>

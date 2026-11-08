@@ -6,6 +6,7 @@
 //! 二选一，都失败则 401。`GET /api/backup` 返回全量备份 zip（T22）。
 //! 统一 JSON 错误体由 `AppError` 的 `IntoResponse` 产出。
 
+pub mod analytics;
 pub mod attachments;
 pub mod auth;
 pub mod backup;
@@ -93,6 +94,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/stats/summary", get(stats::summary))
         .route("/stats/clear", post(stats::clear))
+        .route("/analytics", get(analytics::report))
         .route("/backup", get(backup::backup))
 }
 
