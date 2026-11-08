@@ -22,6 +22,7 @@ use std::net::SocketAddr;
 use tera::{Context, Tera};
 use tower_sessions::Session;
 
+pub mod analytics;
 pub mod attachments;
 pub mod backup;
 pub mod columns;
@@ -100,6 +101,7 @@ pub fn router() -> Router<AppState> {
         .route("/themes/{name}/preview", get(themes::preview))
         .route("/stats", get(admin_index)) // 历史路由兼容：统计已合并进仪表盘
         .route("/stats/clear", post(stats::clear))
+        .route("/analytics", get(analytics::page))
         .route("/tokens", get(tokens::list).post(tokens::create))
         .route("/tokens/{id}/created", get(tokens::created_page))
         .route("/tokens/{id}/revoke", post(tokens::revoke))
@@ -143,6 +145,10 @@ pub fn build_tera() -> Tera {
         (
             "dashboard.html",
             include_str!("../../assets/admin_templates/dashboard.html"),
+        ),
+        (
+            "analytics.html",
+            include_str!("../../assets/admin_templates/analytics.html"),
         ),
         (
             "posts_list.html",
@@ -292,8 +298,9 @@ struct NavItem {
 /// 侧边栏 12 个模块；active 按当前请求路径匹配。
 fn admin_nav(path: &str) -> Vec<NavItem> {
     // (url, label, group)：内容管理 / 系统
-    let items: [(&str, &str, &str); 13] = [
+    let items: [(&str, &str, &str); 14] = [
         ("/admin", "仪表盘", "dashboard"),
+        ("/admin/analytics", "访问分析", "dashboard"),
         ("/admin/posts", "文章", "content"),
         ("/admin/moments", "说说", "content"),
         ("/admin/attachments", "附件库", "content"),

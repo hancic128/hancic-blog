@@ -84,7 +84,12 @@ pub fn classify_referer(referer: &str) -> &'static str {
     "other"
 }
 
-/// 记录一次阅读：事务内写入 page_views（含解析地区）并累加 posts.views。
+/// 记录一次阅读：事务内写入 page_views（含解析地区与访问分析维度）并累加 posts.views。
+///
+/// 写入时同步解析 UA 与 Referer，把设备/浏览器/系统/来源域名/来源路径/
+/// 搜索关键词/访客指纹落到 `page_views` 的独立列——这样后台分析可以直接
+/// `GROUP BY`，不必在 SQL 里做字符串魔法（存量数据的同口径回填见
+/// `db::ensure_analytics_schema`）。
 pub async fn record_view(
     db: &Db,
     post_id: i64,
@@ -97,10 +102,14 @@ pub async fn record_view(
         Ok(ip) => searcher.lookup(&ip),
         Err(_) => Region::local(),
     };
+    let ua_info = crate::services::ua::parse(ua);
+    let ref_info = crate::services::referer::parse(referer);
+    let visitor_id = crate::db::visitor_fingerprint(ip, ua);
     let mut tx = db.begin().await?;
     sqlx::query(
-        "INSERT INTO page_views(post_id, ip, ua, referer, source, country, province, city)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO page_views(post_id, ip, ua, referer, source, country, province, city,
+                                device, browser, os, ref_domain, ref_path, search_query, visitor_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(post_id)
     .bind(ip)
@@ -110,6 +119,13 @@ pub async fn record_view(
     .bind(&region.country)
     .bind(&region.province)
     .bind(&region.city)
+    .bind(ua_info.device_type.as_str())
+    .bind(&ua_info.browser)
+    .bind(&ua_info.os)
+    .bind(&ref_info.domain)
+    .bind(&ref_info.path)
+    .bind(&ref_info.search_query)
+    .bind(&visitor_id)
     .execute(&mut *tx)
     .await?;
     sqlx::query("UPDATE posts SET views = views + 1 WHERE id = ?")
