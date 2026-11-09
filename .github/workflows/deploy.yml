@@ -134,6 +134,16 @@ jobs:
           build-args: APP_VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # provenance/sbom 关闭：buildx 默认会生成 attestation（OCI index 里多一个
+          # `unknown/unknown` 条目），该条目的 config mediaType 是
+          # `application/vnd.oci.empty.v1+json`——**阿里云 ACR 不认这个 media type**，
+          # 导致 app-deploy 搬运镜像时层全推成功、却在最后推 manifest 的步骤报
+          # `error from registry: unknown manifest class for application/vnd.oci.empty.v1+json`，
+          # deploy job 被 skip，线上停在旧镜像。
+          # 关掉后 index 只剩 amd64 一个条目，ACR 正常收。
+          # （attestation 对本项目无价值：单架构自建镜像，不需要供应链溯源证明。）
+          provenance: false
+          sbom: false
 
   dispatch:
     # 镜像已进 ghcr，交给 app-deploy：从 ghcr 搬 ACR → SSH 到 sh → docker compose pull/up -d → healthcheck.sh
