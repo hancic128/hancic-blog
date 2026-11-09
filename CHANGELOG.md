@@ -2,6 +2,12 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.2.1] - 2026-11-09
+
+### 修复
+
+- **镜像搬运在最后一步失败，线上一直停在旧镜像**：app-deploy 把镜像从 ghcr 搬到阿里云 ACR 时，层全部推成功后报 `error from registry: unknown manifest class for application/vnd.oci.empty.v1+json`。根因是 buildx 默认生成的 provenance attestation 会让 OCI index 多出一个 `unknown/unknown` 条目，其 config mediaType 正是阿里云 ACR 不认的 `application/vnd.oci.empty.v1+json`（config 内容为空 JSON `{}`）。CI 构建已关闭 `provenance` / `sbom`，index 只剩 `linux/amd64` 一个条目，ACR 正常收。
+
 ## [1.2.0] - 2026-11-08
 
 ### 新增
