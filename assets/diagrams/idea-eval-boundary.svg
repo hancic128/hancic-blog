@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-label="框架只负责评审噪声，剩下的 ROI 权衡要自己做，并可以多轮跑">
+  <title>框架只负责评审，剩下的 ROI 权衡要自己做，可以多轮跑</title>
+  <g stroke-linejoin="round">
+  <rect x="24" y="56" width="132" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="90" y="89" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">新想法</text>
+  <line x1="156" y1="84" x2="186" y2="84" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M196.0,84.0 L185.0,87.5 L185.0,80.5 Z" fill="currentColor" fill-opacity="0.5"/>
+  <rect x="200" y="56" width="148" height="56" rx="10" fill="#d97706" fill-opacity="0.06"/>
+  <rect x="200" y="56" width="148" height="56" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="274" y="89" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">框架评审</text>
+  <line x1="348" y1="84" x2="378" y2="84" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M388.0,84.0 L377.0,87.5 L377.0,80.5 Z" fill="currentColor" fill-opacity="0.5"/>
+  <rect x="392" y="56" width="304" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="544" y="89" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">剩下的自己权衡</text>
+  <path d="M544,112 L544,150 L90,150 L90,125" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M90.0,113.0 L83.0,124.0 L97.0,124.0 Z" fill="currentColor" fill-opacity="0.4"/>
+  <text x="317" y="180" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">可以多轮跑</text>
+  </g>
+</svg>

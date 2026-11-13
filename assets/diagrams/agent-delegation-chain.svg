@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-label="一次委派链：人委托 Agent A，Agent A 再委托 Agent B，B 调工具，工具访问资源；每一段做一次令牌交换，下游拿到的范围不能比上游大">
+  <title>一次委派链，每段换一枚令牌</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <rect x="40" y="50" width="96" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="88" y="82" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">人</text>
+    <line x1="140" y1="75" x2="172" y2="75" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="176" y="50" width="96" height="50" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="224" y="82" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">Agent A</text>
+    <line x1="276" y1="75" x2="308" y2="75" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="312" y="50" width="96" height="50" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="82" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">Agent B</text>
+    <line x1="412" y1="75" x2="444" y2="75" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="448" y="50" width="96" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="496" y="82" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">工具</text>
+    <line x1="548" y1="75" x2="580" y2="75" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="584" y="50" width="96" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="632" y="82" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">资源</text>
+
+    <text x="156" y="122" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle">令牌交换</text>
+
+    <rect x="40" y="140" width="640" height="50" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="171" font-size="15" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">下游拿到的范围，不能比上游大</text>
+  </g>
+</svg>

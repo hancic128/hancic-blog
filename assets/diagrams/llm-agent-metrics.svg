@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" role="img" aria-label="衡量指标分两类：公开榜用来初筛，自建指标用来拍板；工具调用看 BFCL 和参数幻觉率，指令遵循看 IFEval 和结构化输出合法率，推理连贯看 GAIA 和纠偏成功率，多轮交互看 tau-bench 和端到端成功率，上下文看有效召回率，成本延迟看单任务总账">
+  <title>公开榜初筛，自建指标拍板</title>
+  <g stroke-linejoin="round">
+    <text x="70" y="30" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">维度</text>
+    <text x="300" y="30" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">公开榜初筛</text>
+    <text x="480" y="30" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">自建指标拍板</text>
+
+    <line x1="40" y1="40" x2="680" y2="40" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+
+    <text x="70" y="66" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">工具调用质量</text>
+    <text x="300" y="66" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">BFCL</text>
+    <text x="480" y="66" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">参数幻觉率</text>
+    <line x1="40" y1="78" x2="680" y2="78" stroke="currentColor" stroke-opacity="0.15" stroke-width="1"/>
+
+    <text x="70" y="104" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">指令遵循</text>
+    <text x="300" y="104" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">IFEval</text>
+    <text x="480" y="104" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">输出合法率</text>
+    <line x1="40" y1="116" x2="680" y2="116" stroke="currentColor" stroke-opacity="0.15" stroke-width="1"/>
+
+    <text x="70" y="142" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">推理连贯</text>
+    <text x="300" y="142" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">GAIA、SWE-bench</text>
+    <text x="480" y="142" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">纠偏成功率</text>
+    <line x1="40" y1="154" x2="680" y2="154" stroke="currentColor" stroke-opacity="0.15" stroke-width="1"/>
+
+    <text x="70" y="180" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">多轮工具交互</text>
+    <text x="300" y="180" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">τ-bench</text>
+    <text x="480" y="180" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">端到端成功率</text>
+    <line x1="40" y1="192" x2="680" y2="192" stroke="currentColor" stroke-opacity="0.15" stroke-width="1"/>
+
+    <text x="70" y="218" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">有效上下文</text>
+    <text x="300" y="218" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">RULER 类自测</text>
+    <text x="480" y="218" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">有效召回率</text>
+    <line x1="40" y1="230" x2="680" y2="230" stroke="currentColor" stroke-opacity="0.15" stroke-width="1"/>
+
+    <text x="70" y="256" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">成本与延迟</text>
+    <text x="300" y="256" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">厂商定价表</text>
+    <text x="480" y="256" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">单任务总账</text>
+    <line x1="40" y1="268" x2="680" y2="268" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+
+    <text x="360" y="296" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">自建的那一栏，才是能拍板的</text>
+
+    <rect x="40" y="308" width="640" height="26" rx="10" fill="none"/>
+  </g>
+</svg>

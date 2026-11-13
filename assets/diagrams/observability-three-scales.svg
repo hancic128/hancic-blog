@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 170" role="img" aria-label="指标、日志、追踪回答三个不同的问题">
+  <title>指标、日志、追踪回答三个不同的问题</title>
+  <g stroke-linejoin="round">
+  <rect x="12" y="24" width="216" height="124" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <rect x="94" y="58" width="12" height="20" rx="2" fill="currentColor" fill-opacity="0.3"/>
+  <rect x="114" y="48" width="12" height="30" rx="2" fill="currentColor" fill-opacity="0.3"/>
+  <rect x="134" y="36" width="12" height="42" rx="2" fill="currentColor" fill-opacity="0.3"/>
+  <text x="120" y="104" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">指标</text>
+  <text x="120" y="130" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">出问题了吗</text>
+  <rect x="252" y="24" width="216" height="124" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <line x1="306" y1="42" x2="414" y2="42" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <line x1="306" y1="56" x2="392" y2="56" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <line x1="306" y1="70" x2="404" y2="70" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <text x="360" y="104" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">日志</text>
+  <text x="360" y="130" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">这次发生了什么</text>
+  <rect x="492" y="24" width="216" height="124" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <line x1="546" y1="40" x2="640" y2="40" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <line x1="546" y1="50" x2="586" y2="50" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <line x1="546" y1="60" x2="654" y2="60" stroke="currentColor" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/>
+  <line x1="546" y1="70" x2="600" y2="70" stroke="currentColor" stroke-opacity="0.3" stroke-width="4" stroke-linecap="round"/>
+  <text x="600" y="104" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">追踪</text>
+  <text x="600" y="130" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">慢在哪一段</text>
+  </g>
+</svg>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" role="img" aria-label="bar.parquet 一张长表的 13 列来自五个接口：daily 提供键与价量六列，adj_factor 提供复权因子，stk_limit 提供涨跌停价，stock_basic 提供 ST 标记，suspend_d 提供停牌标记">
+  <title>bar.parquet：一张长表，五个接口</title>
+  <g stroke-linejoin="round">
+    <text x="260" y="20" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">bar.parquet</text>
+    <rect x="260" y="28" width="430" height="288" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <line x1="260" y1="76" x2="690" y2="76" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+    <line x1="260" y1="124" x2="690" y2="124" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+    <line x1="260" y1="172" x2="690" y2="172" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+    <line x1="260" y1="220" x2="690" y2="220" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+    <line x1="260" y1="268" x2="690" y2="268" stroke="currentColor" stroke-opacity="0.3" stroke-width="1"/>
+    <rect x="260" y="28" width="5" height="96" fill="#d97706" fill-opacity="0.9"/>
+    <rect x="260" y="124" width="5" height="48" fill="#d97706" fill-opacity="0.9"/>
+    <rect x="260" y="172" width="5" height="48" fill="#d97706" fill-opacity="0.9"/>
+    <rect x="260" y="220" width="5" height="48" fill="#d97706" fill-opacity="0.9"/>
+    <rect x="260" y="268" width="5" height="48" fill="#d97706" fill-opacity="0.9"/>
+    <text x="278" y="58" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">symbol · trade_date</text>
+    <text x="278" y="106" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">价量</text>
+    <text x="340" y="106" font-size="13" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">open high low close volume amount</text>
+    <text x="278" y="154" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">复权</text>
+    <text x="340" y="154" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">adj_factor</text>
+    <text x="278" y="202" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">涨跌停</text>
+    <text x="340" y="202" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">limit_up limit_down</text>
+    <text x="278" y="250" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">ST</text>
+    <text x="340" y="250" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">is_st</text>
+    <text x="278" y="298" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">停牌</text>
+    <text x="340" y="298" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">is_suspended</text>
+    <rect x="24" y="28" width="200" height="96" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="124" y="76" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">daily</text>
+    <rect x="24" y="124" width="200" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="124" y="154" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">adj_factor</text>
+    <rect x="24" y="172" width="200" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="124" y="202" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">stk_limit</text>
+    <rect x="24" y="220" width="200" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="124" y="250" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">stock_basic</text>
+    <rect x="24" y="268" width="200" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="124" y="298" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">suspend_d</text>
+    <line x1="224" y1="76" x2="258" y2="76" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="224" y1="148" x2="258" y2="148" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="224" y1="196" x2="258" y2="196" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="224" y1="244" x2="258" y2="244" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="224" y1="292" x2="258" y2="292" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+  </g>
+</svg>

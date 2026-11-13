@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-label="三道价值问题和最下面的死海陷阱：没人做不等于蓝海">
+  <title>三道价值问题和最下面的死海陷阱：没人做不等于蓝海</title>
+  <g stroke-linejoin="round">
+  <rect x="12" y="24" width="216" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="120" y="56" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">是真问题吗</text>
+  <text x="120" y="84" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">有人忍着、凑合</text>
+  <rect x="252" y="24" width="216" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="360" y="56" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">现有方案差吗</text>
+  <text x="360" y="84" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">太贵、太慢</text>
+  <rect x="492" y="24" width="216" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="600" y="56" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">人够多吗</text>
+  <text x="600" y="84" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">小众也够养</text>
+  <line x1="360" y1="108" x2="360" y2="126" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M360.0,138.0 L353.0,126.0 L367.0,126.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <rect x="180" y="148" width="360" height="54" rx="10" fill="#d97706" fill-opacity="0.06"/>
+  <rect x="180" y="148" width="360" height="54" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="360" y="182" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">没人做，不等于蓝海</text>
+  </g>
+</svg>

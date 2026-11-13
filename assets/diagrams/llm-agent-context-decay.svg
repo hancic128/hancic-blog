@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" role="img" aria-label="名义窗口和有效窗口不是一回事：标称 128K 的模型，有效召回率在 32K 之后明显下降，窗口还在，召回已经掉了；Agent 默认前面的工具结果都还在，但它其实已经丢了">
+  <title>标称 128K，有效只有 32K</title>
+  <g stroke-linejoin="round">
+    <text x="360" y="26" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">上下文越长，有效召回掉得越快</text>
+
+    <line x1="100" y1="240" x2="680" y2="240" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <line x1="100" y1="240" x2="100" y2="60" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+
+    <rect x="100" y="60" width="580" height="180" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="100" y="60" width="145" height="180" fill="currentColor" fill-opacity="0.06"/>
+
+    <path d="M100,74 L245,76 L390,84 L490,104 L590,140 L680,190" fill="none" stroke="#d97706" stroke-opacity="0.75" stroke-width="2.5" stroke-linecap="round"/>
+
+    <line x1="245" y1="60" x2="245" y2="240" stroke="#d97706" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <text x="245" y="50" font-size="13" fill="currentColor" fill-opacity="0.9" text-anchor="middle">有效窗口约 32K</text>
+    <text x="640" y="50" font-size="13" fill="currentColor" fill-opacity="0.9" text-anchor="middle">标称 128K</text>
+
+    <text x="172" y="220" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">还能准确召回</text>
+    <text x="460" y="220" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">窗口还在，召回已经掉了</text>
+
+    <text x="26" y="150" font-size="12" fill="currentColor" fill-opacity="0.6">有效召回</text>
+    <text x="390" y="264" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">上下文占用长度</text>
+
+    <rect x="40" y="286" width="640" height="42" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="313" font-size="14" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">Agent 默认前面的工具结果都还在——它没丢，你已经丢了</text>
+  </g>
+</svg>

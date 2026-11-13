@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-label="难度看核心模块能不能自己掌控，成本里最容易被低估的是未知成本，动手前先划边界">
+  <title>难度与成本交叉权衡，动手前先划边界</title>
+  <g stroke-linejoin="round">
+  <rect x="12" y="28" width="336" height="104" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="180" y="62" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">难度</text>
+  <text x="180" y="88" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">核心模块自己能写</text>
+  <text x="180" y="110" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">写不了就得学或找人</text>
+  <rect x="372" y="28" width="336" height="104" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="540" y="62" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">成本</text>
+  <text x="540" y="88" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">显性成本好算</text>
+  <text x="540" y="110" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">未知成本最容易被低估</text>
+  <rect x="12" y="156" width="696" height="40" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="360" y="182" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">动手前划边界：什么做，什么不做</text>
+  </g>
+</svg>

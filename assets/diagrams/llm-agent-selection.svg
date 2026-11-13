@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" role="img" aria-label="选型顺序：先定位瓶颈，按任务类型分成四类——长链纠偏看推理深度，复杂工具编排看工具调用质量，长上下文看有效召回率，海量任务看成本与延迟；最后选该维度上够用的最小模型">
+  <title>先定位瓶颈，再选够用的最小模型</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <rect x="250" y="20" width="220" height="42" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="47" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">先定位瓶颈</text>
+
+    <line x1="360" y1="68" x2="360" y2="94" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="110" y1="94" x2="610" y2="94" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="110" y1="94" x2="110" y2="118" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="277" y1="94" x2="277" y2="118" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="443" y1="94" x2="443" y2="118" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="610" y1="94" x2="610" y2="118" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="35" y="122" width="150" height="70" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="110" y="146" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">长链纠偏</text>
+    <text x="110" y="168" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">看推理深度</text>
+
+    <rect x="202" y="122" width="150" height="70" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="277" y="146" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">工具编排复杂</text>
+    <text x="277" y="168" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">看工具调用质量</text>
+
+    <rect x="368" y="122" width="150" height="70" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="443" y="146" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">上下文很长</text>
+    <text x="443" y="168" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">看有效召回率</text>
+
+    <rect x="535" y="122" width="150" height="70" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="610" y="146" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">任务量很大</text>
+    <text x="610" y="168" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">看成本与延迟</text>
+
+    <line x1="110" y1="198" x2="110" y2="222" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="277" y1="198" x2="277" y2="222" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="443" y1="198" x2="443" y2="222" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="610" y1="198" x2="610" y2="222" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="110" y1="222" x2="610" y2="222" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="360" y1="222" x2="360" y2="248" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="210" y="254" width="300" height="44" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="282" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">选够用的最小模型</text>
+
+    <text x="360" y="320" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">公开榜初筛，再用自己任务上的成功率、成本、延迟拍板</text>
+  </g>
+</svg>

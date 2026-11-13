@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" role="img" aria-label="多级缓存：第一级本地缓存答延迟，第二级 Redis 答多实例一致，第三级 NFS 兜底保正确">
+  <title>多级缓存：本地缓存 / Redis / NFS 兜底</title>
+  <g stroke-linejoin="round">
+  <rect x="60" y="24" width="600" height="52" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="194" y="46" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">本地缓存</text>
+  <text x="194" y="66" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">进程内 · 零 IO</text>
+  <text x="420" y="46" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">答延迟</text>
+  <text x="420" y="66" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">TTL 自愈</text>
+  <line x1="360" y1="76" x2="360" y2="104" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="372" y="96" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">未命中</text>
+  <rect x="60" y="104" width="600" height="52" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="194" y="126" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">Redis</text>
+  <text x="194" y="146" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">分布式缓存</text>
+  <text x="420" y="126" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">答多实例一致</text>
+  <text x="420" y="146" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">新版本全局可见</text>
+  <line x1="360" y1="156" x2="360" y2="184" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="372" y="176" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="start">未命中</text>
+  <rect x="60" y="184" width="600" height="52" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="194" y="206" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">NFS</text>
+  <text x="194" y="226" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">共享文件存储</text>
+  <text x="420" y="206" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">答兜底保正确</text>
+  <text x="420" y="226" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">最终事实源</text>
+  </g>
+</svg>

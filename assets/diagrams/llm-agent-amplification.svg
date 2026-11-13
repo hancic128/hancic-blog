@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" role="img" aria-label="单轮对话只判断一次，错一次当场看见；Agent 任务是循环，工具结果回灌上下文，同一个错每轮都带着；每轮 5% 出错，50 轮全部正确的概率只有 7.7%">
+  <title>单轮错一次，Agent 错五十次</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <text x="360" y="26" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">单轮对话：判断一次</text>
+
+    <rect x="70" y="46" width="150" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="145" y="75" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">用户问题</text>
+    <line x1="226" y1="69" x2="272" y2="69" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="278" y="46" width="150" height="46" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="353" y="75" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">LLM</text>
+    <line x1="434" y1="69" x2="480" y2="69" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="486" y="46" width="150" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="561" y="75" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">回答</text>
+
+    <text x="360" y="116" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">错一次，当场就看见</text>
+
+    <line x1="40" y1="140" x2="680" y2="140" stroke="currentColor" stroke-opacity="0.25" stroke-width="1"/>
+
+    <text x="360" y="166" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">Agent 任务：一轮接一轮</text>
+
+    <rect x="70" y="186" width="140" height="46" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="140" y="215" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">LLM</text>
+    <line x1="216" y1="209" x2="256" y2="209" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="262" y="186" width="140" height="46" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="332" y="215" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">调工具</text>
+    <line x1="408" y1="209" x2="448" y2="209" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="454" y="186" width="160" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="534" y="215" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">工具结果</text>
+
+    <line x1="534" y1="232" x2="534" y2="258" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="140" y1="258" x2="534" y2="258" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="140" y1="258" x2="140" y2="234" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="545" y="250" font-size="12" fill="currentColor" fill-opacity="0.55">同一个错，每轮都带着</text>
+
+    <rect x="40" y="284" width="640" height="44" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="312" font-size="15" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">每轮 5% 出错，50 轮全对的概率只有 7.7%</text>
+  </g>
+</svg>

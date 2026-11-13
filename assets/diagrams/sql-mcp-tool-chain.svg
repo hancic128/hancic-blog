@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" role="img" aria-label="ad hoc 提数走三个固定 MCP 元工具：list_services 先发现有哪些指标，get_service_info 再理解要什么参数，execute_query 最后取数；鉴权拦在 call 时，能发现不代表能调用">
+  <title>ad hoc 提数的三步发现</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <rect x="30" y="40" width="210" height="76" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="135" y="72" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">list_services</text>
+    <text x="135" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">有哪些指标</text>
+
+    <line x1="240" y1="78" x2="255" y2="78" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="255" y="40" width="210" height="76" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="72" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">get_service_info</text>
+    <text x="360" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">要什么参数</text>
+
+    <line x1="465" y1="78" x2="480" y2="78" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="480" y="40" width="210" height="76" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="585" y="72" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">execute_query</text>
+    <text x="585" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">取数</text>
+
+    <text x="360" y="142" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">先发现 → 理解 → 执行</text>
+
+    <rect x="30" y="170" width="660" height="56" rx="10" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="30" y="170" width="660" height="56" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="204" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">能发现不代表能调用：鉴权拦在 call 时</text>
+  </g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 186" role="img" aria-label="法律风险、道德底线、合规资质、技术不可控四类红线都是否定项，任意一条命中就直接淘汰">
+  <title>四类红线都是否定项，任意一条命中就直接淘汰</title>
+  <g stroke-linejoin="round">
+  <rect x="30" y="34" width="138" height="54" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="99" y="66" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">法律风险</text>
+  <rect x="204" y="34" width="138" height="54" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="273" y="66" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">道德底线</text>
+  <rect x="378" y="34" width="138" height="54" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="447" y="66" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">合规资质</text>
+  <rect x="552" y="34" width="138" height="54" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="621" y="66" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">技术不可控</text>
+  <line x1="99" y1="94" x2="99" y2="118" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="273" y1="94" x2="273" y2="118" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="447" y1="94" x2="447" y2="118" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="621" y1="94" x2="621" y2="118" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="99" y1="118" x2="621" y2="118" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <line x1="360" y1="118" x2="360" y2="140" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M360.0,150.0 L353.0,138.0 L367.0,138.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <text x="360" y="172" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">直接淘汰，不再往下评</text>
+  </g>
+</svg>
