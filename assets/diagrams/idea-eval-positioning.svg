@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 170" role="img" aria-label="三类定位各自决定后面维度的权重偏向">
+  <title>三类定位各自决定后面维度的权重偏向</title>
+  <g stroke-linejoin="round">
+  <rect x="12" y="26" width="216" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="120" y="60" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">提升技术影响力</text>
+  <rect x="252" y="26" width="216" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="360" y="60" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">可商业化变现</text>
+  <rect x="492" y="26" width="216" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="600" y="60" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">有人用就开心</text>
+  <line x1="120" y1="82" x2="120" y2="106" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M120.0,118.0 L113.0,106.0 L127.0,106.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="360" y1="82" x2="360" y2="106" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M360.0,118.0 L353.0,106.0 L367.0,106.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="600" y1="82" x2="600" y2="106" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M600.0,118.0 L593.0,106.0 L607.0,106.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <text x="120" y="144" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">难度、创新</text>
+  <text x="360" y="144" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">商业价值</text>
+  <text x="600" y="144" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">有人用</text>
+  </g>
+</svg>

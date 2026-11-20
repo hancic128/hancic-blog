@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" role="img" aria-label="三层组合：低位主动压缩把余量做大，子代理隔离把单轮增量截断，压缩时带指令把信息损失压小">
+  <title>三层组合，各管一件事</title>
+  <g stroke-linejoin="round">
+    <text x="360" y="26" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">三层各管一件事，叠起来把不确定性吸收掉</text>
+
+    <rect x="40" y="52" width="640" height="70" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="80" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">第一层　低位主动压缩</text>
+    <text x="64" y="102" font-size="13" fill="currentColor" fill-opacity="0.6">窗口 40% 到 50% 时手动压，输入只有窗口一半，余量充足</text>
+    <text x="620" y="80" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">把余量做大</text>
+
+    <rect x="40" y="130" width="640" height="70" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="158" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">第二层　子代理隔离</text>
+    <text x="64" y="180" font-size="13" fill="currentColor" fill-opacity="0.6">大文件、大工具输出、全仓搜索交给子代理，主对话只拿结论</text>
+    <text x="620" y="158" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">把增量截断</text>
+
+    <rect x="40" y="208" width="640" height="70" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="236" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">第三层　带指令压缩</text>
+    <text x="64" y="258" font-size="13" fill="currentColor" fill-opacity="0.6">保留架构决策和 SQL，丢弃工具输出原文</text>
+    <text x="620" y="236" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">把损失压小</text>
+
+    <rect x="40" y="290" width="640" height="40" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="315" font-size="14" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">余量够大，测不准也吞得下</text>
+  </g>
+</svg>

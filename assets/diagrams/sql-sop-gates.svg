@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 240" role="img" aria-label="管理方开发一个查询要过三道闸：静态检查报 WARN 和 ERROR，真实执行验证绑定与返回结构，对齐口径要人复述人确认">
+  <title>管理方 SOP 的三道闸</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <text x="30" y="26" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="start">管理方开发一个查询的 SOP</text>
+
+    <rect x="30" y="44" width="190" height="92" rx="10" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="30" y="44" width="190" height="92" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="125" y="76" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">第一道闸</text>
+    <text x="125" y="106" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">静态检查</text>
+    <text x="125" y="128" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">WARN / ERROR</text>
+
+    <line x1="220" y1="90" x2="265" y2="90" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="265" y="44" width="190" height="92" rx="10" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="265" y="44" width="190" height="92" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="76" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">第二道闸</text>
+    <text x="360" y="106" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">真实执行</text>
+    <text x="360" y="128" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">绑定与返回结构</text>
+
+    <line x1="455" y1="90" x2="500" y2="90" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="500" y="44" width="190" height="92" rx="10" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="500" y="44" width="190" height="92" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="595" y="76" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">第三道闸</text>
+    <text x="595" y="106" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle">对齐口径</text>
+    <text x="595" y="128" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">人复述 · 人确认</text>
+
+    <rect x="30" y="170" width="660" height="50" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="201" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">质量门槛嵌在工具调用顺序里，不靠人自觉</text>
+  </g>
+</svg>

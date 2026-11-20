@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" role="img" aria-label="分层路由：任务先进路由器，路由器判断这一步该谁做；决策层交给强模型，调用次数少；执行层交给小模型，调用次数多">
+  <title>决策层给强模型，执行层给小模型</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <rect x="40" y="44" width="110" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="95" y="73" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">任务</text>
+    <line x1="156" y1="67" x2="192" y2="67" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="198" y="44" width="324" height="46" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="66" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">路由器</text>
+    <text x="360" y="84" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">判断这一步该谁做</text>
+
+    <line x1="360" y1="96" x2="360" y2="126" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="200" y1="126" x2="520" y2="126" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5"/>
+    <line x1="200" y1="126" x2="200" y2="156" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="520" y1="126" x2="520" y2="156" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="50" y="162" width="300" height="46" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="200" y="184" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">决策层 · 强模型</text>
+    <text x="200" y="202" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">任务拆解、中途纠偏</text>
+
+    <rect x="370" y="162" width="300" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="520" y="184" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">执行层 · 小模型</text>
+    <text x="520" y="202" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">参数填充、结果提取</text>
+
+    <text x="200" y="240" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">调用次数少</text>
+    <text x="520" y="240" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">调用次数多</text>
+
+    <rect x="40" y="264" width="640" height="44" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="292" font-size="14" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">成本和延迟由调用次数决定，不由单次价格决定</text>
+  </g>
+</svg>

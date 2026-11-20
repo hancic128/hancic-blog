@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" role="img" aria-label="两种发放模型对比：以前权限发给人、角色和权限形成长期有效的凭证；现在权限跟着一次委派走，意图、能力、调用、资源每段新发一枚短命令牌">
+  <title>以前发给主体，现在跟着一次委派</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <text x="360" y="30" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">以前：权限发给一个主体</text>
+
+    <rect x="90" y="48" width="140" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="160" y="78" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">人</text>
+    <line x1="236" y1="72" x2="284" y2="72" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="290" y="48" width="140" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="360" y="78" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">角色</text>
+    <line x1="436" y1="72" x2="484" y2="72" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="490" y="48" width="140" height="48" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="560" y="78" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">权限</text>
+
+    <text x="360" y="122" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">一份长期有效的凭证</text>
+
+    <text x="360" y="166" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">现在：权限跟着一次委派走</text>
+
+    <rect x="50" y="186" width="125" height="48" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="112" y="216" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">意图</text>
+    <line x1="179" y1="210" x2="209" y2="210" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="215" y="186" width="125" height="48" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="277" y="216" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">能力</text>
+    <line x1="344" y1="210" x2="374" y2="210" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="380" y="186" width="125" height="48" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="442" y="216" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">调用</text>
+    <line x1="509" y1="210" x2="539" y2="210" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="545" y="186" width="125" height="48" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="607" y="216" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle">资源</text>
+
+    <text x="360" y="258" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">每次委派新发一枚，用完即弃</text>
+  </g>
+</svg>

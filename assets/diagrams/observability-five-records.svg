@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-label="一次请求穿过五个服务，各自的日志时间对不齐，请求 ID 也不一样">
+  <title>一次请求穿过五个服务，各自的日志时间对不齐，请求 ID 也不一样</title>
+  <g stroke-linejoin="round">
+  <rect x="18" y="34" width="108" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="72" y="68" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">网关</text>
+  <rect x="162" y="34" width="108" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="216" y="68" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">订单</text>
+  <rect x="306" y="34" width="108" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="360" y="68" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">库存</text>
+  <rect x="450" y="34" width="108" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="504" y="68" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">支付</text>
+  <rect x="594" y="34" width="108" height="56" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="648" y="68" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">通知</text>
+  <line x1="128" y1="62" x2="147" y2="62" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M158.0,62.0 L149.0,65.2 L149.0,58.8 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="272" y1="62" x2="291" y2="62" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M302.0,62.0 L293.0,65.2 L293.0,58.8 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="416" y1="62" x2="435" y2="62" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M446.0,62.0 L437.0,65.2 L437.0,58.8 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="560" y1="62" x2="579" y2="62" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M590.0,62.0 L581.0,65.2 L581.0,58.8 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="72" y1="90" x2="72" y2="108" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="216" y1="90" x2="216" y2="114" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="360" y1="90" x2="360" y2="106" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="504" y1="90" x2="504" y2="112" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="648" y1="90" x2="648" y2="109" stroke="currentColor" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="42" y1="116" x2="102" y2="116" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="186" y1="122" x2="246" y2="122" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="330" y1="114" x2="390" y2="114" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="474" y1="120" x2="534" y2="120" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="618" y1="117" x2="678" y2="117" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="72" y="140" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">a91f</text>
+  <text x="216" y="146" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">7c02</text>
+  <text x="360" y="138" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">e13b</text>
+  <text x="504" y="144" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">04dd</text>
+  <text x="648" y="141" font-size="11" fill="currentColor" fill-opacity="0.55" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">9a77</text>
+  <text x="360" y="186" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">时间对不齐，ID 也不一样</text>
+  </g>
+</svg>

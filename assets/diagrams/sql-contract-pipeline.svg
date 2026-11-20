@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" role="img" aria-label="SQL 文件先解析出参数 schema 和必填推断，再渲染条件块与参数绑定，最后按白名单执行限流与审计；header 一次声明，运行时校验、AI 发现、调用文档三处共用">
+  <title>SQL 文件是唯一事实来源：解析、渲染、执行三段共用一份 header</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor" fill-opacity="0.5"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <rect x="30" y="36" width="150" height="104" rx="10" fill="#d97706" fill-opacity="0.06"/>
+    <rect x="30" y="36" width="150" height="104" rx="10" fill="none" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="105" y="66" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">SQL 文件</text>
+    <text x="105" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">header + 模板</text>
+    <text x="105" y="124" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">唯一事实来源</text>
+
+    <line x1="180" y1="88" x2="200" y2="88" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="200" y="36" width="150" height="104" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="275" y="66" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">解析</text>
+    <text x="275" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">参数 schema</text>
+    <text x="275" y="124" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">必填推断</text>
+
+    <line x1="350" y1="88" x2="370" y2="88" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="370" y="36" width="150" height="104" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="445" y="66" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">渲染</text>
+    <text x="445" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">条件块</text>
+    <text x="445" y="124" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">参数绑定</text>
+
+    <line x1="520" y1="88" x2="540" y2="88" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="540" y="36" width="150" height="104" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="615" y="66" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">执行</text>
+    <text x="615" y="98" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">白名单</text>
+    <text x="615" y="124" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">限流 · 审计</text>
+
+    <line x1="105" y1="140" x2="105" y2="192" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-muted)"/>
+
+    <rect x="30" y="192" width="660" height="48" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="222" font-size="14" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">header 一处声明：运行时校验 · AI 发现 · 调用文档</text>
+  </g>
+</svg>

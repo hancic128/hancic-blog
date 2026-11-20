@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-label="左边精确的模糊是维度越多噪声越多的散点，右边模糊的精确是方向大致对但说不清时间点与幅度的虚线箭头">
+  <title>数据越多，越清醒？</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+  <g stroke-linejoin="round">
+    <text x="36" y="48" font-size="23" fill="currentColor" fill-opacity="0.9" text-anchor="start" font-weight="600">数据越多，越清醒？</text>
+    <text x="36" y="78" font-size="14" fill="currentColor" fill-opacity="0.55" text-anchor="start">精确的模糊 vs 模糊的精确</text>
+
+    <rect x="36" y="108" width="312" height="150" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="192" y="136" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">精确的模糊</text>
+    <text x="192" y="160" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">维度越多，噪声越多</text>
+    <circle cx="72" cy="186" r="3.2" fill="currentColor" fill-opacity="0.32"/>
+    <circle cx="104" cy="192" r="2.6" fill="currentColor" fill-opacity="0.45"/>
+    <circle cx="131" cy="180" r="4" fill="currentColor" fill-opacity="0.22"/>
+    <circle cx="162" cy="196" r="3" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="188" cy="184" r="2.4" fill="currentColor" fill-opacity="0.28"/>
+    <circle cx="214" cy="198" r="3.6" fill="currentColor" fill-opacity="0.38"/>
+    <circle cx="243" cy="182" r="2.8" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="272" cy="196" r="4" fill="currentColor" fill-opacity="0.25"/>
+    <circle cx="302" cy="186" r="3" fill="currentColor" fill-opacity="0.45"/>
+    <circle cx="318" cy="206" r="2.6" fill="currentColor" fill-opacity="0.3"/>
+    <circle cx="86" cy="212" r="3.8" fill="currentColor" fill-opacity="0.4"/>
+    <circle cx="118" cy="222" r="2.8" fill="currentColor" fill-opacity="0.25"/>
+    <circle cx="146" cy="208" r="3.4" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="176" cy="224" r="2.6" fill="currentColor" fill-opacity="0.35"/>
+    <circle cx="203" cy="210" r="4.2" fill="currentColor" fill-opacity="0.22"/>
+    <circle cx="231" cy="226" r="3" fill="currentColor" fill-opacity="0.45"/>
+    <circle cx="258" cy="212" r="2.6" fill="currentColor" fill-opacity="0.3"/>
+    <circle cx="288" cy="226" r="3.6" fill="currentColor" fill-opacity="0.4"/>
+    <circle cx="315" cy="220" r="2.8" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="70" cy="240" r="2.6" fill="currentColor" fill-opacity="0.45"/>
+    <circle cx="100" cy="236" r="3.4" fill="currentColor" fill-opacity="0.28"/>
+    <circle cx="132" cy="242" r="2.4" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="160" cy="238" r="3" fill="currentColor" fill-opacity="0.35"/>
+    <circle cx="192" cy="244" r="2.8" fill="currentColor" fill-opacity="0.22"/>
+    <circle cx="220" cy="236" r="3.8" fill="currentColor" fill-opacity="0.4"/>
+    <circle cx="250" cy="242" r="2.6" fill="currentColor" fill-opacity="0.5"/>
+    <circle cx="280" cy="238" r="3.2" fill="currentColor" fill-opacity="0.3"/>
+    <circle cx="310" cy="242" r="2.4" fill="currentColor" fill-opacity="0.45"/>
+
+    <rect x="372" y="108" width="312" height="150" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="528" y="136" font-size="16" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">模糊的精确</text>
+    <text x="528" y="160" font-size="13" fill="currentColor" fill-opacity="0.55" text-anchor="middle">方向对，就够用</text>
+    <line x1="410" y1="234" x2="648" y2="190" stroke="#d97706" stroke-opacity="0.85" stroke-width="3" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+
+    <rect x="36" y="292" width="648" height="72" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="320" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">数据是市场的简化投影：加维度 = 加噪声</text>
+    <text x="360" y="346" font-size="14" fill="currentColor" fill-opacity="0.55" text-anchor="middle">知道自己缺什么，比堆数据更重要</text>
+  </g>
+</svg>
