@@ -33,3 +33,7 @@
 # Python
 __pycache__/
 *.pyc
+
+# 配图烘焙依赖与字体：首次烘焙自动下载，不入库（见「中文博客插图规范」）
+/scripts/raster/node_modules/
+/scripts/raster/fonts/
