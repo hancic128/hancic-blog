@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-label="追加发消息的三种处理：中断重发立即响应但重算，队列暂存省 token 但慢半拍，中途引导既省又即时但受限于 GPT-6 模型族和 WebSocket">
+  <title>三种处理方式，省的东西不一样</title>
+  <g stroke-linejoin="round">
+    <text x="360" y="28" font-size="14" fill="currentColor" fill-opacity="0.6" text-anchor="middle">追加一条消息，三种处理，各有各的代价</text>
+
+    <rect x="40" y="52" width="640" height="76" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="80" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">中断重发</text>
+    <text x="64" y="102" font-size="13" fill="currentColor" fill-opacity="0.6">abort 当前流，新消息进历史，重新请求</text>
+    <text x="640" y="80" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">立即响应</text>
+    <text x="640" y="102" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">代价：重算</text>
+
+    <rect x="40" y="140" width="640" height="76" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="168" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">队列暂存</text>
+    <text x="64" y="190" font-size="13" fill="currentColor" fill-opacity="0.6">当前轮跑完再处理下一条，不打断</text>
+    <text x="640" y="168" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">省 token</text>
+    <text x="640" y="190" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">代价：慢半拍</text>
+
+    <rect x="40" y="228" width="640" height="76" rx="10" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+    <text x="64" y="256" font-size="16" font-weight="600" fill="currentColor" fill-opacity="0.9">中途引导</text>
+    <text x="64" y="278" font-size="13" fill="currentColor" fill-opacity="0.6">当前输出收尾，后继响应把新指令带进去</text>
+    <text x="640" y="256" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">既省又即时</text>
+    <text x="640" y="278" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">代价：条件多</text>
+
+    <rect x="40" y="316" width="640" height="40" rx="10" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="360" y="341" font-size="14" font-weight="600" fill="currentColor" fill-opacity="0.9" text-anchor="middle">没有行业统一答案，取决于模型和传输方式</text>
+  </g>
+</svg>
